@@ -1,0 +1,6 @@
+.ag-theme-alpine .ag-cell-value {
+  line-height: 30px !important;
+  word-break: normal;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
