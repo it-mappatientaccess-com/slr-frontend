@@ -45,13 +45,6 @@ const DataExtractionSlice = createSlice({
     setProgress(state, actions) {
       state.progress = actions.payload.progress
     },
-    // resetProjectStore(state, action) {
-    //   if (action.payload.resetStore) {
-    //     return initialState;
-    //   } else {
-    //     return state;
-    //   }
-    // },
   },
 });
 export const dataExtractionState = (state) => state.DataExtraction;
