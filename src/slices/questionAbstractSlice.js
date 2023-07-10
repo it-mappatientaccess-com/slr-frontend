@@ -7,6 +7,7 @@ const initialState = {
     intervention: [""],
     outcomes: [""],
   },
+  seaQuestions: {},
   abstract: "",
   abstractNER: [],
   singleAbstractResult: "",
@@ -22,7 +23,7 @@ const initialState = {
   isRefreshing: false,
   isStopping: false,
   taskId: 0,
-  progress: 0,
+  progress: 0
 };
 const QuestionAbstractSlice = createSlice({
   name: "QuestionAbstractData",
@@ -30,6 +31,10 @@ const QuestionAbstractSlice = createSlice({
   reducers: {
     setQuestions(state, action) {
       state.questions = action.payload.questions;
+    },
+    setSEAQuestionsDict(state, action) {
+      console.log(action.payload.seaQuestions);
+      state.seaQuestions = action.payload.seaQuestions;
     },
     setAbstractText(state, action) {
       state.abstract = action.payload.abstract;

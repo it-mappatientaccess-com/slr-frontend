@@ -31,7 +31,9 @@ const MultiFileUpload = () => {
   const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
   const message = useSelector((state) => state.dataExtraction.message);
   const status = useSelector((state) => state.dataExtraction.status);
-
+  const seaQuestions = useSelector(
+    (state) => state.questionAbstractData.seaQuestions
+  );
   registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize,
@@ -41,7 +43,7 @@ const MultiFileUpload = () => {
   const onProcessFile = async () => {
     setIsLoading(true);
     try {
-      await dispatch(generateExtractionResults(files));
+      await dispatch(generateExtractionResults(files, seaQuestions));
     } catch (error) {
       console.error(error);
     } finally {

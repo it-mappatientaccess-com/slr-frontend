@@ -8,7 +8,7 @@ import { setProjectsData } from "store/project-actions";
 import { useDispatch, useSelector } from "react-redux";
 import { deleteProjectData, setSelectedProject } from "store/project-actions";
 import { useNavigate } from "react-router";
-import { fetchOldQuestions } from "../../store/qa-actions";
+import { fetchOldQuestions, fetchOldSeaQuestions } from "../../store/qa-actions";
 
 let rowImmutableStore;
 
@@ -64,6 +64,7 @@ const btnCellRenderer = (params) => {
   const onClickHandler = async () => {
     params.dispatchProp(setSelectedProject(params.data.projectName));
     await params.dispatchProp(fetchOldQuestions(params.data.projectName));
+    await params.dispatchProp(fetchOldSeaQuestions(params.data.projectName));
     params.navigateProp("/dashboard/aair");
   };
   return (

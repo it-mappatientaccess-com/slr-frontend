@@ -6,7 +6,6 @@ import "./ExtractionResult.css";
 
 const CustomCellRenderer = (props) => {
   const value = props.value || ""; 
-  // default to an empty string if props.value is undefined
   const content = value.split("\n").map((item, index) => {
     return (
       <div
@@ -40,13 +39,11 @@ const ExtractionResult = (props) => {
       });
 
       const modifiedData = [flattenedResult]; // put the flattenedResult in an array
-      const columnsOrder = [
-        "aboutFile",
-        "studyDesign",
-        "population",
-        "intervention",
-        "outcomes",
-      ]; // add here the order you want
+      const columnsOrder = Object.keys(flattenedResult).sort((a, b) => {
+        if (a === 'aboutFile') return -1;
+        if (b === 'aboutFile') return 1;
+        return 0;
+      }); // sort keys to ensure 'aboutFile' is first
       const columns = columnsOrder.map((key) => {
         return {
           field: key,
@@ -70,24 +67,19 @@ const ExtractionResult = (props) => {
       columnKeys: columnDefs.map((colDef) => colDef.field),
       fileName: props.fileName + "_export.csv",
       processCellCallback: (params) => {
-        // Check if the cell's value is a string and contains 'Answer:'
         if (
           typeof params.value === "string" &&
           params.value.includes("Answer:")
         ) {
-          // Split the string into sections by "Answer:"
           const sections = params.value.split("Answer:");
-          // For each section, split at "Direct quote", trim, and remove empty strings
           const answers = sections
             .slice(1)
             .map((section) => {
               return section.split("Direct Quote", 1)[0].trim();
             })
             .filter(Boolean);
-          // Join the answers together with "; " and return the result
-          return answers.join("\n");
+          return answers.join("\n\n");
         }
-        // If the value isn't a string or doesn't contain 'Answer:', leave it as is
         return params.value;
       },
     };

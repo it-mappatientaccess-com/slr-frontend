@@ -52,6 +52,61 @@ export const setQuestions = (projectName, questions) => {
   };
 };
 
+export const setSeaQuestions = (projectName, questions) => {
+  return async (dispatch, getState) => {
+    dispatch(
+      questionAbstractActions.setProgress({
+        progress: 60,
+      })
+    );
+    const sendData = async (projectName, seaQuestionsDict) => {
+      return await api
+        .post(
+          "seaQuestions",
+          { projectName, seaQuestions: seaQuestionsDict },
+          {
+            headers: {
+              Authorization: localStorage.getItem("token"),
+            },
+          }
+        )
+        .then((response) => {
+          return response;
+        });
+    };
+    try {
+      // Dispatch the action to update the seaQuestions state in the Redux store
+      dispatch(
+        questionAbstractActions.setSEAQuestionsDict({
+          seaQuestions: questions,
+        })
+      );
+      console.log(getState().questionAbstractData.seaQuestions);
+      // Wait for the seaQuestions state to be updated
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      // Get the updated seaQuestions state
+      const updatedSeaQuestions = getState().questionAbstractData.seaQuestions;
+      // Send the updated seaQuestions state to the backend
+      await sendData(projectName, updatedSeaQuestions);
+      
+      dispatch(
+        questionAbstractActions.setProgress({
+          progress: 100,
+        })
+      );
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        questionAbstractActions.setProgress({
+          progress: 100,
+        })
+      );
+    }
+  };
+};
+
+
 export const fetchOldQuestions = (projectName) => {
   return async (dispatch) => {
     dispatch(
@@ -116,6 +171,72 @@ export const fetchOldQuestions = (projectName) => {
           population: [""],
           intervention: [""],
           outcomes: [""],
+        })
+      );
+      dispatch(
+        questionAbstractActions.setProgress({
+          progress: 100,
+        })
+      );
+      console.log(error);
+    }
+  };
+};
+
+export const fetchOldSeaQuestions = (projectName) => {
+  return async (dispatch) => {
+    dispatch(
+      questionAbstractActions.setProgress({
+        progress: 70,
+      })
+    );
+    const sendData = async (projectName) => {
+      return await api
+        .get(`seaQuestions?projectName=${projectName}`, {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        })
+        .then((response) => {
+          return response;
+        });
+    };
+    try {
+      const response = await sendData(projectName);
+      let isEmptyFlag = false;
+      for (let category of Object.keys(response.data.seaQuestions)) {
+        if (response.data.seaQuestions[category].length === 0) {
+          isEmptyFlag = true;
+        }
+      }
+      if (response.data.length === 0 || isEmptyFlag === true) {
+        const questions = {
+          column1: [""],
+        };
+        dispatch(
+          questionAbstractActions.setSEAQuestionsDict({
+            seaQuestions: questions,
+          })
+        );
+      } else {
+        dispatch(
+          questionAbstractActions.setSEAQuestionsDict({
+            seaQuestions: response.data.seaQuestions,
+          })
+        );
+      }
+      dispatch(
+        questionAbstractActions.setProgress({
+          progress: 100,
+        })
+      );
+    } catch (error) {
+      const questions = {
+        column1: [""],
+      };
+      dispatch(
+        questionAbstractActions.setSEAQuestionsDict({
+          seaQuestions: questions,
         })
       );
       dispatch(

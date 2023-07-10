@@ -19,6 +19,9 @@ const SingleFileUpload = () => {
   const selectedFileResult = useSelector(
     (state) => state.dataExtraction.singleExtractionResult
   );
+  const seaQuestions = useSelector(
+    (state) => state.questionAbstractData.seaQuestions
+  );
   registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize,
@@ -28,7 +31,7 @@ const SingleFileUpload = () => {
   const onProcessFile = async () => {
     setIsLoading(true);
     try {
-      await dispatch(generateSingleFileResults(file));
+      await dispatch(generateSingleFileResults(file, seaQuestions));
     } catch (error) {
       console.error(error);
     } finally {

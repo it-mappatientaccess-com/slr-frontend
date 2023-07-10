@@ -10,7 +10,7 @@ import Auth from "layouts/Auth.js";
 
 // views without layouts
 
-import Landing from "views/Landing.js";
+// import Landing from "views/Landing.js";
 import Profile from "views/Profile.js";
 // import Home from "views/Home.js";
 // import Login from "views/auth/Login";
@@ -29,9 +29,9 @@ const App = () => {
         <Route path="/auth/*" element={<Auth />} />
         {/* add routes without layouts */}
         <Route path="/profile" exact element={<Profile />} />
-        <Route path="/" exact element={<Landing />} />
+        {/* <Route path="/" exact element={<Landing />} /> */}
         {/* <Route path="/" exact element={<Home />} /> */}
-        {/* <Route path="/" exact element={<Navigate to="/auth/login"/>} />  */}
+        <Route path="/" exact element={<Navigate to="/auth/login"/>} /> 
         {/* add redirect for first page */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

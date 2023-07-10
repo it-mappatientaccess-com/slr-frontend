@@ -1,12 +1,11 @@
 import React from "react";
 
-import HeaderStats from "components/Headers/HeaderStats.js";
-
 import MultiFileUpload from "components/FileUpload/MultiFileUpload";
 import SingleFileUpload from "components/FileUpload/SingleFileUpload";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
 import { setProgress } from "store/data-extraction-actions";
+import HeaderSea from "components/Headers/HeaderSEA";
 
 const SEA = () => {
   const [openTab, setOpenTab] = React.useState(1);
@@ -22,7 +21,7 @@ const SEA = () => {
         height={3}
         loaderSpeed={3000}
       />
-      <HeaderStats />
+      <HeaderSea />
       <div className="flex flex-wrap">
         <div className="w-full mb-6">
           <div className="relative flex flex-col min-w-0 break-words rounded mb-6">

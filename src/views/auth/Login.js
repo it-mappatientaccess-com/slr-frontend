@@ -29,6 +29,9 @@ export default function Login() {
       initialValues,
       validationSchema: signInSchema,
       onSubmit: async (values, action) => {
+        setLoginStatus({
+          submitted: true,
+        });
         await api
           .post(
             "login",
@@ -167,7 +170,7 @@ export default function Login() {
                     </span>
                   </label>
                 </div> */}
-                {loginStatus.submitted && (
+                {loginStatus.submitted && loginStatus.status && (
                   <Alert
                     alertClass={loginStatus.color}
                     alertTitle={loginStatus.status}
@@ -180,6 +183,7 @@ export default function Login() {
                       loginStatus.submitted ? "opacity-50" : ""
                     }`}
                     type="submit"
+                    disabled={loginStatus.submitted}
                   >
                     {loginStatus.submitted ? "Signing in..." : "Sign In"}
                   </button>

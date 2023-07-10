@@ -3,10 +3,10 @@ import api from "util/api";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
 
-export const generateSingleFileResults = (file) => {
+export const generateSingleFileResults = (file, questions) => {
   const formData = new FormData();
   formData.append("file", file[0].file, file[0].filename);
-  formData.append("questions_dict", localStorage.getItem("questions"));
+  formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
   return async (dispatch) => {
     dispatch(
@@ -56,12 +56,12 @@ export const generateSingleFileResults = (file) => {
   };
 };
 
-export const generateExtractionResults = (files) => {
+export const generateExtractionResults = (files, questions) => {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("files", files[i].file, files[i].filename);
   }
-  formData.append("questions_dict", localStorage.getItem("questions"));
+  formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
   return async (dispatch) => {
     dispatch(
