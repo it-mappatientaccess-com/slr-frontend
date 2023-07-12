@@ -1,14 +1,11 @@
 import React from "react";
-import { useSelector } from "react-redux";
 import { useLocation } from "react-router";
 // import UserDropdown from "components/Dropdowns/UserDropdown.js";
 
 export default function Navbar() {
   const location = useLocation();
 
-  const selectedProject = useSelector(
-    (state) => state.project.selectedProject
-  );
+  const selectedProject = localStorage.getItem("selectedProject");
 
 
   return (

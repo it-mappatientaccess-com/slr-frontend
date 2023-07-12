@@ -33,7 +33,6 @@ const QuestionAbstractSlice = createSlice({
       state.questions = action.payload.questions;
     },
     setSEAQuestionsDict(state, action) {
-      console.log(action.payload.seaQuestions);
       state.seaQuestions = action.payload.seaQuestions;
     },
     setAbstractText(state, action) {

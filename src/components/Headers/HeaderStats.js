@@ -8,7 +8,7 @@ export default function HeaderStats() {
   );
   return (
     <>
-      <div className="relative bg-lightBlue-600 md:pt-16 pb-16 pt-12">
+      <div className="relative bg-lightBlue-600 pb-16">
         <div className="px-4 mx-auto w-full">
           <div>
             <div className="flex flex-wrap">

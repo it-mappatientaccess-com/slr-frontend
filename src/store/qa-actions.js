@@ -81,7 +81,6 @@ export const setSeaQuestions = (projectName, questions) => {
           seaQuestions: questions,
         })
       );
-      console.log(getState().questionAbstractData.seaQuestions);
       // Wait for the seaQuestions state to be updated
       await new Promise(resolve => setTimeout(resolve, 0));
       

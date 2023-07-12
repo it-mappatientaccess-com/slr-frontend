@@ -69,10 +69,11 @@ const DynamicInput = (props) => {
   };
 
   const saveQuestionsHandler = (event) => {
-    existingQuestions[category][currentIndex] = event.target.value;
-    dispatch(setQuestions(projectName, existingQuestions));
+    const newQuestions = {...existingQuestions};
+    newQuestions[category][currentIndex] = event.target.value;
+    dispatch(setQuestions(projectName, newQuestions));
   };
-
+  
   return (
     <div className="pt-0 mt-2 flex-col max-h-60 overflow-y-auto">
       <span>Question(s)</span>
