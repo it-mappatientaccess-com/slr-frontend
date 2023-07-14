@@ -1,7 +1,9 @@
 import { dataExtractionActions } from "../slices/dataExtractionSlice";
 import api from "util/api";
-import Papa from "papaparse";
-import { saveAs } from "file-saver";
+// import Papa from "papaparse";
+// import { saveAs } from "file-saver";
+import * as XLSX from 'xlsx';
+
 
 export const generateSingleFileResults = (file, questions) => {
   const formData = new FormData();
@@ -243,16 +245,22 @@ export const deletePdfData = (file_id) => {
   };
 };
 
-function downloadCSV(data, exportFileName) {
+function downloadXLSX(data, exportFileName) {
+  const workbook = XLSX.utils.book_new();
+
   const csvData = [];
 
   data.forEach((item) => {
     const row = {
       file_name: item.file_name,
+      aboutFile: item.results.find(result => 'aboutFile' in result)?.aboutFile.join("\n").replace(/\n/g, " ") || "",
     };
 
     item.results.forEach((result) => {
       const key = Object.keys(result)[0];
+
+      // Skip aboutFile because it's already handled
+      if (key === "aboutFile") return;
 
       const values = result[key]
         .map((value) => {
@@ -275,21 +283,80 @@ function downloadCSV(data, exportFileName) {
     csvData.push(row);
   });
 
-  // Specify the order of the columns
-  const columns = [
-    "file_name",
-    "aboutFile",
-    "studyDesign",
-    "population",
-    "intervention",
-    "outcomes",
-  ];
+  // Start columns with file_name and aboutFile
+  const columns = ["file_name", "aboutFile"];
+  
+  // Then add all unique keys from the data (except file_name and aboutFile)
+  data.forEach(item => {
+    item.results.forEach(result => {
+      const key = Object.keys(result)[0];
+      if (!columns.includes(key)) {
+        columns.push(key);
+      }
+    });
+  });
 
-  const csv = Papa.unparse(csvData, { columns });
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-
-  saveAs(blob, exportFileName);
+  const worksheet = XLSX.utils.json_to_sheet(csvData, { header: columns });
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  
+  XLSX.writeFile(workbook, `${exportFileName}.xlsx`);
 }
+
+// function downloadCSV(data, exportFileName) {
+//   const csvData = [];
+
+//   data.forEach((item) => {
+//     const row = {
+//       file_name: item.file_name,
+//       aboutFile: item.results.find(result => 'aboutFile' in result)?.aboutFile.join("\n").replace(/\n/g, " ") || "",
+//     };
+
+//     item.results.forEach((result) => {
+//       const key = Object.keys(result)[0];
+
+//       // Skip aboutFile because it's already handled
+//       if (key === "aboutFile") return;
+
+//       const values = result[key]
+//         .map((value) => {
+//           if (typeof value === "string" && value.includes("Answer:")) {
+//             const sections = value.split("Answer:");
+//             const answers = sections
+//               .slice(1)
+//               .map((section) => section.split("Direct Quote", 1)[0].trim())
+//               .filter(Boolean);
+//             return answers.join("\n");
+//           }
+//           return value;
+//         })
+//         .filter(Boolean) // Remove empty strings
+//         .join("\n");
+
+//       row[key] = values.replace(/\n/g, " ");
+//     });
+
+//     csvData.push(row);
+//   });
+
+//   // Start columns with file_name and aboutFile
+//   const columns = ["file_name", "aboutFile"];
+  
+//   // Then add all unique keys from the data (except file_name and aboutFile)
+//   data.forEach(item => {
+//     item.results.forEach(result => {
+//       const key = Object.keys(result)[0];
+//       if (!columns.includes(key)) {
+//         columns.push(key);
+//       }
+//     });
+//   });
+
+//   const csv = Papa.unparse(csvData, { columns });
+//   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+
+//   saveAs(blob, exportFileName);
+// }
+
 
 export const fetchAllExtractionResults = (projectName) => {
   return async (dispatch) => {
@@ -307,7 +374,7 @@ export const fetchAllExtractionResults = (projectName) => {
     };
     try {
       const response = await sendData();
-      downloadCSV(response.data, projectName);
+      downloadXLSX(response.data, projectName);
       dispatch(
         dataExtractionActions.setProgress({
           progress: 100,

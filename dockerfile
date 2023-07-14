@@ -17,8 +17,5 @@ ENV NODE_ENV production
 COPY --from=builder /app/build /usr/share/nginx/html
 # Add your nginx.conf
 COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf
-# COPY ./nginx/ssl /etc/nginx/ssl
-# Expose port
-# EXPOSE 80
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
