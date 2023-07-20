@@ -3,6 +3,7 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "./ExtractionResult.css";
+import * as XLSX from 'xlsx';
 
 const CustomCellRenderer = (props) => {
   const value = props.value || ""; 
@@ -63,28 +64,32 @@ const ExtractionResult = (props) => {
   }, [props.result]);
 
   const onBtnExport = () => {
-    const params = {
-      columnKeys: columnDefs.map((colDef) => colDef.field),
-      fileName: props.fileName + "_export.csv",
-      processCellCallback: (params) => {
+    const data = rowData.map(row => {
+      return columnDefs.map(colDef => {
+        let cellValue = row[colDef.field];
         if (
-          typeof params.value === "string" &&
-          params.value.includes("Answer:")
+          typeof cellValue === "string" &&
+          cellValue.includes("Answer:")
         ) {
-          const sections = params.value.split("Answer:");
+          const sections = cellValue.split("Answer:");
           const answers = sections
             .slice(1)
             .map((section) => {
               return section.split("Direct Quote", 1)[0].trim();
             })
             .filter(Boolean);
-          return answers.join("\n\n");
+          cellValue = answers.join("\n\n");
         }
-        return params.value;
-      },
-    };
-    gridRef.current.api.exportDataAsCsv(params);
+        return cellValue;
+      });
+    });
+  
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
+    XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
   };
+  
 
   return (
     <div>
