@@ -13,7 +13,6 @@ import Auth from "layouts/Auth.js";
 // import Landing from "views/Landing.js";
 import Profile from "views/Profile.js";
 // import Home from "views/Home.js";
-// import Login from "views/auth/Login";
 import PrivateRoutes from "util/PrivateRoutes";
 // import AuthContext from "store/auth-context";
 import { AuthContextProvider } from "store/auth-context";

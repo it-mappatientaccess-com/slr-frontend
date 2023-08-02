@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+// import { Link } from "react-router-dom";
 import { useFormik } from "formik";
 import { signInSchema } from "../../schema/schema";
 import Alert from "components/Alerts/Alert";
@@ -191,13 +191,13 @@ export default function Login() {
               </form>
             </div>
           </div>
-          <div className="flex flex-wrap mt-6 relative">
+          {/* <div className="flex flex-wrap mt-6 relative">
             <div className="w-full text-center">
               <Link to="/auth/register" className="text-blueGray-200">
                 Create new account
               </Link>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
