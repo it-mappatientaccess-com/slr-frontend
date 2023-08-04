@@ -9,22 +9,17 @@ const DynamicCardColumns = (props) => {
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
+  const [isEditing, setIsEditing] = useState(false);
+  const [columnName, setColumnName] = useState(category);
+
   const existingQuestions = useMemo(() => {
-    let questions = seaQuestions;
-    const temp = [];
-    if (questions[category]) {
-      for (let entry of questions[category]) {
-        temp.push(entry);
-      }
-    }
-    return temp;
+    return seaQuestions[category] || [];
   }, [seaQuestions, category]);
 
   const [questionList, setQuestionList] = useState(existingQuestions);
 
   useEffect(() => {
     setQuestionList(existingQuestions);
-    // eslint-disable-next-line
   }, [existingQuestions]);
 
   const projectName = localStorage.getItem("selectedProject");
@@ -43,7 +38,16 @@ const DynamicCardColumns = (props) => {
     };
     dispatch(setSeaQuestions(projectName, updatedQuestions));
   };
-  
+
+  const saveColumnNameHandler = () => {
+    setIsEditing(false);
+    // Notify the parent component about the updated column name
+    if (category !== columnName) {
+      // Only update if the column name has changed
+      props.onUpdateColumnName(category, columnName); // Pass old and new column name
+    }
+  };
+
   const saveQuestionsHandler = () => {
     let updatedQuestions = {
       ...seaQuestions,
@@ -51,7 +55,6 @@ const DynamicCardColumns = (props) => {
     };
     dispatch(setSeaQuestions(projectName, updatedQuestions));
   };
-  
 
   const questionChangeHandler = (event, index) => {
     const { value } = event.target;
@@ -78,13 +81,42 @@ const DynamicCardColumns = (props) => {
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
       <div className="flex-auto p-4">
-        <div className="flex flex-wrap">
-          <div className="relative w-full pr-4 max-w-full flex-grow flex-1">
-            <span className="font-semibold text-xl text-blueGray-700">
-              {category}
-            </span>
+        <div className="flex flex-wrap justify-between items-center w-full">
+          <div className="flex items-center flex-grow">
+            {isEditing ? (
+              <>
+                <input
+                  type="text"
+                  maxLength="20"
+                  value={columnName}
+                  onChange={(e) => setColumnName(e.target.value)}
+                  className="border rounded pl-2 flex-grow" // Flex grow to take available space
+                />
+                <button
+                  className="text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                  type="button"
+                  onClick={saveColumnNameHandler}
+                >
+                  <i className="fas fa-save cursor-pointer"></i>
+                </button>
+              </>
+            ) : (
+              <span className="font-semibold text-xl text-blueGray-700">
+                {category}
+              </span>
+            )}
           </div>
+          {!isEditing && (
+            <button
+              className="text-blueGray-500 bg-transparent border border-solid border-blueGray-500 hover:bg-blueGray-500 hover:text-white active:bg-blueGray-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              type="button"
+              onClick={() => setIsEditing(true)}
+            >
+              <i className="fas fa-pencil-alt cursor-pointer"></i>
+            </button>
+          )}
         </div>
+
         <div>
           <div className="pt-0 mt-2 flex-col max-h-60 overflow-y-auto">
             <span>Question(s)</span>

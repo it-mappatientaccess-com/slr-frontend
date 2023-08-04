@@ -8,38 +8,55 @@ export default function HeaderSea() {
   const projectName = localStorage.getItem("selectedProject");
   const seaQuestions = useSelector((state) => state.questionAbstractData.seaQuestions);
 
-  // Initialize columns with an empty array
-  const [columns, setColumns] = useState([]);
+  // Initialize columnOrder with keys from seaQuestions
+  const [columnOrder, setColumnOrder] = useState(Object.keys(seaQuestions));
 
   useEffect(() => {
     dispatch(fetchOldSeaQuestions(projectName));
   }, [dispatch, projectName]);
 
   useEffect(() => {
-    // Set columns state from seaQuestions whenever seaQuestions changes
-    setColumns(Object.keys(seaQuestions));
+    setColumnOrder(Object.keys(seaQuestions));
   }, [seaQuestions]);
 
   const addColumn = () => {
-    if (columns.length < 10) {
-      const newColumn = `Column${columns.length + 1}`;
-      setColumns((prevColumns) => [
-        ...prevColumns,
-        newColumn,
-      ]);
+    if (columnOrder.length < 10) {
+      const newColumn = `Column${columnOrder.length + 1}`;
+      setColumnOrder((prevColumnOrder) => [...prevColumnOrder, newColumn]);
       dispatch(setSeaQuestions(projectName, { ...seaQuestions, [newColumn]: [""] }));
     }
   };
 
   const removeColumn = () => {
-    if (columns.length > 1) {
-      const updatedColumns = columns.slice(0, -1);
+    if (columnOrder.length > 1) {
+      const updatedColumnOrder = columnOrder.slice(0, -1);
       const updatedSeaQuestions = { ...seaQuestions };
-      delete updatedSeaQuestions[columns[columns.length - 1]];
-      console.log(updatedSeaQuestions);
+      delete updatedSeaQuestions[columnOrder[columnOrder.length - 1]];
       dispatch(setSeaQuestions(projectName, updatedSeaQuestions));
-      setColumns(updatedColumns);
+      setColumnOrder(updatedColumnOrder);
     }
+  };
+
+  const updateColumnNameHandler = (oldColumnName, newColumnName) => {
+    // Create a copy of the current seaQuestions and columnOrder
+    const updatedColumnOrder = [...columnOrder];
+    
+    // Find the index of the column to rename
+    const columnIndex = updatedColumnOrder.indexOf(oldColumnName);
+  
+    // Update the column name in the columnOrder array
+    updatedColumnOrder[columnIndex] = newColumnName;
+  
+    // Create a new seaQuestions object with keys ordered according to updatedColumnOrder
+    const updatedSeaQuestions = {};
+    for (const column of updatedColumnOrder) {
+      updatedSeaQuestions[column] = column === newColumnName ? seaQuestions[oldColumnName] : seaQuestions[column];
+    }
+  
+    // Dispatch the updated questions to the backend
+    dispatch(setSeaQuestions(projectName, updatedSeaQuestions));
+    // Update the local state
+    setColumnOrder(updatedColumnOrder);
   };
   
 
@@ -48,13 +65,16 @@ export default function HeaderSea() {
       <div className="relative bg-lightBlue-600 pb-16">
         <div className="px-4 mx-auto w-full">
           <div className="flex flex-wrap items-center justify-center">
-            {columns.map((column, index) => (
+            {columnOrder.map((column, index) => (
               <div key={index} className="w-full lg:w-6/12 xl:w-3/12 px-2 mb-4">
-                <DynamicCardColumns category={column} />
+                <DynamicCardColumns
+                  category={column}
+                  onUpdateColumnName={updateColumnNameHandler}
+                />
               </div>
             ))}
             <div className="flex flex-col items-center justify-center">
-              {columns.length < 10 && (
+              {columnOrder.length < 10 && (
                 <button
                   className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                   type="button"
@@ -63,7 +83,7 @@ export default function HeaderSea() {
                   <i className="fas fa-plus"></i>
                 </button>
               )}
-              {columns.length > 1 && (
+              {columnOrder.length > 1 && (
                 <button
                   className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                   type="button"
