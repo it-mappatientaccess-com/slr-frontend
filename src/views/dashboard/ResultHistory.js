@@ -1,4 +1,4 @@
-import AbstractResults from "components/AddAbstracts/AbstractResults";
+import AbstractResults from "components/AAIR/AbstractResults";
 
 const ResultHistory = () => {
   return (

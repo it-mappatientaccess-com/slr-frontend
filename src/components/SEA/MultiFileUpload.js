@@ -7,7 +7,7 @@ import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import FilePondPluginFileMetadata from "filepond-plugin-file-metadata";
 import "filepond/dist/filepond.min.css";
 import { useDispatch, useSelector } from "react-redux";
-import ExtractionFileList from "components/ExtractionResult/ExtractionFileList";
+import ExtractionFileList from "./ExtractionResult/ExtractionFileList";
 import { dataExtractionActions } from "slices/dataExtractionSlice";
 import Alert from "components/Alerts/Alert";
 import {

@@ -219,6 +219,7 @@ const AbstractResults = () => {
               alertClass="bg-emerald-500"
               alertTitle="Result:"
               alertMessage={singleAbstractResult.toUpperCase()}
+              showCloseButton={false}
             />
             <div className="mt-4">
               <button

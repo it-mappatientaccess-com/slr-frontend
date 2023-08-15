@@ -1,7 +1,7 @@
 import React from "react";
 
-import MultiFileUpload from "components/FileUpload/MultiFileUpload";
-import SingleFileUpload from "components/FileUpload/SingleFileUpload";
+import MultiFileUpload from "components/SEA/MultiFileUpload";
+import SingleFileUpload from "components/SEA/SingleFileUpload";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
 import { setProgress } from "store/data-extraction-actions";

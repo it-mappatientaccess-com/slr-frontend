@@ -1,13 +1,10 @@
 import { dataExtractionActions } from "../slices/dataExtractionSlice";
 import api from "util/api";
-// import Papa from "papaparse";
-// import { saveAs } from "file-saver";
-import * as XLSX from 'xlsx';
-
+import * as XLSX from "xlsx";
 
 export const generateSingleFileResults = (file, questions) => {
   const formData = new FormData();
-  formData.append("file", file[0].file, file[0].filename);
+  formData.append("file", file[0], file[0].name);
   formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
   return async (dispatch) => {
@@ -38,15 +35,9 @@ export const generateSingleFileResults = (file, questions) => {
         })
       );
       dispatch(
-        dataExtractionActions.setSingleExtractionResult({
-          singleExtractionResult: response.data,
-        })
+        dataExtractionActions.setTaskId({ taskId: response.data["task_id"] })
       );
-      dispatch(
-        dataExtractionActions.setProgress({
-          progress: 100,
-        })
-      );
+      dispatch(dataExtractionActions.setProgress({ progress: 100 }));
     } catch (error) {
       console.log(error);
       dispatch(
@@ -83,8 +74,6 @@ export const generateExtractionResults = (files, questions) => {
     try {
       const response = await sendData(formData);
       console.log(response);
-      // localStorage.setItem("totalFileCount", response.data["file_ids"].length);
-
       dispatch(
         dataExtractionActions.setStatus({
           status: response.data["status"],
@@ -253,7 +242,11 @@ function downloadXLSX(data, exportFileName) {
   data.forEach((item) => {
     const row = {
       file_name: item.file_name,
-      aboutFile: item.results.find(result => 'aboutFile' in result)?.aboutFile.join("\n").replace(/\n/g, " ") || "",
+      aboutFile:
+        item.results
+          .find((result) => "aboutFile" in result)
+          ?.aboutFile.join("\n")
+          .replace(/\n/g, " ") || "",
     };
 
     item.results.forEach((result) => {
@@ -285,10 +278,10 @@ function downloadXLSX(data, exportFileName) {
 
   // Start columns with file_name and aboutFile
   const columns = ["file_name", "aboutFile"];
-  
+
   // Then add all unique keys from the data (except file_name and aboutFile)
-  data.forEach(item => {
-    item.results.forEach(result => {
+  data.forEach((item) => {
+    item.results.forEach((result) => {
       const key = Object.keys(result)[0];
       if (!columns.includes(key)) {
         columns.push(key);
@@ -298,65 +291,9 @@ function downloadXLSX(data, exportFileName) {
 
   const worksheet = XLSX.utils.json_to_sheet(csvData, { header: columns });
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  
+
   XLSX.writeFile(workbook, `${exportFileName}.xlsx`);
 }
-
-// function downloadCSV(data, exportFileName) {
-//   const csvData = [];
-
-//   data.forEach((item) => {
-//     const row = {
-//       file_name: item.file_name,
-//       aboutFile: item.results.find(result => 'aboutFile' in result)?.aboutFile.join("\n").replace(/\n/g, " ") || "",
-//     };
-
-//     item.results.forEach((result) => {
-//       const key = Object.keys(result)[0];
-
-//       // Skip aboutFile because it's already handled
-//       if (key === "aboutFile") return;
-
-//       const values = result[key]
-//         .map((value) => {
-//           if (typeof value === "string" && value.includes("Answer:")) {
-//             const sections = value.split("Answer:");
-//             const answers = sections
-//               .slice(1)
-//               .map((section) => section.split("Direct Quote", 1)[0].trim())
-//               .filter(Boolean);
-//             return answers.join("\n");
-//           }
-//           return value;
-//         })
-//         .filter(Boolean) // Remove empty strings
-//         .join("\n");
-
-//       row[key] = values.replace(/\n/g, " ");
-//     });
-
-//     csvData.push(row);
-//   });
-
-//   // Start columns with file_name and aboutFile
-//   const columns = ["file_name", "aboutFile"];
-  
-//   // Then add all unique keys from the data (except file_name and aboutFile)
-//   data.forEach(item => {
-//     item.results.forEach(result => {
-//       const key = Object.keys(result)[0];
-//       if (!columns.includes(key)) {
-//         columns.push(key);
-//       }
-//     });
-//   });
-
-//   const csv = Papa.unparse(csvData, { columns });
-//   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-
-//   saveAs(blob, exportFileName);
-// }
-
 
 export const fetchAllExtractionResults = (projectName) => {
   return async (dispatch) => {
@@ -398,5 +335,37 @@ export const resetSingleExtrationResult = () => {
         singleExtractionResult: [],
       })
     );
+  };
+};
+export const fetchTaskStatus = (taskId) => {
+  return async (dispatch) => {
+    const sendData = async () => {
+      return await api.get(`check-task-status/${taskId}`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+    };
+    try {
+      const response = await sendData();
+      const taskStatus = response.data;
+      
+      // Dispatch the task's current status
+      dispatch(dataExtractionActions.setTaskStatus({
+        taskStatus: taskStatus.state,
+      }));
+      if (taskStatus.state === "SUCCESS") {
+        console.log(taskStatus);
+        dispatch(dataExtractionActions.setSingleExtractionResult({
+          singleExtractionResult: taskStatus.result,
+        }));
+      }
+
+      return taskStatus;  // Return the task status for further handling in the component
+
+    } catch (error) {
+      console.log(error);
+      throw error;  // Propagate the error to be caught in the useEffect
+    }
   };
 };

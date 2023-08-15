@@ -9,7 +9,7 @@ import {
   deletePdfData,
   fetchAllExtractionResults,
 } from "store/data-extraction-actions";
-import ExtractionResult from "components/ExtractionResult/ExtractionResult";
+import ExtractionResult from "./ExtractionResult";
 
 const btnCellRenderer = (props) => {
   const onClickHandler = async () => {

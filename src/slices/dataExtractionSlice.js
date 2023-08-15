@@ -12,6 +12,8 @@ const initialState = {
   message: '',
   status: false,
   progress: 0,
+  taskId: null,
+  taskStatus: null
 };
 const DataExtractionSlice = createSlice({
   name: "DataExtraction",
@@ -44,6 +46,12 @@ const DataExtractionSlice = createSlice({
     },
     setProgress(state, actions) {
       state.progress = actions.payload.progress
+    },
+    setTaskId(state, actions) {
+      state.taskId = actions.payload.taskId
+    },
+    setTaskStatus(state, actions) {
+      state.taskStatus = actions.payload.taskStatus
     },
   },
 });

@@ -1,6 +1,6 @@
 import React from "react";
-import AbstractTabs from "components/AddAbstracts/AbstractTabs";
-import HeaderStats from "components/Headers/HeaderStats.js";
+import AbstractTabs from "components/AAIR/AbstractTabs";
+import HeaderStats from "components/Headers/HeaderAAIR.js";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
 import { setProgress } from "store/qa-actions";
