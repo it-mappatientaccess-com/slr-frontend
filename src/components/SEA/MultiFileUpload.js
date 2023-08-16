@@ -9,28 +9,35 @@ import "filepond/dist/filepond.min.css";
 import { useDispatch, useSelector } from "react-redux";
 import ExtractionFileList from "./ExtractionResult/ExtractionFileList";
 import { dataExtractionActions } from "slices/dataExtractionSlice";
+import ProgressBar from "components/ProgressBar/ProgressBar";
 import Alert from "components/Alerts/Alert";
 import {
   generateExtractionResults,
   fetchProcessedFileNames,
 } from "store/data-extraction-actions";
+import generateUniqueBatchID from "util/generateUUID";
 
 const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const [files, setFiles] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // const [isLoading, setIsLoading] = useState(false);
   const [responseStatus, setResponseStatus] = useState({
     submitted: false,
     status: "",
     message: "",
     color: "",
   });
+  const [progress, setProgress] = useState(0);
+  const [processedFilesCount, setProcessedFilesCount] = useState(0);
+
   const isRefreshing = useSelector(
     (state) => state.dataExtraction.isRefreshing
   );
   const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
   const message = useSelector((state) => state.dataExtraction.message);
   const status = useSelector((state) => state.dataExtraction.status);
+  const [currentBatchID, setCurrentBatchID] = useState(null);
+  const [showProgressBar, setShowProgressBar] = useState(false);
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
@@ -41,13 +48,18 @@ const MultiFileUpload = () => {
   );
 
   const onProcessFile = async () => {
-    setIsLoading(true);
+    // setIsLoading(true);
+    const newBatchID = generateUniqueBatchID();
+    setCurrentBatchID(newBatchID);
+    setProcessedFilesCount(0);
     try {
-      await dispatch(generateExtractionResults(files, seaQuestions));
+      await dispatch(
+        generateExtractionResults(files, seaQuestions, newBatchID)
+      );
     } catch (error) {
       console.error(error);
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   };
 
@@ -60,7 +72,7 @@ const MultiFileUpload = () => {
     dispatch(fetchProcessedFileNames());
   };
   useEffect(() => {
-    if(isSubmitted) {
+    if (isSubmitted) {
       setResponseStatus({
         submitted: true,
         status: status ? "Success" : "Error",
@@ -68,7 +80,55 @@ const MultiFileUpload = () => {
         color: status ? "bg-emerald-500" : "bg-orange-500",
       });
     }
-  }, [isSubmitted, status, message])
+  }, [isSubmitted, status, message]);
+  useEffect(() => {
+    if (isSubmitted && status) {
+      setShowProgressBar(true);
+      // setIsLoading(true);
+    }
+  }, [isSubmitted, status]);
+  useEffect(() => {
+    if (progress === 100) {
+      // Hide the alert after all files have been processed
+      setResponseStatus({
+        submitted: false,
+        status: "",
+        message: "",
+        color: "",
+      });
+    }
+  }, [progress]);
+
+  useEffect(() => {
+    // Only start the interval if isSubmitted is true and status indicates success
+    if (isSubmitted) {
+      const interval = setInterval(async () => {
+        const response = await dispatch(fetchProcessedFileNames());
+        if (response && response.length) {
+          // setIsLoading(false);
+          // Filter by current batch ID
+          const currentProcessedFiles = response.filter(
+            (fileInfo) => fileInfo.batchID === currentBatchID
+          );
+  
+          setProcessedFilesCount(currentProcessedFiles.length);
+  
+          const currentProgress =
+            (currentProcessedFiles.length / files.length) * 100;
+          setProgress(currentProgress);
+  
+          // If all files are processed, clear the interval
+          if (currentProgress === 100) {
+            clearInterval(interval);
+          }
+        }
+      }, 60000); // Every minute, adjust as needed
+  
+      return () => clearInterval(interval); // Clear the interval when the component is unmounted
+    }
+  }, [dispatch, files.length, currentBatchID, isSubmitted, status]);
+  
+
   return (
     <div className="flex flex-wrap mt-4">
       <div className="w-full mb-12 px-4">
@@ -91,11 +151,11 @@ const MultiFileUpload = () => {
           <div className="text-center">
             <button
               className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-                isLoading ? "opacity-20" : ""
+                files.length === 0 ? "opacity-40" : ""
               }`}
               type="button"
               onClick={onProcessFile}
-              disabled={isLoading}
+              disabled={files.length === 0}
             >
               <i className="fas fa-upload"></i> Upload
             </button>
@@ -116,7 +176,7 @@ const MultiFileUpload = () => {
             </button>
           </div>
 
-          {isLoading && (
+          {/* {isLoading && (
             <div
               role="status"
               className="absolute -translate-x-1/2 -translate-y-1/2 top-3/4 left-1/2"
@@ -139,16 +199,24 @@ const MultiFileUpload = () => {
               </svg>
               <span className="sr-only">Loading...</span>
             </div>
-          )}
+          )} */}
         </div>
+        {showProgressBar && progress < 100 && (
+          <ProgressBar
+            taskInProgress={`Processing Files: ${processedFilesCount}/${files.length}`}
+            percentage={progress}
+          />
+        )}
+
         {responseStatus.submitted && (
-        <Alert
-          alertClass={responseStatus.color}
-          alertTitle={responseStatus.status}
-          alertMessage={responseStatus.message}
-        />
-      )}
-        <div className={isLoading ? "opacity-20" : ""}>
+          <Alert
+            alertClass={responseStatus.color}
+            alertTitle={responseStatus.status}
+            alertMessage={responseStatus.message}
+          />
+        )}
+        {/* <div className={isLoading ? "opacity-20" : ""}> */}
+        <div>
           <ExtractionFileList />
         </div>
       </div>

@@ -12,8 +12,8 @@ import {
 import ExtractionResult from "./ExtractionResult";
 
 const btnCellRenderer = (props) => {
+  const [deleteClicked, setDeleteClicked] = props.useState(false);
   const onClickHandler = async () => {
-    console.log(props.data["file_name"]);
     await props.dispatch(
       fetchExtractionFileResults(
         props.data["file_id"],
@@ -22,8 +22,16 @@ const btnCellRenderer = (props) => {
     );
   };
   const onDeleteHandler = async () => {
-    props.dispatch(deletePdfData(props.data["file_id"]));
+    setDeleteClicked(true);
+    try {
+      await props.dispatch(deletePdfData(props.data["file_id"]));
+      setDeleteClicked(false);
+      // Stop the loader here since the deletion is successful
+    } catch (error) {
+      // Handle the error here if needed, and maybe stop the loader as well
+    }
   };
+  
   return (
     <>
       <button
@@ -39,7 +47,7 @@ const btnCellRenderer = (props) => {
         type="button"
         onClick={onDeleteHandler}
       >
-        <i className="fas fa-trash-can"></i>
+        <i className={`fas fa-trash-can ${deleteClicked ? 'fa-flip' : ''}`}></i>
       </button>
     </>
   );
@@ -58,6 +66,7 @@ const ExtractionFileList = () => {
   const selectedFile = useSelector(
     (state) => state.dataExtraction.selectedFile
   );
+
   const columnDefs = [
     {
       headerName: "ID",
@@ -77,6 +86,7 @@ const ExtractionFileList = () => {
       cellRenderer: btnCellRenderer,
       cellRendererParams: {
         dispatch,
+        useState
       },
       editable: false,
       colId: "view",

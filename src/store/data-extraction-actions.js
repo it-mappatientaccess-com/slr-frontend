@@ -49,13 +49,15 @@ export const generateSingleFileResults = (file, questions) => {
   };
 };
 
-export const generateExtractionResults = (files, questions) => {
+export const generateExtractionResults = (files, questions, newBatchID) => {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("files", files[i].file, files[i].filename);
   }
   formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
+  formData.append("batch_id", newBatchID);
+
   return async (dispatch) => {
     dispatch(
       dataExtractionActions.setProgress({
@@ -144,6 +146,7 @@ export const fetchProcessedFileNames = () => {
           progress: 100,
         })
       );
+      return response.data;
     } catch (error) {
       console.log(error);
       dispatch(
@@ -228,11 +231,14 @@ export const deletePdfData = (file_id) => {
       const response = await sendData(file_id);
       console.log(response);
       dispatch(fetchProcessedFileNames());
+      return Promise.resolve(response); // Resolve the promise with the response
     } catch (error) {
       console.log(error);
+      return Promise.reject(error); // Reject the promise with the error
     }
   };
 };
+
 
 function downloadXLSX(data, exportFileName) {
   const workbook = XLSX.utils.book_new();
@@ -337,6 +343,7 @@ export const resetSingleExtrationResult = () => {
     );
   };
 };
+
 export const fetchTaskStatus = (taskId) => {
   return async (dispatch) => {
     const sendData = async () => {
