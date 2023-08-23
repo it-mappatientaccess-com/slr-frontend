@@ -380,7 +380,7 @@ export const fetchTaskStatus = (taskId) => {
 export const fetchPrompts = () => {
   return async (dispatch) => {
     try {
-      const response = await api.get(`/prompt/${localStorage.getItem("selectedProject")}`, {
+      const response = await api.get(`/prompt/${localStorage.getItem("selectedProject")}/`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -393,12 +393,6 @@ export const fetchPrompts = () => {
   };
 };
 
-export const setSelectedPrompt = (selectedPromptData) => {
-  return async (dispatch) => {
-    // If you have any logic related to setting the selected prompt, add here
-    dispatch(dataExtractionActions.setSelectedPrompt(selectedPromptData));
-  };
-};
 
 export const createPrompt = (promptData) => {
   return async (dispatch) => {
@@ -431,8 +425,6 @@ export const updatePrompt = (title, updatedPromptData) => {
 };
 
 export const deletePrompt = (title) => {
-  console.log(`Token: ${localStorage.getItem("token")}`);
-
   let projectName = localStorage.getItem("selectedProject");
   return async (dispatch) => {
     try {
@@ -442,6 +434,22 @@ export const deletePrompt = (title) => {
         },
       });
       dispatch(fetchPrompts());  // Refresh the prompts after deleting
+    } catch (error) {
+      console.log(error);
+    }
+  };
+};
+
+export const setSelectedPrompt = (selectedPrompt) => {
+  let projectName = localStorage.getItem("selectedProject");
+  return async (dispatch) => {
+    try {
+      await api.put(`/selected_prompt/${projectName}/`, selectedPrompt, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(dataExtractionActions.setSelectedPrompt(selectedPrompt));
     } catch (error) {
       console.log(error);
     }
