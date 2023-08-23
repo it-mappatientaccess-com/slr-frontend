@@ -27,7 +27,7 @@ export default function EditPrompt({ title, content, onEditSuccess }) {
       onSubmit: (values, action) => {
         api
           .put(
-            `prompt/${title}/`,
+            `prompt/${title}`,
             {
               title: title,
               projectName: localStorage.getItem("selectedProject"),

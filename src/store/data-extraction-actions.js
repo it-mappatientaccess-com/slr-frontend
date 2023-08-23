@@ -380,7 +380,7 @@ export const fetchTaskStatus = (taskId) => {
 export const fetchPrompts = () => {
   return async (dispatch) => {
     try {
-      const response = await api.get(`/prompt/${localStorage.getItem("selectedProject")}/`, {
+      const response = await api.get(`/prompt/${localStorage.getItem("selectedProject")}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -397,7 +397,7 @@ export const fetchPrompts = () => {
 export const createPrompt = (promptData) => {
   return async (dispatch) => {
     try {
-      await api.post("/prompt/", promptData, {
+      await api.post("/prompt", promptData, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -412,7 +412,7 @@ export const createPrompt = (promptData) => {
 export const updatePrompt = (title, updatedPromptData) => {
   return async (dispatch) => {
     try {
-      await api.put(`/prompt/${title}/`, updatedPromptData, {
+      await api.put(`/prompt/${title}`, updatedPromptData, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -428,7 +428,7 @@ export const deletePrompt = (title) => {
   let projectName = localStorage.getItem("selectedProject");
   return async (dispatch) => {
     try {
-      await api.delete(`/prompt/${projectName}/${title}/`, {
+      await api.delete(`/prompt/${projectName}/${title}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -444,7 +444,7 @@ export const setSelectedPrompt = (selectedPrompt) => {
   let projectName = localStorage.getItem("selectedProject");
   return async (dispatch) => {
     try {
-      await api.put(`/selected_prompt/${projectName}/`, selectedPrompt, {
+      await api.put(`/selected_prompt/${projectName}`, selectedPrompt, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
