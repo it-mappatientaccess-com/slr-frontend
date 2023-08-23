@@ -13,7 +13,9 @@ const initialState = {
   status: false,
   progress: 0,
   taskId: null,
-  taskStatus: null
+  taskStatus: null,
+  prompts: [],
+  selectedPrompt: null,
 };
 const DataExtractionSlice = createSlice({
   name: "DataExtraction",
@@ -52,6 +54,12 @@ const DataExtractionSlice = createSlice({
     },
     setTaskStatus(state, actions) {
       state.taskStatus = actions.payload.taskStatus
+    },
+    setPrompts(state, action) {
+      state.prompts = action.payload.prompts;
+    },
+    setSelectedPrompt(state, action) {
+      state.selectedPrompt = action.payload.selectedPrompt;
     },
   },
 });

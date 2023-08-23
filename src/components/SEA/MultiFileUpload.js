@@ -36,6 +36,9 @@ const MultiFileUpload = () => {
   const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
   const message = useSelector((state) => state.dataExtraction.message);
   const status = useSelector((state) => state.dataExtraction.status);
+  const selectedPrompt = useSelector(
+    (state) => state.dataExtraction.selectedPrompt
+  );
   const [currentBatchID, setCurrentBatchID] = useState(null);
   const [showProgressBar, setShowProgressBar] = useState(false);
   const seaQuestions = useSelector(
@@ -54,7 +57,7 @@ const MultiFileUpload = () => {
     setProcessedFilesCount(0);
     try {
       await dispatch(
-        generateExtractionResults(files, seaQuestions, newBatchID)
+        generateExtractionResults(files, seaQuestions, newBatchID, selectedPrompt)
       );
     } catch (error) {
       console.error(error);
@@ -90,6 +93,7 @@ const MultiFileUpload = () => {
   useEffect(() => {
     if (progress === 100) {
       // Hide the alert after all files have been processed
+      setShowProgressBar(false);
       setResponseStatus({
         submitted: false,
         status: "",
@@ -108,25 +112,30 @@ const MultiFileUpload = () => {
           // setIsLoading(false);
           // Filter by current batch ID
           const currentProcessedFiles = response.filter(
-            (fileInfo) => fileInfo.batchID === currentBatchID
+            (fileInfo) => fileInfo["batch_id"] === currentBatchID
           );
-  
           setProcessedFilesCount(currentProcessedFiles.length);
-  
           const currentProgress =
             (currentProcessedFiles.length / files.length) * 100;
           setProgress(currentProgress);
   
-          // If all files are processed, clear the interval
+          // If all files are processed
           if (currentProgress === 100) {
             clearInterval(interval);
+            setShowProgressBar(false);
+            setResponseStatus({
+              submitted: false,
+              status: "",
+              message: "",
+              color: "",
+            });
           }
         }
       }, 60000); // Every minute, adjust as needed
   
       return () => clearInterval(interval); // Clear the interval when the component is unmounted
     }
-  }, [dispatch, files.length, currentBatchID, isSubmitted, status]);
+  }, [dispatch, files.length, currentBatchID, isSubmitted]);
   
 
   return (

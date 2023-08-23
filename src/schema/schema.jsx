@@ -46,6 +46,37 @@ export const createProjectSchema = Yup.object({
   projectDescription: Yup.string().min(10)
 })
 
+const wordCount = (str) => {
+  return str.split(/\s+/).filter(Boolean).length;
+};
+
+const promptTextValidation = Yup.string()
+  .test(
+    'min-words',
+    'Prompt text should be at least 20 words or 50 characters.',
+    value => {
+      if (!value) return false;
+      return wordCount(value) >= 20 || value.length >= 50;
+    }
+  )
+  .test(
+    'max-words',
+    'Prompt text should be at most 60 words or 300 characters.',
+    value => {
+      if (!value) return false;
+      return wordCount(value) <= 60 && value.length <= 300;
+    }
+  )
+  .required('Please enter the prompt text.');
+
+export const createPromptSchema = Yup.object({
+  promptTitle: Yup.string()
+    .min(3, 'Prompt title should be at least 3 characters.')
+    .max(30, 'Prompt title should be at most 30 characters.')
+    .required('Please enter the prompt title.'),
+  promptText: promptTextValidation
+});
+
 export const contactUsSchema = Yup.object({
   name: Yup.string().min(2).max(25).required("Please enter your name."),
   username: Yup.string()

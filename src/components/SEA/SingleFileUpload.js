@@ -32,6 +32,9 @@ const SingleFileUpload = () => {
     (state) => state.questionAbstractData.seaQuestions
   );
   const taskId = useSelector((state) => state.dataExtraction.taskId);
+  const selectedPrompt = useSelector(
+    (state) => state.dataExtraction.selectedPrompt
+  );
   registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize,
@@ -43,7 +46,7 @@ const SingleFileUpload = () => {
     setTaskPercentage(10); // Initial progress value
     setIsUploadInitiated(true);
     try {
-      await dispatch(generateSingleFileResults(file, seaQuestions));
+      await dispatch(generateSingleFileResults(file, seaQuestions, selectedPrompt));
     } catch (error) {
       console.error(error);
     }

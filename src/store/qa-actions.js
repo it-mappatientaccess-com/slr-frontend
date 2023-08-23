@@ -126,7 +126,6 @@ export const fetchOldQuestions = (projectName) => {
     };
     try {
       const response = await sendData(projectName);
-      console.log(response);
       let isEmptyFlag = false;
       for (let category of Object.keys(response.data.questions)) {
         if (response.data.questions[category].length === 0) {

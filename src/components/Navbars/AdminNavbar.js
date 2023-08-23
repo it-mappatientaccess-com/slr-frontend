@@ -1,24 +1,32 @@
 import React from "react";
 import { useLocation } from "react-router";
-// import UserDropdown from "components/Dropdowns/UserDropdown.js";
 
-export default function Navbar() {
+export default function AdminNavbar({ isAccordionVisible, toggleAccordion }) {
   const location = useLocation();
-
   const selectedProject = localStorage.getItem("selectedProject");
-
 
   return (
     <>
       {/* Navbar */}
       <nav className="relative top-0 left-0 w-full z-10 bg-lightBlue-600 md:flex-row md:flex-nowrap md:justify-start flex items-center p-3">
         <div className="w-full mx-autp items-center flex justify-between md:flex-nowrap flex-wrap p-4">
-          <span
-            className="text-white text-sm uppercase hidden lg:inline-block font-semibold"
-          >
-            {location.pathname === "/dashboard/my-projects" ? "dashboard" : selectedProject}
+          <span className="text-white text-sm uppercase hidden lg:inline-block font-semibold">
+            {location.pathname === "/dashboard/my-projects"
+              ? "dashboard"
+              : selectedProject}
           </span>
-          
+          {location.pathname === "/dashboard/sea" && (
+            <button
+              className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 ease-linear transition-all duration-150"
+              type="button"
+              onClick={toggleAccordion}
+            >
+              <i className="fas fa-comment-dots"></i> &nbsp;
+              {isAccordionVisible
+                ? "Hide Custom Instructions"
+                : "Show Custom Instructions"}
+            </button>
+          )}
           {/* <form className="md:flex hidden flex-row flex-wrap items-center lg:ml-auto mr-3">
             <div className="relative flex w-full flex-wrap items-stretch">
               <span className="z-10 h-full leading-snug font-normal absolute text-center text-blueGray-300 absolute bg-transparent rounded text-base items-center justify-center w-8 pl-3 py-3">

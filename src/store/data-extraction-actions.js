@@ -2,11 +2,12 @@ import { dataExtractionActions } from "../slices/dataExtractionSlice";
 import api from "util/api";
 import * as XLSX from "xlsx";
 
-export const generateSingleFileResults = (file, questions) => {
+export const generateSingleFileResults = (file, questions, selectedPrompt) => {
   const formData = new FormData();
   formData.append("file", file[0], file[0].name);
   formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
+  formData.append("prompt_text", selectedPrompt);
   return async (dispatch) => {
     dispatch(
       dataExtractionActions.setProgress({
@@ -28,7 +29,6 @@ export const generateSingleFileResults = (file, questions) => {
     };
     try {
       const response = await sendData(formData);
-      console.log(response.data);
       dispatch(
         dataExtractionActions.setFilesSubmitted({
           isSubmitted: response.data["success"],
@@ -49,7 +49,7 @@ export const generateSingleFileResults = (file, questions) => {
   };
 };
 
-export const generateExtractionResults = (files, questions, newBatchID) => {
+export const generateExtractionResults = (files, questions, newBatchID, selectedPrompt) => {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("files", files[i].file, files[i].filename);
@@ -57,7 +57,7 @@ export const generateExtractionResults = (files, questions, newBatchID) => {
   formData.append("questions_dict", JSON.stringify(questions));
   formData.append("project_name", localStorage.getItem("selectedProject"));
   formData.append("batch_id", newBatchID);
-
+  formData.append("prompt_text", selectedPrompt);
   return async (dispatch) => {
     dispatch(
       dataExtractionActions.setProgress({
@@ -133,7 +133,7 @@ export const fetchProcessedFileNames = () => {
       const response = await sendData();
       dispatch(
         dataExtractionActions.setProcessedFiles({
-          processedFiles: response.data["file_names"],
+          processedFiles: response.data,
         })
       );
       dispatch(
@@ -373,6 +373,77 @@ export const fetchTaskStatus = (taskId) => {
     } catch (error) {
       console.log(error);
       throw error;  // Propagate the error to be caught in the useEffect
+    }
+  };
+};
+
+export const fetchPrompts = () => {
+  return async (dispatch) => {
+    try {
+      const response = await api.get(`/prompt/${localStorage.getItem("selectedProject")}`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(dataExtractionActions.setPrompts({ prompts: response.data["prompts"] }));
+      dispatch(dataExtractionActions.setSelectedPrompt({ selectedPrompt: response.data["selected_prompt"] }));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+};
+
+export const setSelectedPrompt = (selectedPromptData) => {
+  return async (dispatch) => {
+    // If you have any logic related to setting the selected prompt, add here
+    dispatch(dataExtractionActions.setSelectedPrompt(selectedPromptData));
+  };
+};
+
+export const createPrompt = (promptData) => {
+  return async (dispatch) => {
+    try {
+      await api.post("/prompt/", promptData, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(fetchPrompts());  // Refresh the prompts after adding a new one
+    } catch (error) {
+      console.log(error);
+    }
+  };
+};
+
+export const updatePrompt = (title, updatedPromptData) => {
+  return async (dispatch) => {
+    try {
+      await api.put(`/prompt/${title}/`, updatedPromptData, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(fetchPrompts());  // Refresh the prompts after updating
+    } catch (error) {
+      console.log(error);
+    }
+  };
+};
+
+export const deletePrompt = (title) => {
+  console.log(`Token: ${localStorage.getItem("token")}`);
+
+  let projectName = localStorage.getItem("selectedProject");
+  return async (dispatch) => {
+    try {
+      await api.delete(`/prompt/${projectName}/${title}/`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(fetchPrompts());  // Refresh the prompts after deleting
+    } catch (error) {
+      console.log(error);
     }
   };
 };

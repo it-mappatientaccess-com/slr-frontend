@@ -7,7 +7,7 @@ import LoadingBar from "react-top-loading-bar";
 import { setProgress } from "store/data-extraction-actions";
 import HeaderSea from "components/Headers/HeaderSEA";
 
-const SEA = () => {
+const SEA = ({ isAccordionVisible }) => {
   const [openTab, setOpenTab] = React.useState(1);
   let progress = useSelector((state) => state.dataExtraction.progress);
 
@@ -21,7 +21,7 @@ const SEA = () => {
         height={3}
         loaderSpeed={3000}
       />
-      <HeaderSea />
+      <HeaderSea isAccordionVisible={isAccordionVisible}/>
       <div className="flex flex-wrap">
         <div className="w-full mb-6">
           <div className="relative flex flex-col min-w-0 break-words rounded mb-6">

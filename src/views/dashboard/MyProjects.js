@@ -1,4 +1,4 @@
-import CardCreateProject from "components/Projects/CardCreateProject";
+import CreateProject from "components/Forms/CreateProject";
 import CardProjectList from "components/Projects/CardProjectList";
 import { useState } from "react";
 
@@ -16,7 +16,7 @@ const MyProjects = () => {
         </div>
         {createProjectClicked && (
           <div className="w-full lg:w-8/12 px-4 mt-4">
-            <CardCreateProject />
+            <CreateProject />
           </div>
         )}
       </div>
