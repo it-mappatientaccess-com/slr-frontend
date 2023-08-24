@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setQuestions } from "../../store/qa-actions";
 
@@ -10,70 +10,116 @@ const camelize = (str) => {
     .replace(/\s+/g, "");
 };
 
-const DynamicInput = (props) => {
+const DynamicInput = ({ category: rawCategory }) => {
   const dispatch = useDispatch();
-  const category = camelize(props.category.toLowerCase());
+  const category = camelize(rawCategory.toLowerCase());
   const textareaRef = useRef(null);
-  const [currentIndex, setCurrentIndex] = useState();
-  const existingQuestions = useSelector((state) => {
-    return JSON.parse(JSON.stringify(state.questionAbstractData.questions));
-  });
+  const [currentIndex, setCurrentIndex] = useState(null);
+  const existingQuestions = useSelector(
+    (state) => state.questionAbstractData.questions
+  );
   const [questionList, setQuestionList] = useState([{ question: "" }]);
+  const [textareaError, setTextareaError] = useState("");
+  const projectName = localStorage.getItem("selectedProject");
 
   useEffect(() => {
-    const temp = [];
-    const defaultQuestions = JSON.parse(localStorage.getItem("questions"));
-    for (let entry of defaultQuestions[category]) {
-      temp.push({ question: entry });
+    const questionsFromLocalStorage =
+      JSON.parse(localStorage.getItem("questions")) || {};
+    const formattedQuestions = (questionsFromLocalStorage[category] || []).map(
+      (entry) => ({ question: entry })
+    );
+    setQuestionList(formattedQuestions);
+  }, [category]);
+
+  const updateRows = useCallback(() => {
+    if (textareaRef.current) {
+      const lines = textareaRef.current.value.split("\n");
+      textareaRef.current.rows = lines.length + 1;
     }
-    setQuestionList(temp);
-    
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     updateRows();
-  }, [questionList]);
+  }, [questionList, updateRows]);
 
-  const projectName = localStorage.getItem("selectedProject");
-  const questionAddHandler = () => {
-    setQuestionList([...questionList, { question: "" }]);
-  };
-  const updateRows = () => {
-    if (!textareaRef.current) return;
+  const questionAddHandler = useCallback(() => {
+    setQuestionList((prevQuestions) => [...prevQuestions, { question: "" }]);
+  }, []);
 
-    const lines = textareaRef.current.value.split('\n');
-    const rows = lines.length + 1;
+  const questionRemoveHandler = useCallback(
+    (index, item) => {
+      setQuestionList((prevQuestions) => {
+        const updatedQuestions = [...prevQuestions];
+        updatedQuestions.splice(index, 1);
+        return updatedQuestions;
+      });
 
-    textareaRef.current.rows = rows;
-  };
-  const questionRemoveHandler = (index, item) => {
-    const existingQuestionList = [...questionList];
-    existingQuestionList.splice(index, 1);
-    setQuestionList(existingQuestionList);
-    // removing element from existing questions from our store
-    if (existingQuestions[category].indexOf(item) !== -1) {
-      existingQuestions[category].splice(
-        existingQuestions[category].indexOf(item),
-        1
-      );
-    }
-    dispatch(setQuestions(projectName, existingQuestions));
-  };
+      const updatedExistingQuestions = { ...existingQuestions };
+      if (
+        updatedExistingQuestions[category] &&
+        updatedExistingQuestions[category].includes(item)
+      ) {
+        updatedExistingQuestions[category] = updatedExistingQuestions[
+          category
+        ].filter((question) => question !== item);
+      }
 
-  const questionChangeHandler = (event, index) => {
-    const { name, value } = event.target;
-    const existingQuestionList = [...questionList];
-    existingQuestionList[index][name] = value;
-    setQuestionList(existingQuestionList);
-    setCurrentIndex(index);
-  };
+      dispatch(setQuestions(projectName, updatedExistingQuestions));
+    },
+    [existingQuestions, category, dispatch, projectName]
+  );
 
-  const saveQuestionsHandler = (event) => {
-    const newQuestions = {...existingQuestions};
-    newQuestions[category][currentIndex] = event.target.value;
-    dispatch(setQuestions(projectName, newQuestions));
-  };
-  
+  const questionChangeHandler = useCallback(
+    (event, index) => {
+      const value = event.target.value;
+      const wordCount = value.split(/\s+/).length;
+      const charCount = value.length;
+
+      if (wordCount < 3 || wordCount > 50) {
+        setTextareaError("Question should have between 3 and 50 words.");
+        return;
+      } else if (charCount > 300) {
+        setTextareaError("Question should not exceed 300 characters.");
+        return;
+      } else {
+        setTextareaError("");
+      }
+
+      setQuestionList((prevList) => {
+        const newList = [...prevList];
+        newList[index].question = value;
+        return newList;
+      });
+
+      setCurrentIndex(index);
+      updateRows();
+    },
+    [updateRows]
+  );
+
+  const saveQuestionsHandler = useCallback(
+    (event) => {
+      if (!textareaError) {
+        const currentQuestion = event.target.value;
+        const updatedExistingQuestions = { ...existingQuestions };
+        const updatedCategoryQuestions = updatedExistingQuestions[category]
+          ? [...updatedExistingQuestions[category]]
+          : [];
+        updatedCategoryQuestions[currentIndex] = currentQuestion;
+        updatedExistingQuestions[category] = updatedCategoryQuestions;
+        dispatch(setQuestions(projectName, updatedExistingQuestions));
+      }
+    },
+    [
+      textareaError,
+      existingQuestions,
+      category,
+      currentIndex,
+      dispatch,
+      projectName,
+    ]
+  );
+
   return (
     <div className="pt-0 mt-2 flex-col max-h-60 overflow-y-auto">
       <span>Question(s)</span>
@@ -93,6 +139,12 @@ const DynamicInput = (props) => {
               onInput={updateRows}
               onBlur={saveQuestionsHandler}
             />
+            {textareaError && (
+              <p className="text-xs text-red-500 float-right bg-red-100 p-1">
+                <i className="fas fa-triangle-exclamation"></i>
+                {textareaError}
+              </p>
+            )}
             {questionList.length > 1 && (
               <span
                 className={
