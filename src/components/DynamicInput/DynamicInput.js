@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setQuestions } from "../../store/qa-actions";
+import styles from "./DynamicInput.module.css";
 
 const camelize = (str) => {
   return str
@@ -140,26 +141,26 @@ const DynamicInput = ({ category: rawCategory }) => {
     },
     [existingQuestions, category, dispatch, projectName]
   );
-
   return (
-    <div className="pt-0 mt-2 flex-col max-h-60 overflow-y-auto">
+    <div className={styles["pt-0 mt-2 flex-col max-h-60 overflow-y-auto"]}>
       <span>Question(s)</span>
       {questionList.map((singleQuestion, idx) => (
-        <div key={idx} className="questions">
-          <div className="relative flex w-full flex-wrap items-stretch mb-3">
-            <textarea
-              ref={el => textareaRefs.current[idx] = el} 
-              rows="1"
-              type="text"
-              name="question"
-              placeholder="Please enter a question"
-              className="pl-2 pr-8 py-1 placeholder-blueGray-300 text-blueGray-600 relativebg-white rounded text-sm border border-blueGray-300 outline-none focus:outline-none focus:shadow-outline w-full resize-none"
-              required
-              value={singleQuestion.question}
-              onChange={(e) => questionChangeHandler(e, idx)}
-              onInput={updateRows}
-              onBlur={(e) => saveQuestionsHandler(e, idx)}
-            />
+        <React.Fragment key={idx}>
+          <div className={styles.questions}>
+            <div className="relative flex w-full flex-wrap items-stretch">
+              <textarea
+                ref={(el) => (textareaRefs.current[idx] = el)}
+                rows="1"
+                type="text"
+                name="question"
+                placeholder="Please enter a question"
+                className="pl-2 pr-8 py-1 placeholder-blueGray-300 text-blueGray-600 relativebg-white rounded text-sm border border-blueGray-300 outline-none focus:outline-none focus:shadow-outline w-full resize-none"
+                required
+                value={singleQuestion.question}
+                onChange={(e) => questionChangeHandler(e, idx)}
+                onInput={updateRows}
+                onBlur={(e) => saveQuestionsHandler(e, idx)}
+              />
             {/* Updated to display error for each specific question */}
             {singleQuestion.error && (
               <p className="text-xs text-red-500 float-right bg-red-100 p-1">
@@ -170,7 +171,7 @@ const DynamicInput = ({ category: rawCategory }) => {
             {questionList.length > 1 && (
               <span
                 className={
-                  "z-10 leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
+                  "leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
                 }
                 onClick={() =>
                   questionRemoveHandler(idx, singleQuestion.question)
@@ -190,6 +191,12 @@ const DynamicInput = ({ category: rawCategory }) => {
             )}
           </div>
         </div>
+        {idx < questionList.length - 1 && (
+          <div className={styles["or-connector"]}>
+            <span className={styles["or-text"]}>O R</span>
+          </div>
+        )}
+      </React.Fragment>
       ))}
     </div>
   );

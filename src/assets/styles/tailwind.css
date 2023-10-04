@@ -876,6 +876,13 @@ select {
   position: relative;
 }
 
+.inset-0 {
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+}
+
 .top-0 {
   top: 0px;
 }
@@ -1327,6 +1334,10 @@ select {
   height: 16rem;
 }
 
+.h-6 {
+  height: 1.5rem;
+}
+
 .h-5 {
   height: 1.25rem;
 }
@@ -1383,6 +1394,10 @@ select {
   width: auto;
 }
 
+.w-6 {
+  width: 1.5rem;
+}
+
 .w-6\/12 {
   width: 50%;
 }
@@ -1433,6 +1448,10 @@ select {
 
 .max-w-150-px {
   max-width: 150px;
+}
+
+.max-w-6xl {
+  max-width: 72rem;
 }
 
 .flex-auto {
@@ -1552,6 +1571,10 @@ select {
   align-content: center;
 }
 
+.items-start {
+  align-items: flex-start;
+}
+
 .items-center {
   align-items: center;
 }
@@ -1630,6 +1653,11 @@ select {
 .rounded-t {
   border-top-left-radius: 0.25rem;
   border-top-right-radius: 0.25rem;
+}
+
+.rounded-b {
+  border-bottom-right-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
 }
 
 .border {
@@ -1875,6 +1903,11 @@ select {
   background-color: rgb(238 242 255 / var(--tw-bg-opacity));
 }
 
+.bg-amber-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(245 158 11 / var(--tw-bg-opacity));
+}
+
 .bg-transparent {
   background-color: transparent;
 }
@@ -1934,11 +1967,6 @@ select {
   background-color: rgb(249 250 251 / var(--tw-bg-opacity));
 }
 
-.bg-amber-500 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(245 158 11 / var(--tw-bg-opacity));
-}
-
 .bg-full {
   background-size: 100%;
 }
@@ -1989,6 +2017,10 @@ select {
 
 .p-5 {
   padding: 1.25rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
 }
 
 .py-40 {
@@ -2477,6 +2509,14 @@ select {
   opacity: 0.2;
 }
 
+.opacity-5 {
+  opacity: 0.05;
+}
+
+.opacity-25 {
+  opacity: 0.25;
+}
+
 .opacity-40 {
   opacity: 0.4;
 }
@@ -2671,6 +2711,11 @@ select {
   background-color: rgb(220 38 38 / var(--tw-bg-opacity));
 }
 
+.active\:bg-amber-600:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(217 119 6 / var(--tw-bg-opacity));
+}
+
 .active\:bg-indigo-600:active {
   --tw-bg-opacity: 1;
   background-color: rgb(79 70 229 / var(--tw-bg-opacity));
@@ -2689,11 +2734,6 @@ select {
 .active\:bg-blueGray-50:active {
   --tw-bg-opacity: 1;
   background-color: rgb(248 250 252 / var(--tw-bg-opacity));
-}
-
-.active\:bg-amber-600:active {
-  --tw-bg-opacity: 1;
-  background-color: rgb(217 119 6 / var(--tw-bg-opacity));
 }
 
 .disabled\:opacity-75:disabled {

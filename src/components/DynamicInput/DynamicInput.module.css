@@ -1,0 +1,33 @@
+.questions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.or-connector {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  margin: 4px 0;
+}
+
+.or-connector::before {
+  content: "";
+  position: absolute;
+  top: -4px; /* Adjust based on the desired spacing from the top of the OR text */
+  bottom: -12px; /* Adjust based on the desired spacing from the bottom of the OR text */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0.5px;
+  background-color: #adb5bd; /* Adjust this to your theme's color */
+  z-index: 0;
+}
+
+.or-text {
+  background-color: white;
+  padding: 0 4px 0 3px;
+  z-index: 1;
+  font-size: 12px;
+  color: rgb(203,213,225);
+}
