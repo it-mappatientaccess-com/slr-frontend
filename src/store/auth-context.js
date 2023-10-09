@@ -69,24 +69,36 @@ export const AuthContextProvider = (props) => {
 
   const refreshTokenHandler = useCallback(async () => {
     if (hasTokenExpired(tokenExpirationTime)) {
-      logoutHandler();
-      return;
+        logoutHandler();
+        return;
     }
-  
-    const newTokenData = await refreshToken(token);
-    if (newTokenData) {
-      const newToken = `Bearer ${newTokenData.access_token}`;
-      const newExpirationTime = newTokenData.expiration_time;
-      setToken(newToken);
-      setTokenExpirationTime(newExpirationTime);
-      localStorage.setItem("token", newToken);
-      localStorage.setItem("expirationTime", newExpirationTime);
-      const remainingTime = calculateRemainingTime(newExpirationTime);
-      if (remainingTime > 300000) {
-        refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
-      }
+
+    try {
+        const newTokenData = await refreshToken(token);
+        if (newTokenData) {
+            const newToken = `Bearer ${newTokenData.access_token}`;
+            const newExpirationTime = newTokenData.expiration_time;
+            setToken(newToken);
+            setTokenExpirationTime(newExpirationTime);
+            localStorage.setItem("token", newToken);
+            localStorage.setItem("expirationTime", newExpirationTime);
+            const remainingTime = calculateRemainingTime(newExpirationTime);
+            if (remainingTime > 300000) {
+                refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
+            }
+        }
+    } catch (error) {
+        if (error.response && error.response.status === 401) {
+            // Handle token expiration or invalid refresh token
+            logoutHandler();
+        } else {
+            // Handle other errors (e.g., network issues, server errors)
+            // Here you can set a state to show an error notification to the user if needed.
+            console.error("Failed to refresh token:", error.message);
+        }
     }
-  }, [token, tokenExpirationTime, logoutHandler]);
+}, [token, tokenExpirationTime, logoutHandler]);
+
   
 
   useEffect(() => {

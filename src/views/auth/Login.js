@@ -24,6 +24,16 @@ export default function Login() {
     message: "",
     color: "",
   });
+  const handleInputChange = (event) => {
+    setLoginStatus({
+      submitted: false,
+      status: "",
+      message: "",
+      color: "",
+    });
+    handleChange(event);
+  };
+  
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -32,6 +42,7 @@ export default function Login() {
         setLoginStatus({
           submitted: true,
         });
+
         await api
           .post(
             "login",
@@ -48,8 +59,8 @@ export default function Login() {
           .then((response) => {
             if (response.status === 200) {
               setLoginStatus({
-                submitted: true,
-                status: "Logging in... ",
+                submitted: false,
+                status: "Logged in successfully!",
                 message: response.data.message,
                 color: "bg-emerald-500",
               });
@@ -59,20 +70,33 @@ export default function Login() {
               );
               navigate("/dashboard/my-projects", { replace: true });
             }
-            return response;
           })
           .catch((error) => {
-            if (error.response.status === 404) {
-              setTimeout(() => {
-                setLoginStatus({
-                  submitted: true,
-                  status: "Error: ",
-                  message: error.response.data.detail,
-                  color: "bg-orange-500",
-                });
-              }, 3000);
+            let errorMessage = "An error occurred. Please try again.";
+
+            if (error.response) {
+              switch (error.response.status) {
+                case 400:
+                  errorMessage =
+                    "There seems to be an issue with your request.";
+                  break;
+                case 401:
+                  errorMessage = "Incorrect username or password.";
+                  break;
+                case 500:
+                  errorMessage = "Server error. Please try again later.";
+                  break;
+                default:
+                  errorMessage = "An unexpected error occurred.";
+                  break;
+              }
             }
-            action.resetForm();
+            setLoginStatus({
+              submitted: false,
+              status: "Error!",
+              message: errorMessage,
+              color: "bg-red-500",
+            });
           });
       },
     });
@@ -118,7 +142,7 @@ export default function Login() {
                     autoComplete="off"
                     id="email"
                     value={values.username}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     onBlur={handleBlur}
                   />
                   {errors.username && touched.username && (
@@ -148,7 +172,7 @@ export default function Login() {
                     id="password"
                     autoComplete="off"
                     value={values.password}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     onBlur={handleBlur}
                   />
                   {errors.password && touched.password && (
@@ -170,7 +194,7 @@ export default function Login() {
                     </span>
                   </label>
                 </div> */}
-                {loginStatus.submitted && loginStatus.status && (
+                {loginStatus.status && (
                   <Alert
                     alertClass={loginStatus.color}
                     alertTitle={loginStatus.status}
