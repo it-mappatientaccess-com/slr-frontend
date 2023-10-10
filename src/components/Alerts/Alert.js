@@ -1,13 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 const Alert = (props) => {
   const [showAlert, setShowAlert] = React.useState(true);
-  
-  useEffect(() => {
-    if (!props.isVisible) {
-      setShowAlert(false);
-    }
-  }, [props.isVisible]);
 
   // Use the prop value directly to decide whether to show the close button or not.
   const showCloseButton = props.showCloseButton !== false; // This will make it true by default
@@ -18,9 +12,9 @@ const Alert = (props) => {
         <div
           className={`text-white px-4 py-2 border-0 rounded relative mb-2 ${props.alertClass}`}
         >
-          <span className="text-xl inline-block mr-5 align-middle">
+          {props.alertTitle && <span className="text-xl inline-block mr-5 align-middle">
             <i className="fas fa-bell" /> 
-          </span>
+          </span>}
           <span className="inline-block align-middle mr-8">
             <b className="capitalize"> {props.alertTitle}</b> {props.alertMessage}
           </span>

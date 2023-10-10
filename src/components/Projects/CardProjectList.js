@@ -7,7 +7,7 @@ import LoadingBar from "react-top-loading-bar";
 const CardProjectList = ({ handleProjectClicked }) => {
   const dispatch = useDispatch();
   const progress = useSelector((state) => state.project.progress);
-  const error = useSelector((state) => state.project.error); // Assuming error state was added to your slice
+  const error = useSelector((state) => state.project.error);
 
   const createProjectHandler = () => {
     handleProjectClicked(true);

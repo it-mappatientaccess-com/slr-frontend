@@ -20,7 +20,6 @@ export default function CreateProject() {
     message: "",
     color: "",
   });
-  const [isVisible, setIsVisible] = useState(false);
 
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
@@ -49,10 +48,6 @@ export default function CreateProject() {
                 message: response.data.detail,
                 color: "bg-emerald-500",
               });
-              setIsVisible(true);
-              setTimeout(() => {
-                setIsVisible(false);
-              }, 5000);
               setTimeout(() => {
                 setErrorStatus({
                   status: "",
@@ -73,10 +68,6 @@ export default function CreateProject() {
                 color: "bg-orange-500",
               });
             }
-            setIsVisible(true);
-            setTimeout(() => {
-              setIsVisible(false);
-            }, 5000);
           });
         action.resetForm();
       },
@@ -173,7 +164,6 @@ export default function CreateProject() {
               alertClass={errorStatus.color}
               alertTitle={errorStatus.status}
               alertMessage={errorStatus.message}
-              isVisible={isVisible}
             />
           )}
         </div>
