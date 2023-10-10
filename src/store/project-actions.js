@@ -1,124 +1,67 @@
 import api from "util/api";
 import { ProjectActions } from "slices/projectSlice";
 
-export const fetchProjectsData = () => {
-  return async (dispatch) => {
-    dispatch(
-      ProjectActions.setProgress({
-        progress: 70,
-      })
-    );
-    const sendData = async () => {
-      return await api
-        .get("project", {
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        })
-        .then((response) => {
-          return response;
-        });
-    };
-    try {
-      const projects = await sendData();
-      dispatch(
-        ProjectActions.setListOfProjects({
-          listOfProjects: Object.entries(projects.data).map((e) => e[1]),
-        })
-      );
-      dispatch(
-        ProjectActions.setProgress({
-          progress: 100,
-        })
-      );
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        ProjectActions.setProgress({
-          progress: 100,
-        })
-      );
-    }
-  };
-};
+export const fetchProjectsData = () => async (dispatch) => {
+    dispatch(ProjectActions.setProgress({ progress: 70 }));
 
-export const setProjectsData = (projectName, newDescription) => {
-  return async (dispatch) => {
-    const sendData = async () => {
-      return await api
-        .put(
-          `project/${projectName}/?projectDescription=${newDescription}`,
-          {},
-          {
+    try {
+        const response = await api.get("project", {
             headers: {
-              Authorization: localStorage.getItem("token"),
+                Authorization: localStorage.getItem("token"),
             },
-          }
-        )
-        .then((response) => {
-          return response;
         });
-    };
-    try {
-      const project = await sendData(newDescription);
-      console.log(project);
-      dispatch(fetchProjectsData());
+        dispatch(ProjectActions.setListOfProjects({
+            listOfProjects: Object.entries(response.data.data).map((e) => e[1]),
+        }));
+        dispatch(ProjectActions.setProgress({ progress: 100 }));
     } catch (error) {
-      console.log(error);
+        console.error(error);
+        dispatch(ProjectActions.setError({ error: "Failed to fetch projects." }));
+        dispatch(ProjectActions.setProgress({ progress: 100 }));
     }
-  };
 };
 
-export const deleteProjectData = (projectName) => {
-  return async (dispatch) => {
-    const sendData = async () => {
-      return await api
-        .delete(`project/${projectName}`, {
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        })
-        .then((response) => {
-          return response;
-        });
-    };
+export const setProjectsData = (projectName, newDescription) => async (dispatch) => {
     try {
-      const projectData = await sendData(projectName);
-      console.log(projectData);
-      dispatch(fetchProjectsData());
+        await api.put(`project/${projectName}/?projectDescription=${newDescription}`, {}, {
+            headers: {
+                Authorization: localStorage.getItem("token"),
+            },
+        });
+        dispatch(fetchProjectsData());
     } catch (error) {
-      console.log(error);
+        console.error(error);
+        dispatch(ProjectActions.setError({ error: "Failed to update project." }));
     }
-  };
 };
 
-export const setSelectedProject = (projectName) => {
-  return (dispatch) => {
+export const deleteProjectData = (projectName) => async (dispatch) => {
+    try {
+        await api.delete(`project/${projectName}`, {
+            headers: {
+                Authorization: localStorage.getItem("token"),
+            },
+        });
+        dispatch(fetchProjectsData());
+    } catch (error) {
+        console.error(error);
+        dispatch(ProjectActions.setError({ error: "Failed to delete project." }));
+    }
+};
+
+export const setSelectedProject = (projectName) => (dispatch) => {
     localStorage.setItem("selectedProject", projectName);
-    dispatch(
-      ProjectActions.setSelectedProject({
-        selectedProject: projectName,
-      })
-    );
-  };
+    dispatch(ProjectActions.setSelectedProject({ selectedProject: projectName }));
 };
 
 export function resetProjectStore() {
-  return (dispatch) => {
-    dispatch(
-      ProjectActions.resetProjectStore({
-        resetStore: true,
-      })
-    );
-  };
+    return (dispatch) => {
+        dispatch(ProjectActions.resetProjectStore({ resetStore: true }));
+    };
 }
 
 export function setProgress(progress) {
-  return (dispatch) => {
-    dispatch(
-      ProjectActions.setProgress({
-        progress,
-      })
-    );
-  };
+    return (dispatch) => {
+        dispatch(ProjectActions.setProgress({ progress }));
+    };
 }

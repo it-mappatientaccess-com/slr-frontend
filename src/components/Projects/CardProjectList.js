@@ -3,14 +3,14 @@ import { useDispatch, useSelector } from "react-redux";
 import ProjectsTable from "./ProjectsTable";
 import { fetchProjectsData } from "store/project-actions";
 import LoadingBar from "react-top-loading-bar";
-import { setProgress } from "store/project-actions";
 
-const CardProjectList = (props) => {
+const CardProjectList = ({ handleProjectClicked }) => {
   const dispatch = useDispatch();
-  let progress = useSelector((state) => state.project.progress);
+  const progress = useSelector((state) => state.project.progress);
+  const error = useSelector((state) => state.project.error); // Assuming error state was added to your slice
 
   const createProjectHandler = () => {
-    props.handleProjectClicked(true);
+    handleProjectClicked(true);
   };
 
   useEffect(() => {
@@ -22,7 +22,6 @@ const CardProjectList = (props) => {
       <LoadingBar
         color="#18FFFF"
         progress={progress}
-        onLoaderFinished={() => setProgress(0)}
         height={3}
         loaderSpeed={3000}
       />
@@ -39,6 +38,7 @@ const CardProjectList = (props) => {
             </button>
           </div>
         </div>
+        {error && <div className="px-6 py-4 text-red-500">{error}</div>} {/* Displaying errors */}
         <ProjectsTable />
       </div>
     </>

@@ -91,7 +91,6 @@ const ProjectsTable = () => {
 
   let projectData = useSelector((state) => state.project.listOfProjects);
   const [rowData, setRowData] = useState([]);
-
   const columnDefs = [
     {
       headerName: "ID",
