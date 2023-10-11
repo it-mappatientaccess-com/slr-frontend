@@ -92,7 +92,7 @@ const AbstractUpload = () => {
         setMetadata
         data-file-metadata-questions="world"
         name="file" /* sets the file input name, it's filepond by default */
-        labelIdle='Drag & Drop your .csv or .xlsx file or <span class="filepond--label-action">Click to Browse</span>'
+        labelIdle='Drag & Drop your .csv or .xlsx file or <span class="filepond--label-action">Click to Browse</span><br/>(MAX FILES: 1, MAX FILESIZE: 5MB)'
         allowFileTypeValidation={true}
         acceptedFileTypes={[
           "text/csv",

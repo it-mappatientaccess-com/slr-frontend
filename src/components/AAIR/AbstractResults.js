@@ -40,11 +40,13 @@ const btnCellRenderer = (props) => {
 };
 
 const getParams = () => {
+  const projectName = localStorage.getItem("selectedProject");
   return {
     columnKeys: ["ID", "abstract", "result"],
-    fileName: "SLR_AI_results.csv",
+    fileName: `${projectName}_aair_results.csv`,
   };
 };
+
 
 const AbstractResults = () => {
   const dispatch = useDispatch();

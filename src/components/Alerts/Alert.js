@@ -2,7 +2,6 @@ import React from "react";
 
 const Alert = (props) => {
   const [showAlert, setShowAlert] = React.useState(true);
-
   // Use the prop value directly to decide whether to show the close button or not.
   const showCloseButton = props.showCloseButton !== false; // This will make it true by default
   
