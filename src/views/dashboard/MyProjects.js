@@ -23,13 +23,13 @@ const MyProjects = () => {
                         <CreateProject />
                     </div>
                 )}
-                {errorMessage && (
+                {/* {errorMessage && (
                     <Alert
                         alertClass="bg-red-500" // Adjust the color and other properties as needed
                         alertTitle="Error"
                         alertMessage={errorMessage}
                     />
-                )}
+                )} */}
             </div>
         </>
     );

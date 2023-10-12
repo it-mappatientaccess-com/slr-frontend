@@ -88,7 +88,8 @@ export const AuthContextProvider = (props) => {
             }
         }
     } catch (error) {
-        if (error.response && error.response.status === 401) {
+      console.log(error);
+        if (error.response) {
             // Handle token expiration or invalid refresh token
             logoutHandler();
         } else {
