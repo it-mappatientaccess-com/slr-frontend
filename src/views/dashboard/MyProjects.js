@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import CreateProject from "components/Forms/CreateProject";
 import CardProjectList from "components/Projects/CardProjectList";
 import { useSelector } from "react-redux";
-import Alert from "components/Alerts/Alert";
+// import Alert from "components/Alerts/Alert";
 
 const MyProjects = () => {
     const [createProjectClicked, setCreateProjectClicked] = useState(false);
