@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import CreateProject from "components/Forms/CreateProject";
 import CardProjectList from "components/Projects/CardProjectList";
-import { useSelector } from "react-redux";
+// import { useSelector } from "react-redux";
 // import Alert from "components/Alerts/Alert";
 
 const MyProjects = () => {
     const [createProjectClicked, setCreateProjectClicked] = useState(false);
-    const errorMessage = useSelector((state) => state.project.error);
+    // const errorMessage = useSelector((state) => state.project.error);
 
     const handleProjectClicked = (flagValue) => {
         setCreateProjectClicked(flagValue);
