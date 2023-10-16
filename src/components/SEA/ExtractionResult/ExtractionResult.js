@@ -64,6 +64,7 @@ const ExtractionResult = (props) => {
   }, [props.result]);
 
   const onBtnExport = () => {
+    const headers = columnDefs.map(colDef => colDef.headerName);  // Get column headers
     const data = rowData.map(row => {
       return columnDefs.map(colDef => {
         let cellValue = row[colDef.field];
@@ -84,11 +85,14 @@ const ExtractionResult = (props) => {
       });
     });
   
+    data.unshift(headers);  // Add headers at the beginning of the data array
+  
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
     XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
   };
+  
   
 
   return (
