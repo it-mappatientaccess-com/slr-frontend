@@ -30,8 +30,8 @@ export default function CreateProject() {
           .post(
             "project",
             {
-              projectName: values.projectName,
-              projectDescription: values.projectDescription,
+              projectName: values.projectName.trim(),
+              projectDescription: values.projectDescription.trim(),
             },
             {
               headers: {

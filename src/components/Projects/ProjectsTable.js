@@ -8,8 +8,11 @@ import { setProjectsData } from "store/project-actions";
 import { useDispatch, useSelector } from "react-redux";
 import { deleteProjectData, setSelectedProject } from "store/project-actions";
 import { useNavigate } from "react-router";
-import { fetchOldQuestions, fetchOldSeaQuestions } from "../../store/qa-actions";
-
+import {
+  fetchOldQuestions,
+  fetchOldSeaQuestions,
+} from "../../store/qa-actions";
+import ModalSmall from "components/Modal/ModalSmall";
 let rowImmutableStore;
 
 const actionCellRenderer = (params) => {
@@ -91,6 +94,8 @@ const ProjectsTable = () => {
 
   let projectData = useSelector((state) => state.project.listOfProjects);
   const [rowData, setRowData] = useState([]);
+  const [currentParams, setCurrentParams] = useState(null);
+
   const columnDefs = [
     {
       headerName: "ID",
@@ -130,7 +135,25 @@ const ProjectsTable = () => {
       flex: 2,
     },
   ];
+  // State to manage modal visibility
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  
+  const handleDeleteProject = (projectName) => {
+    // Function to handle project deletion logic
 
+    // Apply the transaction to remove the data from the grid
+    const projectData = rowImmutableStore.find(
+      (e) => e.projectName === projectName
+    );
+    currentParams.api.applyTransaction({
+      remove: [projectData],
+    });
+    dispatch(deleteProjectData(projectName));
+
+    // Close the modal after deletion
+    setShowDeleteModal(false);
+  };
   const defaultColDef = useMemo(
     () => ({
       sortable: true,
@@ -156,17 +179,11 @@ const ProjectsTable = () => {
         }
 
         if (action === "delete") {
-          params.api.applyTransaction({
-            remove: [params.node.data],
-          });
-          // here we need to update the value projectStatusData in the store
-          const arrCopy = [...rowImmutableStore];
-          arrCopy.splice(
-            arrCopy.findIndex((e) => e.id === params.data.id),
-            1
-          );
-          dispatch(deleteProjectData(params.node.data.projectName));
-        }
+          console.log("Delete action triggered");
+          setProjectToDelete(params.node.data.projectName);
+          setShowDeleteModal(true);
+          setCurrentParams(params);
+      }
 
         if (action === "update") {
           params.api.stopEditing(false);
@@ -177,7 +194,7 @@ const ProjectsTable = () => {
         }
       }
     },
-    [dispatch]
+    []
   );
 
   const onRowEditingStarted = (params) => {
@@ -254,6 +271,18 @@ const ProjectsTable = () => {
           onRowEditingStarted={onRowEditingStarted}
         />
       </div>
+      {showDeleteModal && (
+        <ModalSmall
+          title="Confirm Deletion"
+          content="This will delete the project and all the related data. Are you sure you want to delete the project?"
+          secondaryButtonText="No, Close"
+          primaryButtonText="Yes, Delete"
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onPrimaryClick={() => handleDeleteProject(projectToDelete)}
+          colorClasses = 'bg-red-500 text-white active:bg-red-600'
+        />
+      )}
     </>
   );
 };
