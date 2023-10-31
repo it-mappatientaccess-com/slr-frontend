@@ -19,6 +19,8 @@ export default function FooterSmall(props) {
                 <a
                   href="https://www.mappatientaccess.com/"
                   className="text-white hover:text-blueGray-300 text-sm font-semibold py-1"
+                  target="_blank"
+                  rel="noreferrer"
                 >
                   MAP Patient Access Limited
                 </a>
@@ -30,6 +32,8 @@ export default function FooterSmall(props) {
                   <a
                     href="https://www.mappatientaccess.com/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     MAP Patient Access
                   </a>
@@ -38,6 +42,8 @@ export default function FooterSmall(props) {
                   <a
                     href="https://www.mappatientaccess.com/contactus/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     Contact Us
                   </a>
@@ -46,6 +52,8 @@ export default function FooterSmall(props) {
                   <a
                     href="https://www.mappatientaccess.com/blog/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     Blog
                   </a>

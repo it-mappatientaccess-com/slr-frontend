@@ -1,24 +1,29 @@
 import api from "util/api";
 import { ProjectActions } from "slices/projectSlice";
 
+/**
+ * Fetches project data from an API and updates the Redux store.
+ * @returns {Function} The async function that fetches project data.
+ */
 export const fetchProjectsData = () => async (dispatch) => {
+  try {
     dispatch(ProjectActions.setProgress({ progress: 70 }));
 
-    try {
-        const response = await api.get("project", {
-            headers: {
-                Authorization: localStorage.getItem("token"),
-            },
-        });
-        dispatch(ProjectActions.setListOfProjects({
-            listOfProjects: Object.entries(response.data.data).map((e) => e[1]),
-        }));
-        dispatch(ProjectActions.setProgress({ progress: 100 }));
-    } catch (error) {
-        console.error(error);
-        dispatch(ProjectActions.setError({ error: "Failed to fetch projects." }));
-        dispatch(ProjectActions.setProgress({ progress: 100 }));
-    }
+    const response = await api.get("project", {
+      headers: {
+        Authorization: localStorage.getItem("token"),
+      },
+    });
+
+    const listOfProjects = Object.entries(response.data.data).map((e) => e[1]);
+
+    dispatch(ProjectActions.setListOfProjects({ listOfProjects }));
+    dispatch(ProjectActions.setProgress({ progress: 100 }));
+  } catch (error) {
+    console.error(error);
+    dispatch(ProjectActions.setError({ error: "Failed to fetch projects." }));
+    dispatch(ProjectActions.setProgress({ progress: 100 }));
+  }
 };
 
 export const setProjectsData = (projectName, newDescription) => async (dispatch) => {

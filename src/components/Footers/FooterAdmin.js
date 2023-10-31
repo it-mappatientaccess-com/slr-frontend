@@ -13,8 +13,10 @@ export default function FooterAdmin() {
                 <a
                   href="https://www.mappatientaccess.com/"
                   className="text-blueGray-500 hover:text-blueGray-700 text-sm font-semibold py-1"
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                MAP Patient Access Limited
+                  MAP Patient Access Limited
                 </a>
               </div>
             </div>
@@ -24,6 +26,8 @@ export default function FooterAdmin() {
                   <a
                     href="https://www.mappatientaccess.com/"
                     className="text-blueGray-600 hover:text-blueGray-800 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     MAP Patient Access
                   </a>
@@ -32,6 +36,8 @@ export default function FooterAdmin() {
                   <a
                     href="https://www.mappatientaccess.com/contactus/"
                     className="text-blueGray-600 hover:text-blueGray-800 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     Contact Us
                   </a>
@@ -40,6 +46,8 @@ export default function FooterAdmin() {
                   <a
                     href="https://www.mappatientaccess.com/blog/"
                     className="text-blueGray-600 hover:text-blueGray-800 text-sm font-semibold block py-1 px-3"
+                    target="_blank"
+                    rel="noreferrer"
                   >
                     Blog
                   </a>

@@ -59,6 +59,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/team/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         About Us
                       </a>
@@ -67,6 +69,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/news/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         News
                       </a>
@@ -75,6 +79,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/consultancy/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         Services
                       </a>
@@ -83,6 +89,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/tools/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                        Products
                       </a>
@@ -98,6 +106,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/terms-and-conditions/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         Terms & Conditions
                       </a>
@@ -106,6 +116,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/privacy/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         Privacy Policy
                       </a>
@@ -114,6 +126,8 @@ export default function Footer() {
                       <a
                         className="text-blueGray-600 hover:text-blueGray-800 font-semibold block pb-2 text-sm"
                         href="https://www.mappatientaccess.com/contactus/"
+                        target="_blank"
+                        rel="noreferrer"
                       >
                         Contact Us
                       </a>
@@ -131,6 +145,8 @@ export default function Footer() {
                 <a
                   href="https://www.mappatientaccess.com/"
                   className="text-blueGray-500 hover:text-blueGray-800"
+                  target="_blank"
+                  rel="noreferrer"
                 >
                   MAP Patient Access  Limited
                 </a>

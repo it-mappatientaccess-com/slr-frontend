@@ -3,3 +3,7 @@
 @tailwind components;
 
 @tailwind utilities;
+
+.frf-water {
+  display: none !important;
+}
