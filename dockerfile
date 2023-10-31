@@ -4,7 +4,7 @@ ENV NODE_ENV production
 WORKDIR /app
 # Cache and Install dependencies
 COPY package.json package-lock.json ./  
-RUN npm ci
+RUN npm ci --legacy-peer-deps   # Add the --legacy-peer-deps flag here
 # Copy app files
 COPY . .
 # Build the app
