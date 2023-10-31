@@ -1,10 +1,12 @@
-FROM node:14-alpine AS builder
+# Use Node.js v18 to align with your GitHub workflow
+FROM node:18-alpine AS builder
 ENV NODE_ENV production
 # Add a work directory
 WORKDIR /app
 # Cache and Install dependencies
 COPY package.json package-lock.json ./  
-RUN npm ci --legacy-peer-deps   # Add the --legacy-peer-deps flag here
+# Use the --legacy-peer-deps flag during installation
+RUN npm ci --legacy-peer-deps
 # Copy app files
 COPY . .
 # Build the app
