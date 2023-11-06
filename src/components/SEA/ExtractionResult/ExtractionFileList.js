@@ -13,13 +13,24 @@ import ExtractionResult from "./ExtractionResult";
 
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
-  const onClickHandler = async () => {
+  const onViewResultsClickHandler = async () => {
     await props.dispatch(
       fetchExtractionFileResults(
         props.data["file_id"],
         localStorage.getItem("selectedProject")
       )
     );
+
+    // Calculate the position of the gridWrapper relative to the viewport
+    const topPosition =
+      props.gridWrapperRef.current.getBoundingClientRect().top +
+      window.scrollY;
+
+    // Scroll to the calculated position with smooth behavior
+    window.scrollTo({
+      top: topPosition,
+      behavior: "smooth",
+    });
   };
   const onDeleteHandler = async () => {
     setDeleteClicked(true);
@@ -31,14 +42,14 @@ const btnCellRenderer = (props) => {
       // Handle the error here if needed, and maybe stop the loader as well
     }
   };
-  
+
   return (
     <>
       <button
         className="bg-emerald-500 text-white active:bg-emerald-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
         type="button"
         data-action="update"
-        onClick={onClickHandler}
+        onClick={onViewResultsClickHandler}
       >
         View Results <i className="fas fa-binoculars"></i>
       </button>
@@ -47,7 +58,7 @@ const btnCellRenderer = (props) => {
         type="button"
         onClick={onDeleteHandler}
       >
-        <i className={`fas fa-trash-can ${deleteClicked ? 'fa-flip' : ''}`}></i>
+        <i className={`fas fa-trash-can ${deleteClicked ? "fa-flip" : ""}`}></i>
       </button>
     </>
   );
@@ -66,6 +77,7 @@ const ExtractionFileList = () => {
   const selectedFile = useSelector(
     (state) => state.dataExtraction.selectedFile
   );
+  const gridWrapperRef = useRef(null);
 
   const columnDefs = [
     {
@@ -86,7 +98,8 @@ const ExtractionFileList = () => {
       cellRenderer: btnCellRenderer,
       cellRendererParams: {
         dispatch,
-        useState
+        useState,
+        gridWrapperRef,
       },
       editable: false,
       colId: "view",
@@ -119,7 +132,11 @@ const ExtractionFileList = () => {
       {processedFiles.length !== 0 && (
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
           <div className="flex-auto p-4">
-            <div className={`ag-theme-alpine h-screen`} style={{ height: 320 }}>
+            <div
+              ref={gridWrapperRef}
+              className={`ag-theme-alpine h-screen`}
+              style={{ height: 320 }}
+            >
               <AgGridReact
                 ref={gridRef}
                 rowData={rowData}

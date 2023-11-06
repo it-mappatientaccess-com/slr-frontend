@@ -30,14 +30,14 @@ const actionCellRenderer = (params) => {
             type="button"
             data-action="update"
           >
-            Update <i className="fas fa-arrows-rotate"></i>
+            <span className="hidden md:inline">Update</span> <i className="fas fa-arrows-rotate"></i>
           </button>
           <button
             className="bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="cancel"
             type="button"
           >
-            Cancel <i className="fas fa-xmark"></i>
+             <span className="hidden md:inline">Cancel</span> <i className="fas fa-xmark"></i>
           </button>
         </div>
       )}
@@ -48,14 +48,14 @@ const actionCellRenderer = (params) => {
             data-action="edit"
             type="button"
           >
-            Edit <i className="fas fa-pen"></i>
+            <span className="hidden md:inline">Edit</span> <i className="fas fa-pen"></i>
           </button>
           <button
             className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="delete"
             type="button"
           >
-            Delete <i className="fas fa-trash-can"></i>
+            <span className="hidden md:inline">Delete</span> <i className="fas fa-trash-can"></i>
           </button>
         </div>
       )}
@@ -79,7 +79,7 @@ const btnCellRenderer = (params) => {
           data-action="update"
           onClick={onClickHandler}
         >
-          View Project <i className="fas fa-paper-plane"></i>
+          <span className="hidden md:inline"> View Project</span> <i className="fas fa-paper-plane"></i>
         </button>
       </div>
     </>
@@ -97,22 +97,23 @@ const ProjectsTable = () => {
   const [currentParams, setCurrentParams] = useState(null);
 
   const columnDefs = [
-    {
-      headerName: "ID",
-      valueGetter: "node.rowIndex + 1",
-      width: 80,
-      // rowDrag: true,
-    },
+    // {
+    //   headerName: "ID",
+    //   valueGetter: "node.rowIndex + 1",
+    //   width: 80
+    //   // rowDrag: true,
+    // },
     {
       field: "projectName",
       suppressSizeToFit: true,
       flex: 1,
+      minWidth:100,
       filter: true,
       editable: false,
     },
     {
       field: "projectDescription",
-      flex: 2,
+      flex: 1,
       filter: true,
       editable: true,
     },
@@ -251,7 +252,7 @@ const ProjectsTable = () => {
 
   return (
     <>
-      <div className="ag-theme-alpine" style={{ height: 320 }}>
+      <div className="ag-theme-alpine" style={{ height: '50vh' }}>
         <AgGridReact
           ref={gridRef}
           onCellClicked={cellClickedListener}

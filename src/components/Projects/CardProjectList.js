@@ -11,6 +11,13 @@ const CardProjectList = ({ handleProjectClicked }) => {
 
   const createProjectHandler = () => {
     handleProjectClicked(true);
+    setTimeout(() => {
+      // Scroll to the bottom of the page with smooth behavior
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 100); // Adjust the delay as necessary
   };
 
   useEffect(() => {
@@ -38,7 +45,8 @@ const CardProjectList = ({ handleProjectClicked }) => {
             </button>
           </div>
         </div>
-        {error && <div className="px-6 py-4 text-red-500">{error}</div>} {/* Displaying errors */}
+        {error && <div className="px-6 py-4 text-red-500">{error}</div>}{" "}
+        {/* Displaying errors */}
         <ProjectsTable />
       </div>
     </>

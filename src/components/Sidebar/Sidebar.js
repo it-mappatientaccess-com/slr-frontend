@@ -40,14 +40,14 @@ export default function Sidebar() {
             SLR Tool
           </Link>
           {/* User */}
-          <ul className="md:hidden items-center flex flex-wrap list-none">
+          {/* <ul className="md:hidden items-center flex flex-wrap list-none">
             <li className="inline-block relative">
               <NotificationDropdown />
             </li>
             <li className="inline-block relative">
               <UserDropdown />
             </li>
-          </ul>
+          </ul> */}
           {/* Collapse */}
           <div
             className={
@@ -83,7 +83,7 @@ export default function Sidebar() {
                 <input
                   type="text"
                   placeholder="Search"
-                  className="border-0 px-3 py-2 h-12 border border-solid  border-blueGray-500 placeholder-blueGray-300 text-blueGray-600 bg-white rounded text-base leading-snug shadow-none outline-none focus:outline-none w-full font-normal"
+                  className="px-3 py-2 h-12 border border-solid  border-blueGray-500 placeholder-blueGray-300 text-blueGray-600 bg-white rounded text-base leading-snug shadow-none outline-none focus:outline-none w-full font-normal"
                 />
               </div>
             </form>

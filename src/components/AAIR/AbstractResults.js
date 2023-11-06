@@ -33,7 +33,7 @@ const btnCellRenderer = (props) => {
         data-action="update"
         onClick={onClickHandler}
       >
-        View PICO <i className="fas fa-circle-nodes"></i>
+        <span className="hidden md:inline">View PICO</span> <i className="fas fa-circle-nodes"></i>
       </button>
     </>
   );
@@ -259,7 +259,7 @@ const AbstractResults = () => {
             className={`ag-theme-alpine ${
               rowData.length === 0 && isRefreshing ? "opacity-20" : ""
             }`}
-            style={{ height: 320 }}
+            style={{ height: '60vh' }}
           >
             <AgGridReact
               ref={gridRef}

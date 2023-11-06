@@ -47,8 +47,8 @@ export default function Modal({
                     </span>
                   </button>
                 </div>
-                <div className="relative p-6 flex-auto">
-                  <p className="my-4 text-blueGray-500 text-lg leading-relaxed"  dangerouslySetInnerHTML={{ __html: content }}>
+                <div className="relative p-6 flex-auto h-screen-60 overflow-y-auto">
+                  <p className="my-4 text-blueGray-500 text-lg leading-relaxed" dangerouslySetInnerHTML={{ __html: content }}>
                   </p>
                 </div>
                 <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">

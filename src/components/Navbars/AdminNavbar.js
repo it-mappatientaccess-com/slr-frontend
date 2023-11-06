@@ -31,47 +31,38 @@ export default function AdminNavbar({ isAccordionVisible, toggleAccordion }) {
               ? "dashboard"
               : selectedProject}
           </span>
-          {location.pathname === "/dashboard/sea" && (
-            <button
-              className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 ease-linear transition-all duration-150"
-              type="button"
-              onClick={toggleAccordion}
-            >
-              <i className="fas fa-comment-dots"></i> &nbsp;
-              {isAccordionVisible
-                ? "Hide Custom Instructions"
-                : "Show Custom Instructions"}
-            </button>
-          )}
-          {/* <form className="md:flex hidden flex-row flex-wrap items-center lg:ml-auto mr-3">
-            <div className="relative flex w-full flex-wrap items-stretch">
-              <span className="z-10 h-full leading-snug font-normal absolute text-center text-blueGray-300 absolute bg-transparent rounded text-base items-center justify-center w-8 pl-3 py-3">
-                <i className="fas fa-search"></i>
-              </span>
-              <input
-                type="text"
-                placeholder="Search here..."
-                className="border-0 px-3 py-3 placeholder-blueGray-300 text-blueGray-600 relative bg-white bg-white rounded text-sm shadow outline-none focus:outline-none focus:ring w-full pl-10"
-              />
-            </div>
-          </form> */}
-          {/* User */}
-          {location.pathname === "/dashboard/my-projects"
-              ? ""
-              : <button
-            className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-            type="button"
-            onClick={() => setModalOpen(true)}
-          >
-            <i className="fas fa-circle-info"></i> HELP
-          </button>}
+          <div>
+            {location.pathname === "/dashboard/sea" && (
+              <button
+                className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 ease-linear transition-all duration-150"
+                type="button"
+                onClick={toggleAccordion}
+              >
+                <i className="fas fa-comment-dots"></i> &nbsp;
+                {isAccordionVisible
+                  ? "Hide Custom Instructions"
+                  : "Show Custom Instructions"}
+              </button>
+            )}
+            {/* User */}
+            {location.pathname === "/dashboard/my-projects" ? (
+              ""
+            ) : (
+              <button
+                className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none ease-linear transition-all duration-150"
+                type="button"
+                onClick={() => setModalOpen(true)}
+              >
+                <i className="fas fa-circle-info"></i> HELP
+              </button>
+            )}
+          </div>
           <Modal
             show={isModalOpen}
             title="Important Note:"
             content={modalContent}
             onClose={() => setModalOpen(false)}
-          >
-          </Modal>
+          ></Modal>
 
           {/* <ul className="flex-col md:flex-row list-none items-center hidden md:flex">
             <UserDropdown />
