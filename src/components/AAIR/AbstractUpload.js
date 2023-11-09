@@ -12,7 +12,7 @@ import AbstractResults from "./AbstractResults";
 import { useDispatch } from "react-redux";
 import { setNumberOfExamples } from "store/qa-actions";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
-import "./AbstractUpload.css"
+import "./AbstractUpload.css";
 import "filepond/dist/filepond.min.css";
 
 const AbstractUpload = () => {
@@ -30,33 +30,78 @@ const AbstractUpload = () => {
     message: "",
     color: "",
   });
+  const [invalidRows, setInvalidRows] = useState([]);
 
-  const onUploadComplete = (res) => {
-    dispatch(
-      questionAbstractActions.setTaskId({
-        taskId: res.task_id
-      })
-    );
-    dispatch(setNumberOfExamples(res.num_of_examples));
-    dispatch(
-      questionAbstractActions.setIsProcessing({
-        isProcessing: res.is_processing
-      })
-    );
+  const onUpdateFiles = (fileItems) => {
+    // Set current file objects to state
+    setFile(fileItems.map((fileItem) => fileItem.file));
+
+    // If the fileItems array is empty, the user has cleared the files
+    if (fileItems.length === 0) {
+      // Reset the error message and invalid rows
+      setResponseStatus({
+        submitted: false,
+        status: "",
+        message: "",
+        color: "",
+      });
+      setInvalidRows([]);
+    }
+  };
+
+  // This function is updated to handle errors properly
+  const handleServerError = (error) => {
+    let e = JSON.parse(error);
     setResponseStatus({
       submitted: true,
-      status: res.status,
-      message: res.message,
-      color: res.status === "success" ? "bg-emerald-500" : "bg-orange-500",
+      status: "Error",
+      message:
+        e.detail?.message || "An error occurred while uploading the file.",
+      color: "bg-red-500",
     });
-    if (res.status === "success") {
+
+    setInvalidRows(e.detail?.invalid_rows || []);
+  };
+
+  const onUploadComplete = (res) => {
+    console.log(res);
+    if (res.status === "error") {
+      // Handle the error response
+      setResponseStatus({
+        submitted: true,
+        status: "Error", // Changed to a string "Error" to avoid confusion with the 'status' property of 'res'
+        message: res.message,
+        color: "bg-red-500",
+      });
+      setInvalidRows(res.invalid_rows || []); // Set to an empty array if undefined
+    } else if (res.status === "success") {
+      // Dispatch actions for success
+      dispatch(questionAbstractActions.setTaskId({ taskId: res.task_id }));
+      dispatch(setNumberOfExamples(res.num_of_examples));
+      dispatch(
+        questionAbstractActions.setIsProcessing({
+          isProcessing: res.is_processing,
+        })
+      );
+
+      // Set success response status
+      setResponseStatus({
+        submitted: true,
+        status: "Success", // Changed to a string "Success" to avoid confusion with the 'status' property of 'res'
+        message: res.message,
+        color: "bg-emerald-500",
+      });
+
+      // Clear any previous errors
+      setInvalidRows([]);
+
+      // Reset message and color after 10 seconds, keep status and submitted
       setTimeout(() => {
-        setResponseStatus({
-          submitted: false,
-          status: res.status,
-          message: res.message,
-          color: res.status === "success" ? "bg-emerald-500" : "bg-orange-500",
-        });
+        setResponseStatus((prevStatus) => ({
+          ...prevStatus,
+          message: "",
+          color: "",
+        }));
       }, 10000);
     }
   };
@@ -65,7 +110,7 @@ const AbstractUpload = () => {
     <div>
       <FilePond
         files={file}
-        onupdatefiles={setFile}
+        onupdatefiles={onUpdateFiles}
         allowMultiple={false}
         server={{
           process: {
@@ -87,6 +132,7 @@ const AbstractUpload = () => {
             onload: (response) => {
               onUploadComplete(JSON.parse(response));
             },
+            onerror: handleServerError,
           },
         }}
         setMetadata
@@ -102,14 +148,21 @@ const AbstractUpload = () => {
         maxFileSize={"5MB"}
         credits={false}
       />
-      {responseStatus.submitted && (
+      {responseStatus.submitted && responseStatus.message && (
         <Alert
           alertClass={responseStatus.color}
           alertTitle={responseStatus.status}
           alertMessage={responseStatus.message}
         />
       )}
-      {responseStatus.status === "success" && file.length !== 0 && (
+      {responseStatus.status === "Error" && invalidRows.length > 0 && (
+        <div className="mt-2">
+          <p className="text-sm font-semibold text-red-600">
+            Invalid rows: {invalidRows.join(", ")}
+          </p>
+        </div>
+      )}
+      {responseStatus.status === "Success" && file.length !== 0 && (
         <AbstractResults />
       )}
     </div>

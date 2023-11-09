@@ -17,7 +17,7 @@ import ResultHistory from "views/dashboard/ResultHistory";
 import SEA from "views/dashboard/SEA";
 
 import Feedback from "feeder-react-feedback";
-import "../assets/styles/feederScoped.css";
+import "assets/styles/feederScoped.css";
 export default function Dashboard() {
   const [isAccordionVisible, setIsAccordionVisible] = useState(false);
 

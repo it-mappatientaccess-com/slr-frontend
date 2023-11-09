@@ -133,13 +133,13 @@ const AbstractEdit = () => {
               />
             </span>
           )}
-          {charCount > 4000 &&
+          {charCount > 16000 &&
             wordCount >
-              500 && (
+              2000 && (
                 <Alert
                   alertClass="bg-orange-500 inline-block float-right"
                   alertTitle="Input invalid!"
-                  alertMessage="You can enter at max 4000 Characters or 500 Words."
+                  alertMessage="You can enter at max 16000 Characters or 2000 Words."
                 />
               )}
           {submitClicked && (
