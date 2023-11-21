@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { signUpSchema } from "../../schema/schema";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Alert from "components/Alerts/Alert";
 import api from "util/api";
-
+import { fetchUsersData } from "store/user-management-actions";
+import { useDispatch } from "react-redux";
 const initialValues = {
   name: "",
   username: "",
@@ -13,6 +14,8 @@ const initialValues = {
 };
 
 const Register = () => {
+  const location = useLocation();
+  const dispatch = useDispatch();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorStatus, setErrorStatus] = useState({
     status: "",
@@ -20,6 +23,7 @@ const Register = () => {
     color: "",
   });
   const navigate = useNavigate();
+  const [showAlert, setShowAlert] = useState(false);
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -40,9 +44,14 @@ const Register = () => {
                 message: response.data.message,
                 color: "bg-emerald-500",
               });
-              setTimeout(() => {
-                navigate("/auth/login");
-              }, 2000);
+              // Check if the current location is /auth/register
+              if (location.pathname === "/auth/register") {
+                setTimeout(() => {
+                  navigate("/auth/login");
+                }, 2000);
+              } else {
+              dispatch(fetchUsersData());
+              }
             }
             return response;
           })
@@ -67,20 +76,45 @@ const Register = () => {
         action.resetForm();
       },
     });
+  useEffect(() => {
+    if (isSubmitted) {
+      setShowAlert(true); // Show the alert when the form is submitted
+      const timer = setTimeout(() => {
+        setShowAlert(false); // Hide the alert after 5 seconds
+      }, 5000);
+
+      // Clean up the timer when the component is unmounted or the isSubmitted changes
+      return () => clearTimeout(timer);
+    }
+  }, [isSubmitted]);
   return (
     <div className="container mx-auto px-4 h-full">
       <div className="flex content-center items-center justify-center h-full">
-        <div className="w-full lg:w-6/12 px-4">
+        <div
+          className={`w-full px-4 ${
+            location.pathname === "/auth/register" ? "lg:w-6/12" : "w-full"
+          }`}
+        >
           <div className="relative flex flex-col min-w-0 break-words w-full mb-6 shadow-lg rounded-lg bg-blueGray-200 border-0">
             <div className="rounded-t mb-0 px-6 py-6">
               <div className="text-center mb-3">
-                <h6 className="text-blueGray-500 text-sm font-bold">Sign up</h6>
+                {location.pathname === "/auth/register" ? (
+                  <h6 className="text-blueGray-500 text-sm font-bold">
+                    Sign up
+                  </h6>
+                ) : (
+                  <h6 className="text-blueGray-500 text-sm font-bold">
+                    Create User
+                  </h6>
+                )}
               </div>
               <hr className="mt-6 border-b-1 border-blueGray-300" />
             </div>
             <div className="flex-auto px-4 lg:px-10 py-10 pt-0">
               <div className="text-blueGray-400 text-center mb-3 font-bold">
-                <small>Sign up with credentials</small>
+                {location.pathname === "/auth/register" && (
+                  <small>Sign up with credentials</small>
+                )}
               </div>
               <form onSubmit={handleSubmit}>
                 <div className="relative w-full mb-3">
@@ -201,26 +235,28 @@ const Register = () => {
                     </p>
                   )}
                 </div>
-                <div>
-                  <label className="inline-flex items-center cursor-pointer">
-                    <input
-                      id="customCheckLogin"
-                      type="checkbox"
-                      className="form-checkbox border-0 rounded text-blueGray-700 ml-1 w-5 h-5 ease-linear transition-all duration-150"
-                    />
-                    <span className="ml-2 text-sm font-semibold text-blueGray-600">
-                      I agree with the{" "}
-                      <a
-                        href="#tejas"
-                        className="text-lightBlue-500"
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        Privacy Policy
-                      </a>
-                    </span>
-                  </label>
-                </div>
-                {isSubmitted && (
+                {location.pathname === "/auth/register" && (
+                  <div>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        id="customCheckLogin"
+                        type="checkbox"
+                        className="form-checkbox border-0 rounded text-blueGray-700 ml-1 w-5 h-5 ease-linear transition-all duration-150"
+                      />
+                      <span className="ml-2 text-sm font-semibold text-blueGray-600">
+                        I agree with the{" "}
+                        <a
+                          href="#tejas"
+                          className="text-lightBlue-500"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          Privacy Policy
+                        </a>
+                      </span>
+                    </label>
+                  </div>
+                )}
+                {showAlert && isSubmitted && (
                   <Alert
                     alertClass={errorStatus.color}
                     alertTitle={errorStatus.status}

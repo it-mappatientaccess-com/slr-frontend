@@ -33,7 +33,7 @@ const btnCellRenderer = (props) => {
         data-action="update"
         onClick={onClickHandler}
       >
-        <span className="hidden md:inline">View PICO</span> <i className="fas fa-circle-nodes"></i>
+        View PICO{" "} <i className="fas fa-circle-nodes"></i>
       </button>
     </>
   );

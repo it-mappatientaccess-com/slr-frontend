@@ -18,6 +18,7 @@ import SEA from "views/dashboard/SEA";
 
 import Feedback from "feeder-react-feedback";
 import "assets/styles/feederScoped.css";
+import UserManagement from "views/dashboard/UserManagement";
 export default function Dashboard() {
   const [isAccordionVisible, setIsAccordionVisible] = useState(false);
 
@@ -50,6 +51,8 @@ export default function Dashboard() {
               path="/dashboard/*"
               element={<Navigate to="/dashboard/my-projects" />}
             />
+            <Route path="user-management" exact element={<UserManagement />} />
+
           </Routes>
         </div>
         <FooterAdmin />

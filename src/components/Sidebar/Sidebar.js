@@ -14,7 +14,7 @@ export default function Sidebar() {
   const dispatch = useDispatch();
   const [collapseShow, setCollapseShow] = React.useState("hidden");
   const location = useLocation();
-
+  const userRole = localStorage.getItem("role");
   const logoutHandler = () => {
     dispatch(resetProjectStore());
     dispatch(resetQAStore());
@@ -118,6 +118,27 @@ export default function Sidebar() {
                   My Projects
                 </Link>
               </li>
+              {userRole === "admin" && <li className="items-center">
+                <Link
+                  className={
+                    "text-xs uppercase py-3 font-bold block " +
+                    (location.pathname === "/dashboard/user-management"
+                      ? "text-lightBlue-500 hover:text-lightBlue-600"
+                      : "text-blueGray-700 hover:text-blueGray-500")
+                  }
+                  to="/dashboard/user-management"
+                >
+                  <i
+                    className={
+                      "fas fa-users-line mr-2 text-sm " +
+                      (location.pathname === "/dashboard/user-management"
+                        ? "opacity-75"
+                        : "text-blueGray-300")
+                    }
+                  ></i>{" "}
+                  User Management
+                </Link>
+              </li>}
               {location.pathname !== "/dashboard/my-projects" && (
                 <Fragment>
                   <li className="items-center">

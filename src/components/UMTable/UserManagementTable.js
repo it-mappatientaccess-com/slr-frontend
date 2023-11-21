@@ -2,17 +2,11 @@ import React from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css"; // Optional theme CSS
-
+import { deleteUserData, setUsersData } from "store/user-management-actions";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { setProjectsData } from "store/project-actions";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteProjectData, setSelectedProject } from "store/project-actions";
-import { useNavigate } from "react-router";
-import {
-  fetchOldQuestions,
-  fetchOldSeaQuestions,
-} from "../../store/qa-actions";
 import ModalSmall from "components/Modal/ModalSmall";
+import Alert from "components/Alerts/Alert";
 let rowImmutableStore;
 
 const actionCellRenderer = (params) => {
@@ -30,14 +24,16 @@ const actionCellRenderer = (params) => {
             type="button"
             data-action="update"
           >
-            Update{" "}<i className="fas fa-arrows-rotate"></i>
+            Update{" "}
+            <i className="fas fa-arrows-rotate"></i>
           </button>
           <button
             className="bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="cancel"
             type="button"
           >
-             Cancel{" "}<i className="fas fa-xmark"></i>
+            Cancel{" "}
+            <i className="fas fa-xmark"></i>
           </button>
         </div>
       )}
@@ -48,14 +44,16 @@ const actionCellRenderer = (params) => {
             data-action="edit"
             type="button"
           >
-            Edit{" "}<i className="fas fa-pen"></i>
+            Edit{" "}
+            <i className="fas fa-pen"></i>
           </button>
           <button
             className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="delete"
             type="button"
           >
-            Delete{" "}<i className="fas fa-trash-can"></i>
+            Delete{" "}
+            <i className="fas fa-trash-can"></i>
           </button>
         </div>
       )}
@@ -63,70 +61,38 @@ const actionCellRenderer = (params) => {
   );
 };
 
-const btnCellRenderer = (params) => {
-  const onClickHandler = async () => {
-    params.dispatchProp(setSelectedProject(params.data.projectName));
-    await params.dispatchProp(fetchOldQuestions(params.data.projectName));
-    await params.dispatchProp(fetchOldSeaQuestions(params.data.projectName));
-    params.navigateProp("/dashboard/aair");
-  };
-  return (
-    <>
-      <div>
-        <button
-          className="bg-emerald-500 text-white active:bg-emerald-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-          type="button"
-          data-action="update"
-          onClick={onClickHandler}
-        >
-          View Project{" "} <i className="fas fa-paper-plane"></i>
-        </button>
-      </div>
-    </>
-  );
-};
-
-const ProjectsTable = () => {
+const UserManagementTable = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const gridRef = useRef(null);
 
-  let projectData = useSelector((state) => state.project.listOfProjects);
+  let usersData = useSelector((state) => state.userManagement.listOfUsers);
   const [rowData, setRowData] = useState([]);
   const [currentParams, setCurrentParams] = useState(null);
+  const [response, setResponse] = useState(null);
 
+  // New state to manage the visibility of the alert
+  const [showAlert, setShowAlert] = useState(false);
   const columnDefs = [
-    // {
-    //   headerName: "ID",
-    //   valueGetter: "node.rowIndex + 1",
-    //   width: 80
-    //   // rowDrag: true,
-    // },
     {
-      field: "projectName",
-      suppressSizeToFit: true,
-      flex: 1,
-      minWidth:100,
-      filter: true,
-      editable: false,
+      headerName: "ID",
+      valueGetter: "node.rowIndex + 1",
+      width: 80,
+      // rowDrag: true,
     },
     {
-      field: "projectDescription",
+      field: "name",
+      suppressSizeToFit: true,
       flex: 1,
+      minWidth: 100,
       filter: true,
       editable: true,
     },
     {
-      headerName: "",
-      cellRenderer: btnCellRenderer,
-      cellRendererParams: {
-        dispatchProp: dispatch,
-        navigateProp: navigate,
-      },
-      editable: false,
-      colId: "view",
-      flex: 1,
+      field: "username",
+      flex: 2,
+      filter: true,
+      editable: true,
     },
     {
       headerName: "Action",
@@ -138,23 +104,21 @@ const ProjectsTable = () => {
   ];
   // State to manage modal visibility
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState(null);
-  
-  const handleDeleteProject = (projectName) => {
-    // Function to handle project deletion logic
+  const [userToDelete, setUserToDelete] = useState(null);
+
+  const handleDeleteUser = async (username) => {
+    // Function to handle user deletion logic
 
     // Apply the transaction to remove the data from the grid
-    const projectData = rowImmutableStore.find(
-      (e) => e.projectName === projectName
-    );
+    const usersData = rowImmutableStore.find((e) => e.username === username);
     currentParams.api.applyTransaction({
-      remove: [projectData],
+      remove: [usersData],
     });
-    dispatch(deleteProjectData(projectName));
-
+    setResponse(await dispatch(deleteUserData(username)));
     // Close the modal after deletion
     setShowDeleteModal(false);
   };
+
   const defaultColDef = useMemo(
     () => ({
       sortable: true,
@@ -163,40 +127,37 @@ const ProjectsTable = () => {
     []
   );
 
-  const cellClickedListener = useCallback(
-    (params) => {
-      // Handle click event for action cells
-      if (
-        params.column.colId === "action" &&
-        params.event.target.dataset.action
-      ) {
-        let action = params.event.target.dataset.action;
-        if (action === "edit") {
-          params.api.startEditingCell({
-            rowIndex: params.node.rowIndex,
-            // gets the first columnKey
-            colKey: params.columnApi.getDisplayedCenterColumns()[0].colId,
-          });
-        }
-
-        if (action === "delete") {
-          console.log("Delete action triggered");
-          setProjectToDelete(params.node.data.projectName);
-          setShowDeleteModal(true);
-          setCurrentParams(params);
+  const cellClickedListener = useCallback((params) => {
+    // Handle click event for action cells
+    if (
+      params.column.colId === "action" &&
+      params.event.target.dataset.action
+    ) {
+      let action = params.event.target.dataset.action;
+      if (action === "edit") {
+        params.api.startEditingCell({
+          rowIndex: params.node.rowIndex,
+          // gets the first columnKey
+          colKey: params.columnApi.getDisplayedCenterColumns()[0].colId,
+        });
       }
 
-        if (action === "update") {
-          params.api.stopEditing(false);
-        }
-
-        if (action === "cancel") {
-          params.api.stopEditing(true);
-        }
+      if (action === "delete") {
+        console.log("Delete action triggered");
+        setUserToDelete(params.node.data.username);
+        setShowDeleteModal(true);
+        setCurrentParams(params);
       }
-    },
-    []
-  );
+
+      if (action === "update") {
+        params.api.stopEditing(false);
+      }
+
+      if (action === "cancel") {
+        params.api.stopEditing(true);
+      }
+    }
+  }, []);
 
   const onRowEditingStarted = (params) => {
     params.api.refreshCells({
@@ -215,9 +176,9 @@ const ProjectsTable = () => {
   };
 
   useEffect(() => {
-    setRowData(projectData);
-    rowImmutableStore = projectData;
-  }, [projectData]);
+    setRowData(usersData);
+    rowImmutableStore = usersData;
+  }, [usersData]);
 
   const onCellEditRequest = useCallback(
     (event) => {
@@ -226,7 +187,7 @@ const ProjectsTable = () => {
       const field = event.colDef.field;
       let newItem = { ...data };
       newItem[field] = event.newValue;
-      dispatch(setProjectsData(data.projectName, newItem.projectDescription));
+      dispatch(setUsersData(data.username, newItem));
 
       if (event.rowPinned === "top") {
         newItem.id = rowIndex;
@@ -239,7 +200,7 @@ const ProjectsTable = () => {
           return objCopy;
         });
       } else {
-        // here we need to update the value projectStatusData in the store
+        // here we need to update the value userStatusData in the store
         if (rowIndex != null && field != null) {
           rowImmutableStore = rowImmutableStore.map((oldItem, index) =>
             index === rowIndex ? newItem : oldItem
@@ -249,10 +210,27 @@ const ProjectsTable = () => {
     },
     [dispatch]
   );
+  useEffect(() => {
+    if (response) {
+      setShowAlert(true); // Show the alert when there's a response
+      const timer = setTimeout(() => {
+        setShowAlert(false); // Hide the alert after 3 seconds
+      }, 3000);
 
+      // Clean up the timer when the component is unmounted or the response changes
+      return () => clearTimeout(timer);
+    }
+  }, [response]);
   return (
     <>
-      <div className="ag-theme-alpine" style={{ height: '50vh' }}>
+      <div className="ag-theme-alpine" style={{ height: "50vh" }}>
+      {showAlert && response && (
+          <Alert
+            alertClass="bg-emerald-500"
+            alertTitle="Result:"
+            alertMessage={response.data.detail}
+          />
+        )}
         <AgGridReact
           ref={gridRef}
           onCellClicked={cellClickedListener}
@@ -272,20 +250,21 @@ const ProjectsTable = () => {
           onRowEditingStarted={onRowEditingStarted}
         />
       </div>
+
       {showDeleteModal && (
         <ModalSmall
           title="Confirm Deletion"
-          content="This will delete the project and all the related data. Are you sure you want to delete the project?"
+          content="This will delete the user and all the user specific data. Are you sure you want to delete the user?"
           secondaryButtonText="No, Close"
           primaryButtonText="Yes, Delete"
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}
-          onPrimaryClick={() => handleDeleteProject(projectToDelete)}
-          colorClasses = 'bg-red-500 text-white active:bg-red-600'
+          onPrimaryClick={() => handleDeleteUser(userToDelete)}
+          colorClasses="bg-red-500 text-white active:bg-red-600"
         />
       )}
     </>
   );
 };
 
-export default ProjectsTable;
+export default UserManagementTable;

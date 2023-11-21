@@ -158,7 +158,7 @@ const AbstractUpload = () => {
       {responseStatus.status === "Error" && invalidRows.length > 0 && (
         <div className="mt-2">
           <p className="text-sm font-semibold text-red-600">
-            Invalid rows: {invalidRows.join(", ")}
+            Invalid row ids: {invalidRows.join(", ")}
           </p>
         </div>
       )}

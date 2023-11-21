@@ -9,7 +9,7 @@ import FooterSmall from "components/Footers/FooterSmall.js";
 // views
 
 import Login from "views/auth/Login.js";
-import Register from "views/auth/Register.js";
+// import Register from "views/auth/Register.js";
 
 export default function Auth() {
   return (
@@ -26,7 +26,7 @@ export default function Auth() {
           ></div>
           <Routes>
             <Route path="login" exact element={<Login/>} />
-            <Route path="register" exact element={<Register/>} />
+            {/* <Route path="register" exact element={<Register/>} /> */}
             <Route path="/auth/*" element={<Navigate to="/auth/login" />} />
           </Routes>
           <FooterSmall absolute />

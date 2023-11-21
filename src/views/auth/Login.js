@@ -57,6 +57,7 @@ export default function Login() {
             }
           )
           .then((response) => {
+            localStorage.setItem("role", response.data.role);
             if (response.status === 200) {
               setLoginStatus({
                 submitted: false,
