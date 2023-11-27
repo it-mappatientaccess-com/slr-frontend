@@ -188,28 +188,29 @@ const UserManagementTable = () => {
 
       // Dispatch the update with all changes
       dispatch(setUsersData(params.data.username, updatedData))
-        .then((response) => {
-          console.log(response.response);
-          if (response.status === 200) {
-            setUpdateResponse({
-              type: "success",
-              message: `User updated successfully: ${response.data.data.username}`,
-            });
-          } else {
-            setUpdateResponse({
-              type: "error",
-              message: response.response.data.detail !== undefined ? response.response.data.detail : "Failed to update user.",
-            });
-          }
-        })
-        .catch((error) => {
-          console.error(error);
-          
+      .then((response) => {
+        console.log(response);
+        if (response?.status === 200) {
+          setUpdateResponse({
+            type: "success",
+            message: `User updated successfully: ${response?.data?.data?.username}`,
+          });
+        } else {
           setUpdateResponse({
             type: "error",
-            message: "Failed to update user.",
+            // Using optional chaining and nullish coalescing
+            message: response?.response?.data?.detail ?? "Failed to update user.",
           });
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+    
+        setUpdateResponse({
+          type: "error",
+          message: "Failed to update user.",
         });
+      });
 
       // Update the grid's row data
       const rowIndex = params.node.rowIndex;

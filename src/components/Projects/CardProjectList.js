@@ -1,14 +1,14 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ProjectsTable from "./ProjectsTable";
 import { fetchProjectsData } from "store/project-actions";
 import LoadingBar from "react-top-loading-bar";
-
+import Alert from "components/Alerts/Alert";
 const CardProjectList = ({ handleProjectClicked }) => {
   const dispatch = useDispatch();
   const progress = useSelector((state) => state.project.progress);
   const error = useSelector((state) => state.project.error);
-
+  const [updateResponse, setUpdateResponse] = useState("");
   const createProjectHandler = () => {
     handleProjectClicked(true);
     setTimeout(() => {
@@ -23,6 +23,21 @@ const CardProjectList = ({ handleProjectClicked }) => {
   useEffect(() => {
     dispatch(fetchProjectsData());
   }, [dispatch]);
+
+  // Function to clear update response message
+  const clearUpdateResponse = () => {
+    setUpdateResponse("");
+  };
+
+  // Clear the update response after a specified duration (e.g., 5000 milliseconds)
+  useEffect(() => {
+    let timer;
+    if (error) {
+      setUpdateResponse(error);
+      timer = setTimeout(clearUpdateResponse, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [error]);
 
   return (
     <>
@@ -45,7 +60,13 @@ const CardProjectList = ({ handleProjectClicked }) => {
             </button>
           </div>
         </div>
-        {error && <div className="px-6 py-4 text-red-500">{error}</div>}{" "}
+        {updateResponse && (
+          <Alert
+            alertClass={"bg-red-500"}
+            alertTitle={"Error:"}
+            alertMessage={updateResponse}
+          />
+        )}
         {/* Displaying errors */}
         <ProjectsTable />
       </div>

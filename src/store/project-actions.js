@@ -27,8 +27,11 @@ export const fetchProjectsData = () => async (dispatch) => {
 };
 
 export const setProjectsData = (projectName, newDescription) => async (dispatch) => {
+    const data = {
+        projectDescription: newDescription // Assuming the backend expects a field named 'description'
+    };
     try {
-        await api.put(`project/${projectName}/?projectDescription=${newDescription}`, {}, {
+        await api.put(`project/${projectName}`,data, {
             headers: {
                 Authorization: localStorage.getItem("token"),
             },
