@@ -4,7 +4,8 @@ const initialState = {
   listOfUsers: [],
   resetStore: false,
   progress: 0,
-  error: null // Adding error state
+  error: null,
+  updateResponse: null,
 };
 
 const UserManagementSlice = createSlice({
@@ -29,6 +30,9 @@ const UserManagementSlice = createSlice({
     },
     clearError(state) { // Adding clear error reducer
       state.error = null;
+    },
+    setUpdateResponse(state, action) {
+      state.updateResponse = action.payload.updateResponse;
     }
   },
 });

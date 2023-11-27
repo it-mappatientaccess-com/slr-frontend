@@ -24,16 +24,14 @@ const actionCellRenderer = (params) => {
             type="button"
             data-action="update"
           >
-            Update{" "}
-            <i className="fas fa-arrows-rotate"></i>
+            Update <i className="fas fa-arrows-rotate"></i>
           </button>
           <button
             className="bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="cancel"
             type="button"
           >
-            Cancel{" "}
-            <i className="fas fa-xmark"></i>
+            Cancel <i className="fas fa-xmark"></i>
           </button>
         </div>
       )}
@@ -44,16 +42,14 @@ const actionCellRenderer = (params) => {
             data-action="edit"
             type="button"
           >
-            Edit{" "}
-            <i className="fas fa-pen"></i>
+            Edit <i className="fas fa-pen"></i>
           </button>
           <button
             className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="delete"
             type="button"
           >
-            Delete{" "}
-            <i className="fas fa-trash-can"></i>
+            Delete <i className="fas fa-trash-can"></i>
           </button>
         </div>
       )}
@@ -70,15 +66,18 @@ const UserManagementTable = () => {
   const [rowData, setRowData] = useState([]);
   const [currentParams, setCurrentParams] = useState(null);
   const [response, setResponse] = useState(null);
-
+  const [updateResponse, setUpdateResponse] = useState({
+    type: "",
+    message: "",
+  });
   // New state to manage the visibility of the alert
   const [showAlert, setShowAlert] = useState(false);
+  const [isEditCanceled, setIsEditCanceled] = useState(false);
   const columnDefs = [
     {
       headerName: "ID",
       valueGetter: "node.rowIndex + 1",
       width: 80,
-      // rowDrag: true,
     },
     {
       field: "name",
@@ -95,6 +94,12 @@ const UserManagementTable = () => {
       editable: true,
     },
     {
+      headerName: "Set New Password",
+      field: "newPassword",
+      editable: true,
+      flex: 1,
+    },
+    {
       headerName: "Action",
       cellRenderer: actionCellRenderer,
       editable: false,
@@ -105,6 +110,7 @@ const UserManagementTable = () => {
   // State to manage modal visibility
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const currentRowChangesRef = useRef({});
 
   const handleDeleteUser = async (username) => {
     // Function to handle user deletion logic
@@ -128,6 +134,8 @@ const UserManagementTable = () => {
   );
 
   const cellClickedListener = useCallback((params) => {
+    // Clear the update response when starting a new edit
+    clearUpdateResponse();
     // Handle click event for action cells
     if (
       params.column.colId === "action" &&
@@ -154,12 +162,14 @@ const UserManagementTable = () => {
       }
 
       if (action === "cancel") {
+        setIsEditCanceled(true);
         params.api.stopEditing(true);
       }
     }
   }, []);
 
   const onRowEditingStarted = (params) => {
+    // setCurrentRowChanges({});
     params.api.refreshCells({
       columns: ["action"],
       rowNodes: [params.node],
@@ -167,68 +177,119 @@ const UserManagementTable = () => {
     });
   };
 
-  const onRowEditingStopped = (params) => {
-    params.api.refreshCells({
-      columns: ["action"],
-      rowNodes: [params.node],
-      force: true,
-    });
-  };
+  const onRowEditingStopped = useCallback(
+    (params) => {
+      if (isEditCanceled) {
+        setIsEditCanceled(false); // Reset the flag
+        return; // Exit early if edit was canceled
+      }
+      const currentRowChanges = currentRowChangesRef.current;
+      const updatedData = { ...params.data, ...currentRowChanges };
+
+      // Dispatch the update with all changes
+      dispatch(setUsersData(params.data.username, updatedData))
+        .then((response) => {
+          console.log(response.response);
+          if (response.status === 200) {
+            setUpdateResponse({
+              type: "success",
+              message: `User updated successfully: ${response.data.data.username}`,
+            });
+          } else {
+            setUpdateResponse({
+              type: "error",
+              message: response.response.data.detail !== undefined ? response.response.data.detail : "Failed to update user.",
+            });
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          
+          setUpdateResponse({
+            type: "error",
+            message: "Failed to update user.",
+          });
+        });
+
+      // Update the grid's row data
+      const rowIndex = params.node.rowIndex;
+      rowImmutableStore = rowImmutableStore.map((item, index) =>
+        index === rowIndex ? updatedData : item
+      );
+
+      // Update the row data state to reflect changes
+      setRowData(rowImmutableStore);
+
+      // Reset the current row changes
+      currentRowChangesRef.current = {};
+
+      params.api.refreshCells({
+        columns: ["action"],
+        rowNodes: [params.node],
+        force: true,
+      });
+    },
+    [dispatch, isEditCanceled]
+  );
 
   useEffect(() => {
     setRowData(usersData);
     rowImmutableStore = usersData;
   }, [usersData]);
 
-  const onCellEditRequest = useCallback(
-    (event) => {
-      const data = event.data;
-      const rowIndex = event.rowIndex;
-      const field = event.colDef.field;
-      let newItem = { ...data };
-      newItem[field] = event.newValue;
-      dispatch(setUsersData(data.username, newItem));
+  const onCellEditRequest = useCallback((event) => {
+    currentRowChangesRef.current = {
+      ...currentRowChangesRef.current,
+      [event.colDef.field]: event.newValue,
+    };
+  }, []);
 
-      if (event.rowPinned === "top") {
-        newItem.id = rowIndex;
-        newItem.status = "Active";
-        rowImmutableStore = [newItem, ...rowImmutableStore];
-        // update ids in rowImmutableStore
-        rowImmutableStore = rowImmutableStore.map((oldItem, index) => {
-          const objCopy = { ...oldItem };
-          objCopy.id = index + 1;
-          return objCopy;
-        });
-      } else {
-        // here we need to update the value userStatusData in the store
-        if (rowIndex != null && field != null) {
-          rowImmutableStore = rowImmutableStore.map((oldItem, index) =>
-            index === rowIndex ? newItem : oldItem
-          );
-        }
-      }
-    },
-    [dispatch]
-  );
   useEffect(() => {
     if (response) {
       setShowAlert(true); // Show the alert when there's a response
       const timer = setTimeout(() => {
         setShowAlert(false); // Hide the alert after 3 seconds
-      }, 3000);
+      }, 5000);
 
       // Clean up the timer when the component is unmounted or the response changes
       return () => clearTimeout(timer);
     }
   }, [response]);
+
+  // Function to clear update response message
+  const clearUpdateResponse = () => {
+    setUpdateResponse({ type: "", message: "" });
+  };
+
+  // Clear the update response after a specified duration (e.g., 5000 milliseconds)
+  useEffect(() => {
+    let timer;
+    if (updateResponse.message) {
+      timer = setTimeout(clearUpdateResponse, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [updateResponse]);
   return (
     <>
-      <div className="ag-theme-alpine" style={{ height: "50vh" }}>
-      {showAlert && response && (
+      <div className="ag-theme-alpine" style={{ height: "80vh" }}>
+        {showAlert && response && (
           <Alert
             alertClass="bg-emerald-500"
             alertTitle="Result:"
             alertMessage={response.data.detail}
+          />
+        )}
+        {updateResponse.message && (
+          <Alert
+            alertClass={
+              updateResponse.type === "success"
+                ? "bg-emerald-500"
+                : "bg-red-500"
+            }
+            alertTitle={
+              updateResponse.type === "success" ? "Success:" : "Error:"
+            }
+            alertMessage={updateResponse.message}
           />
         )}
         <AgGridReact

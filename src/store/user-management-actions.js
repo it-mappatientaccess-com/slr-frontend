@@ -23,19 +23,28 @@ export const fetchUsersData = () => async (dispatch) => {
     dispatch(UserManagementActions.setProgress({ progress: 100 }));
   }
 };
-export const setUsersData = (username, newDetails ) => async (dispatch) => {
+export const setUsersData = (username, newDetails) => async (dispatch) => {
   try {
-      await api.put(`users/${username}/?newDetails=${JSON.stringify(newDetails)}`, {}, {
-          headers: {
-              Authorization: localStorage.getItem("token"),
-          },
-      });
-      dispatch(fetchUsersData());
+    const response = await api.put(`users/${username}/?newDetails=${JSON.stringify(newDetails)}`, {}, {
+        headers: {
+            Authorization: localStorage.getItem("token"),
+        },
+    });
+    if (response.data.status === 200) {
+      dispatch(UserManagementActions.setUpdateResponse({ type: 'success', message: `User updated successfully: ${response.data.username}` }));
+    } else {
+      dispatch(UserManagementActions.setUpdateResponse({ type: 'error', message: 'Failed to update user.' }));
+    }
+
+    dispatch(fetchUsersData());
+    return response;
   } catch (error) {
-      console.error(error);
-      dispatch(UserManagementActions.setError({ error: "Failed to update user." }));
+    console.error(error);
+    dispatch(UserManagementActions.setUpdateResponse({ type: 'error', message: error.response.data.detail }));
+    return error;
   }
 };
+
 export const deleteUserData = (username) => async (dispatch) => {
     try {
         const response = await api.delete(`users/${username}`, {
