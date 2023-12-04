@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useFormik } from "formik";
-import api from "util/api";
+import {api} from "util/api";
 import { contactUsSchema } from "schema/schema";
 import Alert from "components/Alerts/Alert";
 import ReCAPTCHA from "react-google-recaptcha";

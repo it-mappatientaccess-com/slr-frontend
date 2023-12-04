@@ -1,4 +1,4 @@
-import api from "util/api";
+import {api} from "util/api";
 import { UserManagementActions } from "slices/userManagementSlice";
 
 /**
@@ -26,7 +26,7 @@ export const fetchUsersData = () => async (dispatch) => {
   }
 };
 export const setUsersData = (username, newDetails) => async (dispatch) => {
-  try {
+    try {
     const response = await api.put(
       `users/${username}`, newDetails,
       {

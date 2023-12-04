@@ -1,5 +1,5 @@
 import { questionAbstractActions } from "../slices/questionAbstractSlice";
-import api from "util/api";
+import {api} from "util/api";
 
 export const setQuestions = (projectName, questions) => {
   return async (dispatch) => {

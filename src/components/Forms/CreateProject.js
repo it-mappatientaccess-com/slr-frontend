@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useFormik } from "formik";
 import { createProjectSchema } from "../../schema/schema";
-import api from "util/api";
+import {api} from "util/api";
 import Alert from "components/Alerts/Alert";
 import { fetchProjectsData } from "store/project-actions";
 import { useDispatch } from "react-redux";

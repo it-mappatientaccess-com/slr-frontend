@@ -6,5 +6,9 @@ const api = axios.create({
     "Access-Control-Allow-Methods": "*",
   },
 });
-
-export default api;
+// Function to get WebSocket URL from environment variables
+const getWebSocketURL = () => {
+  return process.env.REACT_APP_WS_URL;
+};
+// Exporting the Axios instance and the WebSocket URL function
+export { api, getWebSocketURL };

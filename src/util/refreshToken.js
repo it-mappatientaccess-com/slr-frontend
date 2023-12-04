@@ -1,4 +1,4 @@
-import api from "util/api";
+import {api} from "util/api";
 
 async function refreshToken(token) {
   try {

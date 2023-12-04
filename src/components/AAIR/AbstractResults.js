@@ -33,7 +33,7 @@ const btnCellRenderer = (props) => {
         data-action="update"
         onClick={onClickHandler}
       >
-        View PICO{" "} <i className="fas fa-circle-nodes"></i>
+        View PICO <i className="fas fa-circle-nodes"></i>
       </button>
     </>
   );
@@ -46,7 +46,6 @@ const getParams = () => {
     fileName: `${projectName}_aair_results.csv`,
   };
 };
-
 
 const AbstractResults = () => {
   const dispatch = useDispatch();
@@ -73,6 +72,10 @@ const AbstractResults = () => {
   const numOfExamples = useSelector(
     (state) => state.questionAbstractData.numberOfExamples
   );
+  // Use useRef to create a mutable object that persists across renders
+  const timerRef = useRef(null);
+  const prevLengthRef = useRef(allAbstractResults.length);
+  const noChangeCountRef = useRef(0); // New ref to track the count of no change in length
 
   const generateNer = (tokenizedAbstract, abstractText, result) => {
     dispatch(generateAbstractToNERText(tokenizedAbstract, abstractText));
@@ -88,9 +91,70 @@ const AbstractResults = () => {
     }
   }, [allAbstractResults.length, numOfExamples]);
 
+  const getAllResultsSafely = useCallback(() => {
+    if (!isProcessing && !isStopping) {
+      clearTimeout(timerRef.current);
+      return; // Stop the loop if isStopping is true
+    }
+    if (allAbstractResults.length < numOfExamples && !isStopping) {
+      if (prevLengthRef.current === allAbstractResults.length) {
+        noChangeCountRef.current += 1;
+        if (noChangeCountRef.current >= 5) {
+          clearTimeout(timerRef.current);
+          return; // Stop the loop after 5 attempts with no change
+        }
+      } else {
+        noChangeCountRef.current = 0; // Reset the count if there's a change
+      }
+
+      prevLengthRef.current = allAbstractResults.length; // Update the previous length
+
+      try {
+        dispatch(getAllResults(projectName));
+      } catch (error) {
+        console.error("Error while fetching results: ", error);
+        // Implement additional error handling logic as needed
+      }
+    } else {
+      clearTimeout(timerRef.current);
+    }
+  }, [
+    dispatch,
+    allAbstractResults.length,
+    numOfExamples,
+    isProcessing,
+    projectName,
+    isStopping
+  ]);
+
   useEffect(() => {
-    dispatch(getAllResults(projectName));
-  }, [dispatch, projectName]);
+    // Initial fetch
+    getAllResultsSafely();
+
+    // Function to calculate random exponential delay
+    const getRandomExponentialDelay = () => {
+      const min = Math.log(3000); // 3 seconds
+      const max = Math.log(30000); // 30 seconds
+      return Math.exp(min + (max - min) * Math.random());
+    };
+
+    // Setting up a loop with random but exponential wait times
+    const setupTimer = () => {
+      const delay = getRandomExponentialDelay();
+      if (!isStopping) {
+        timerRef.current = setTimeout(() => {
+          getAllResultsSafely();
+          setupTimer();
+        }, delay);
+      }
+    };
+
+    setupTimer();
+
+    return () => {
+      clearTimeout(timerRef.current);
+    };
+  }, [getAllResultsSafely, isStopping]);
 
   useEffect(() => {
     setRowData(allAbstractResults);
@@ -259,7 +323,7 @@ const AbstractResults = () => {
             className={`ag-theme-alpine ${
               rowData.length === 0 && isRefreshing ? "opacity-20" : ""
             }`}
-            style={{ height: '60vh' }}
+            style={{ height: "60vh" }}
           >
             <AgGridReact
               ref={gridRef}

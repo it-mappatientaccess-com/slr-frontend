@@ -6,7 +6,7 @@ import Alert from "components/Alerts/Alert";
 import AuthContext from "store/auth-context";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router-dom";
-import api from "util/api";
+import {api} from "util/api";
 
 const initialValues = {
   username: "",

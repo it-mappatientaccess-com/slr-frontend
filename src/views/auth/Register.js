@@ -3,7 +3,7 @@ import { useFormik } from "formik";
 import { signUpSchema } from "../../schema/schema";
 import { useNavigate, useLocation } from "react-router-dom";
 import Alert from "components/Alerts/Alert";
-import api from "util/api";
+import {api} from "util/api";
 import { fetchUsersData } from "store/user-management-actions";
 import { useDispatch } from "react-redux";
 const initialValues = {

@@ -1,5 +1,5 @@
 import { dataExtractionActions } from "../slices/dataExtractionSlice";
-import api from "util/api";
+import {api} from "util/api";
 import * as XLSX from "xlsx";
 
 export const generateSingleFileResults = (file, questions, selectedPrompt) => {
