@@ -123,6 +123,7 @@ const ExtractionFileList = () => {
     dispatch(fetchProcessedFileNames());
   }, [dispatch]);
 
+  
   useEffect(() => {
     setRowData(processedFiles);
   }, [processedFiles]);

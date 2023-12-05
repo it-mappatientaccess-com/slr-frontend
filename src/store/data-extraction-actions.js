@@ -75,7 +75,6 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
     };
     try {
       const response = await sendData(formData);
-      console.log(response);
       dispatch(
         dataExtractionActions.setStatus({
           status: response.data["status"],
@@ -92,6 +91,7 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
           progress: 100,
         })
       );
+      return response.data;
     } catch (error) {
       console.log(error);
       dispatch(
@@ -110,6 +110,7 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
           isSubmitted: true,
         })
       );
+      return error;
     }
   };
 };

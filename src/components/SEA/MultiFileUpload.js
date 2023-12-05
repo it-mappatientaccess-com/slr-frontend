@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 // Import React FilePond
 import { FilePond, registerPlugin } from "react-filepond";
 // Import FilePond styles
@@ -20,7 +20,6 @@ import generateUniqueBatchID from "util/generateUUID";
 const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const [files, setFiles] = useState([]);
-  // const [isLoading, setIsLoading] = useState(false);
   const [responseStatus, setResponseStatus] = useState({
     submitted: false,
     status: "",
@@ -40,29 +39,103 @@ const MultiFileUpload = () => {
     (state) => state.dataExtraction.selectedPrompt
   );
   const [currentBatchID, setCurrentBatchID] = useState(null);
+  const [isUploadSuccessful, setIsUploadSuccessful] = useState(false);
+  const fetchIntervalRef = useRef(null);
   const [showProgressBar, setShowProgressBar] = useState(false);
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
+  const alertTimeoutRef = useRef(null);
   registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize,
     FilePondPluginFileMetadata
   );
+  const exponentialBackoff = (min, max, attempt) => {
+    return Math.min(max, Math.pow(2, attempt) * min);
+  };
 
+  // Effect for handling file processing after upload
+  useEffect(() => {
+    let attempt = 1;
+    const maxDelay = 120000; // 120 seconds
+    const minDelay = 5000; // 5 seconds
+
+    if (isUploadSuccessful) {
+      setShowProgressBar(true);
+
+      const interval = setInterval(async () => {
+        if (processedFilesCount < files.length) {
+          const response = await dispatch(fetchProcessedFileNames());
+          // Handle response and update states
+          const currentProcessedFiles = response.filter(
+            (fileInfo) => fileInfo.batch_id === currentBatchID
+          );
+          setProcessedFilesCount(currentProcessedFiles.length);
+          setProgress((currentProcessedFiles.length / files.length) * 100);
+
+          if (currentProcessedFiles.length === files.length) {
+            clearInterval(interval);
+            setIsUploadSuccessful(false);
+            setProgress(0);
+            setShowProgressBar(false);
+          }
+
+          attempt++;
+        } else {
+          clearInterval(interval);
+          setIsUploadSuccessful(false);
+        }
+      }, exponentialBackoff(minDelay, maxDelay, attempt));
+
+      fetchIntervalRef.current = interval;
+      return () => clearInterval(fetchIntervalRef.current);
+    } else {
+      setShowProgressBar(false);
+    }
+  }, [
+    isUploadSuccessful,
+    processedFilesCount,
+    files.length,
+    dispatch,
+    currentBatchID,
+  ]);
+
+  // Function to handle file upload process
   const onProcessFile = async () => {
-    // setIsLoading(true);
     const newBatchID = generateUniqueBatchID();
     setCurrentBatchID(newBatchID);
     setProcessedFilesCount(0);
     try {
-      await dispatch(
-        generateExtractionResults(files, seaQuestions, newBatchID, selectedPrompt)
+      const response = await dispatch(
+        generateExtractionResults(
+          files,
+          seaQuestions,
+          newBatchID,
+          selectedPrompt
+        )
       );
+      console.log(response);
+      // Check response status and update state
+      if (response.status) {
+        setIsUploadSuccessful(true);
+      } else {
+        // Handle non-successful upload
+        setResponseStatus({
+          submitted: true,
+          status: "Error",
+          message: "File upload failed.",
+          color: "bg-orange-500",
+        });
+      }
     } catch (error) {
       console.error(error);
-    } finally {
-      // setIsLoading(false);
+      setResponseStatus({
+        submitted: true,
+        status: "Error",
+        message: "An error occurred during file upload.",
+        color: "bg-orange-500",
+      });
     }
   };
 
@@ -74,6 +147,7 @@ const MultiFileUpload = () => {
     );
     dispatch(fetchProcessedFileNames());
   };
+
   useEffect(() => {
     if (isSubmitted) {
       setResponseStatus({
@@ -82,61 +156,30 @@ const MultiFileUpload = () => {
         message: message,
         color: status ? "bg-emerald-500" : "bg-orange-500",
       });
-    }
-  }, [isSubmitted, status, message]);
-  useEffect(() => {
-    if (isSubmitted && status) {
-      setShowProgressBar(true);
-      // setIsLoading(true);
-    }
-  }, [isSubmitted, status]);
-  useEffect(() => {
-    if (progress === 100) {
-      // Hide the alert after all files have been processed
-      setShowProgressBar(false);
-      setResponseStatus({
-        submitted: false,
-        status: "",
-        message: "",
-        color: "",
-      });
-    }
-  }, [progress]);
 
-  useEffect(() => {
-    // Only start the interval if isSubmitted is true and status indicates success
-    if (isSubmitted) {
-      const interval = setInterval(async () => {
-        const response = await dispatch(fetchProcessedFileNames());
-        if (response && response.length) {
-          // setIsLoading(false);
-          // Filter by current batch ID
-          const currentProcessedFiles = response.filter(
-            (fileInfo) => fileInfo["batch_id"] === currentBatchID
-          );
-          setProcessedFilesCount(currentProcessedFiles.length);
-          const currentProgress =
-            (currentProcessedFiles.length / files.length) * 100;
-          setProgress(currentProgress);
-  
-          // If all files are processed
-          if (currentProgress === 100) {
-            clearInterval(interval);
-            setShowProgressBar(false);
-            setResponseStatus({
-              submitted: false,
-              status: "",
-              message: "",
-              color: "",
-            });
-          }
-        }
-      }, 60000); // Every minute, adjust as needed
-  
-      return () => clearInterval(interval); // Clear the interval when the component is unmounted
+      // Clear any existing timeout to avoid memory leaks
+      if (alertTimeoutRef.current) {
+        clearTimeout(alertTimeoutRef.current);
+      }
+
+      // Set a new timeout to hide the alert after 1 minute
+      alertTimeoutRef.current = setTimeout(() => {
+        setResponseStatus({
+          submitted: false,
+          status: "",
+          message: "",
+          color: "",
+        });
+      }, 60000); // 60 seconds = 1 minute
     }
-  }, [dispatch, files.length, currentBatchID, isSubmitted]);
-  
+
+    // Clear timeout when component unmounts or when isSubmitted changes
+    return () => {
+      if (alertTimeoutRef.current) {
+        clearTimeout(alertTimeoutRef.current);
+      }
+    };
+  }, [isSubmitted, status, message]);
 
   return (
     <div className="flex flex-wrap mt-4">
@@ -184,31 +227,6 @@ const MultiFileUpload = () => {
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
-
-          {/* {isLoading && (
-            <div
-              role="status"
-              className="absolute -translate-x-1/2 -translate-y-1/2 top-3/4 left-1/2"
-            >
-              <svg
-                aria-hidden="true"
-                className="w-10 h-10 mr-2 text-gray-200 animate-spin fill-lightBlue-600"
-                viewBox="0 0 100 101"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                  fill="currentColor"
-                />
-                <path
-                  d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                  fill="currentFill"
-                />
-              </svg>
-              <span className="sr-only">Loading...</span>
-            </div>
-          )} */}
         </div>
         {showProgressBar && progress < 100 && (
           <ProgressBar
@@ -224,7 +242,6 @@ const MultiFileUpload = () => {
             alertMessage={responseStatus.message}
           />
         )}
-        {/* <div className={isLoading ? "opacity-20" : ""}> */}
         <div>
           <ExtractionFileList />
         </div>
