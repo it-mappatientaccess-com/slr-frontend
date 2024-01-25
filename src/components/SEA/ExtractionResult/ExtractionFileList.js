@@ -10,6 +10,7 @@ import {
   fetchAllExtractionResults,
 } from "store/data-extraction-actions";
 import ExtractionResult from "./ExtractionResult";
+import { Tooltip } from "react-tooltip";
 
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
@@ -23,8 +24,7 @@ const btnCellRenderer = (props) => {
 
     // Calculate the position of the gridWrapper relative to the viewport
     const topPosition =
-      props.gridWrapperRef.current.getBoundingClientRect().top +
-      window.scrollY;
+      props.gridWrapperRef.current.getBoundingClientRect().top + window.scrollY;
 
     // Scroll to the calculated position with smooth behavior
     window.scrollTo({
@@ -123,7 +123,6 @@ const ExtractionFileList = () => {
     dispatch(fetchProcessedFileNames());
   }, [dispatch]);
 
-  
   useEffect(() => {
     setRowData(processedFiles);
   }, [processedFiles]);
@@ -152,10 +151,15 @@ const ExtractionFileList = () => {
               />
             </div>
             <div className="text-center mt-4">
+              <Tooltip id="export-all-btn-tooltip" />
               <button
                 className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                 type="button"
                 onClick={fetchAllResults}
+                data-tooltip-id="export-all-btn-tooltip"
+                data-tooltip-content="Export results of all processed files in Excel format. Note: If different prompts were used for various files, the structure of the exported Excel file may vary."
+                data-tooltip-place="bottom"
+                data-tooltip-delay-show="2000"
               >
                 <i className="fas fa-file-export"></i> Export All
               </button>

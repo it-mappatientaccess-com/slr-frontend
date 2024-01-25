@@ -1004,10 +1004,6 @@ select {
   top: 25px;
 }
 
-.top-3\/4 {
-  top: 75%;
-}
-
 .top-95-px {
   top: 95px;
 }
@@ -1497,6 +1493,10 @@ select {
 
 .max-w-sm {
   max-width: 24rem;
+}
+
+.max-w-xs {
+  max-width: 20rem;
 }
 
 .flex-1 {

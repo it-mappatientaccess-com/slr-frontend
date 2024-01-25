@@ -14,7 +14,7 @@ import Alert from "components/Alerts/Alert";
 import { stopModelExecution } from "store/qa-actions";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
-
+import { Tooltip } from "react-tooltip";
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
     props.generateNer(
@@ -124,7 +124,7 @@ const AbstractResults = () => {
     numOfExamples,
     isProcessing,
     projectName,
-    isStopping
+    isStopping,
   ]);
 
   useEffect(() => {
@@ -348,6 +348,7 @@ const AbstractResults = () => {
             </div>
           )}
           <div className="text-center mt-4">
+            <Tooltip id="action-btn-tooltip" />
             <button
               className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
                 isRefreshing ? "opacity-50" : ""
@@ -355,6 +356,8 @@ const AbstractResults = () => {
               type="button"
               onClick={onRefreshClickHandler}
               disabled={isRefreshing}
+              data-tooltip-id="action-btn-tooltip"
+              data-tooltip-content="Refresh to view the recently processed examples in the table."
             >
               <i
                 className={`fas fa-arrow-rotate-right ${
@@ -367,6 +370,9 @@ const AbstractResults = () => {
               className="bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
               type="button"
               onClick={onBtnExport}
+              data-tooltip-id="action-btn-tooltip"
+              data-tooltip-content="Click to download the results as a CSV file."
+              data-tooltip-variant="info"
             >
               <i className="fas fa-file-export"></i> Export
             </button>
@@ -377,7 +383,10 @@ const AbstractResults = () => {
               onClick={onStopClickedHandler}
               alt="stop model's execution"
               disabled={isStopping}
-            >
+              data-tooltip-id="action-btn-tooltip"
+              data-tooltip-variant="error"
+              data-tooltip-content="Click to halt the processing of examples."
+              >              
               <i className={`fas fa-stop  ${isStopping ? "fa-flip" : ""}`}></i>{" "}
               {isStopping ? "Stopping..." : "Stop"}
             </button>

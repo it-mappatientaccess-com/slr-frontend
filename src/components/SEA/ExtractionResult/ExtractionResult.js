@@ -3,10 +3,11 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "./ExtractionResult.css";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
+import { Tooltip } from "react-tooltip";
 
 const CustomCellRenderer = (props) => {
-  const value = props.value || ""; 
+  const value = props.value || "";
   const content = value.split("\n").map((item, index) => {
     return (
       <div
@@ -41,8 +42,8 @@ const ExtractionResult = (props) => {
 
       const modifiedData = [flattenedResult]; // put the flattenedResult in an array
       const columnsOrder = Object.keys(flattenedResult).sort((a, b) => {
-        if (a === 'aboutFile') return -1;
-        if (b === 'aboutFile') return 1;
+        if (a === "aboutFile") return -1;
+        if (b === "aboutFile") return 1;
         return 0;
       }); // sort keys to ensure 'aboutFile' is first
       const columns = columnsOrder.map((key) => {
@@ -64,14 +65,11 @@ const ExtractionResult = (props) => {
   }, [props.result]);
 
   const onBtnExport = () => {
-    const headers = columnDefs.map(colDef => colDef.headerName);  // Get column headers
-    const data = rowData.map(row => {
-      return columnDefs.map(colDef => {
+    const headers = columnDefs.map((colDef) => colDef.headerName); // Get column headers
+    const data = rowData.map((row) => {
+      return columnDefs.map((colDef) => {
         let cellValue = row[colDef.field];
-        if (
-          typeof cellValue === "string" &&
-          cellValue.includes("Answer:")
-        ) {
+        if (typeof cellValue === "string" && cellValue.includes("Answer:")) {
           const sections = cellValue.split("Answer:");
           const answers = sections
             .slice(1)
@@ -84,25 +82,27 @@ const ExtractionResult = (props) => {
         return cellValue;
       });
     });
-  
-    data.unshift(headers);  // Add headers at the beginning of the data array
-  
+
+    data.unshift(headers); // Add headers at the beginning of the data array
+
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
     XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
   };
-  
-  
 
   return (
     <div>
+      <Tooltip id="export-btn-tooltip" />
+
       <h5 className="text-2xl font-normal leading-normal mt-0 mb-2 text-lightBlue-800">
         Filename: {props.fileName}
         <button
           className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 float-right"
           type="button"
           onClick={onBtnExport}
+          data-tooltip-id="export-btn-tooltip"
+          data-tooltip-content="Download results of the selected file in Excel format."
         >
           <i className="fas fa-file-export"></i> Export
         </button>

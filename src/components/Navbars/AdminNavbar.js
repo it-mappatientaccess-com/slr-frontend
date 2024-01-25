@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Modal from "components/Modal/Modal";
 import { useLocation } from "react-router";
+import { Tooltip } from "react-tooltip";
 
 export default function AdminNavbar({ isAccordionVisible, toggleAccordion }) {
   const location = useLocation();
@@ -32,11 +33,15 @@ export default function AdminNavbar({ isAccordionVisible, toggleAccordion }) {
               : selectedProject}
           </span>
           <div>
+            <Tooltip id="nav-btn-tooltip" />
+
             {location.pathname === "/dashboard/sea" && (
               <button
                 className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 ease-linear transition-all duration-150"
                 type="button"
                 onClick={toggleAccordion}
+                data-tooltip-id="nav-btn-tooltip"
+                data-tooltip-content="Click to provide custom instructions to the AI model."
               >
                 <i className="fas fa-comment-dots"></i> &nbsp;
                 {isAccordionVisible
@@ -48,13 +53,18 @@ export default function AdminNavbar({ isAccordionVisible, toggleAccordion }) {
             {location.pathname === "/dashboard/my-projects" ? (
               ""
             ) : (
-              <button
-                className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none ease-linear transition-all duration-150"
-                type="button"
-                onClick={() => setModalOpen(true)}
-              >
-                <i className="fas fa-circle-info"></i> HELP
-              </button>
+              <>
+                <button
+                  className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none ease-linear transition-all duration-150"
+                  type="button"
+                  onClick={() => setModalOpen(true)}
+                  data-tooltip-id="nav-btn-tooltip"
+                  data-tooltip-content="Guidance on using the app."
+                  data-tooltip-delay-show="1000"
+                >
+                  <i className="fas fa-circle-info"></i> HELP
+                </button>
+              </>
             )}
           </div>
           <Modal
