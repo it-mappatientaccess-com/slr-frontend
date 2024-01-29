@@ -16,6 +16,7 @@ import {
   fetchProcessedFileNames,
 } from "store/data-extraction-actions";
 import generateUniqueBatchID from "util/generateUUID";
+import { Tooltip } from "react-tooltip";
 
 const MultiFileUpload = () => {
   const dispatch = useDispatch();
@@ -180,7 +181,10 @@ const MultiFileUpload = () => {
       }
     };
   }, [isSubmitted, status, message]);
-
+  // Function to clear all files
+  const clearFiles = () => {
+    setFiles([]); // This will clear all files from the state
+  };
   return (
     <div className="flex flex-wrap mt-4">
       <div className="w-full mb-12 px-4">
@@ -191,16 +195,18 @@ const MultiFileUpload = () => {
             allowMultiple={true}
             maxFiles={100}
             name="file"
-            labelIdle='Drag & Drop your pdf file or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 20MB)'
+            labelIdle='Drag & Drop your pdf file or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 30MB)'
             allowFileTypeValidation={true}
             acceptedFileTypes={["application/pdf"]}
             allowFileSizeValidation={true}
-            maxFileSize={"20MB"}
+            maxFileSize={"30MB"}
             credits={false}
             instantUpload={false}
           />
 
           <div className="text-center">
+            <Tooltip id="action-btn-tooltip" />
+
             <button
               className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
                 files.length === 0 ? "opacity-40" : ""
@@ -218,6 +224,8 @@ const MultiFileUpload = () => {
               type="button"
               onClick={onRefreshClickHandler}
               disabled={isRefreshing}
+              data-tooltip-id="action-btn-tooltip"
+              data-tooltip-content="Refresh to view the recently processed files in the table."
             >
               <i
                 className={`fas fa-arrow-rotate-right ${
@@ -225,6 +233,15 @@ const MultiFileUpload = () => {
                 }`}
               ></i>{" "}
               {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
+            <button
+              className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              type="button"
+              onClick={clearFiles}
+              data-tooltip-id="action-btn-tooltip"
+              data-tooltip-content="Click to clear all uploaded files from the list.."
+            >
+              <i className="fas fa-eraser"></i> Clear All
             </button>
           </div>
         </div>

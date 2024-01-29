@@ -157,7 +157,7 @@ const ExtractionFileList = () => {
                 type="button"
                 onClick={fetchAllResults}
                 data-tooltip-id="export-all-btn-tooltip"
-                data-tooltip-content="Export results of all processed files in Excel format. Note: If different prompts were used for various files, the structure of the exported Excel file may vary."
+                data-tooltip-html="Export results of all processed files in Excel format. <br /> <small> Note: If different prompts were used for various files,</br> the structure of the exported Excel file may vary.</small>"
                 data-tooltip-place="bottom"
                 data-tooltip-delay-show="2000"
               >
