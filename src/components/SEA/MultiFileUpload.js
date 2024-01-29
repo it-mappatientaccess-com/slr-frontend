@@ -234,7 +234,7 @@ const MultiFileUpload = () => {
               ></i>{" "}
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
-            <button
+            {files.length > 0 && (<button
               className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
               type="button"
               onClick={clearFiles}
@@ -242,7 +242,7 @@ const MultiFileUpload = () => {
               data-tooltip-content="Click to clear all uploaded files from the list.."
             >
               <i className="fas fa-eraser"></i> Clear All
-            </button>
+            </button>)}
           </div>
         </div>
         {showProgressBar && progress < 100 && (

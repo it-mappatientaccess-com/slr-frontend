@@ -556,7 +556,6 @@ export const getAllResults = (projectName) => {
 
     try {
       const response = await sendData();
-      console.log(response.data);
 
       const { results, number_of_examples, is_processing, task_id } =
         response.data;

@@ -96,6 +96,14 @@ const AbstractResults = () => {
       clearTimeout(timerRef.current);
       return; // Stop the loop if isStopping is true
     }
+    if (allAbstractResults.length === 0) {
+      try {
+        dispatch(getAllResults(projectName));
+      } catch (error) {
+        console.error("Error while fetching results: ", error);
+        // Implement additional error handling logic as needed
+      }
+    }
     if (allAbstractResults.length < numOfExamples && !isStopping) {
       if (prevLengthRef.current === allAbstractResults.length) {
         noChangeCountRef.current += 1;
