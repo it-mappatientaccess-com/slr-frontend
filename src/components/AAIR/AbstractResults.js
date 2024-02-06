@@ -15,6 +15,7 @@ import { stopModelExecution } from "store/qa-actions";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
 import { Tooltip } from "react-tooltip";
+import CardBarChart from "components/Cards/CardBarChart";
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
     props.generateNer(
@@ -76,7 +77,20 @@ const AbstractResults = () => {
   const timerRef = useRef(null);
   const prevLengthRef = useRef(allAbstractResults.length);
   const noChangeCountRef = useRef(0); // New ref to track the count of no change in length
-
+  // State to store the formatted chart data
+  const [chartData, setChartData] = useState({
+    labels: [],
+    datasets: [
+      {
+        label: "Results Count",
+        backgroundColor: "#ed64a6",
+        borderColor: "#ed64a6",
+        data: [],
+        fill: false,
+        barThickness: 8,
+      },
+    ],
+  });
   const generateNer = (tokenizedAbstract, abstractText, result) => {
     dispatch(generateAbstractToNERText(tokenizedAbstract, abstractText));
     setSingleAbstractResult(result);
@@ -95,14 +109,6 @@ const AbstractResults = () => {
     if (!isProcessing && !isStopping) {
       clearTimeout(timerRef.current);
       return; // Stop the loop if isStopping is true
-    }
-    if (allAbstractResults.length === 0) {
-      try {
-        dispatch(getAllResults(projectName));
-      } catch (error) {
-        console.error("Error while fetching results: ", error);
-        // Implement additional error handling logic as needed
-      }
     }
     if (allAbstractResults.length < numOfExamples && !isStopping) {
       if (prevLengthRef.current === allAbstractResults.length) {
@@ -137,7 +143,12 @@ const AbstractResults = () => {
 
   useEffect(() => {
     // Initial fetch
-    getAllResultsSafely();
+    try {
+      dispatch(getAllResults(projectName));
+    } catch (error) {
+      console.error("Error while fetching results: ", error);
+      // Implement additional error handling logic as needed
+    }
 
     // Function to calculate random exponential delay
     const getRandomExponentialDelay = () => {
@@ -162,11 +173,70 @@ const AbstractResults = () => {
     return () => {
       clearTimeout(timerRef.current);
     };
-  }, [getAllResultsSafely, isStopping]);
+  }, [getAllResultsSafely, isStopping, dispatch, projectName]);
 
+  const countResults = (allAbstractResults) => {
+    // Initialize an object to hold the count of each result type
+    const resultCount = {
+      studyDesign: 0,
+      population: 0,
+      intervention: 0,
+      outcomes: 0,
+      include: 0,
+      total: 0,
+    };
+
+    // Iterate through allAbstractResults array
+    allAbstractResults.forEach((item) => {
+      if (resultCount.hasOwnProperty(item.result)) {
+        // Increment the count of the specific result type
+        resultCount[item.result]++;
+      } else {
+        // If the result type is not recognized, you can either ignore it or handle it differently
+        console.log(`Unrecognized result type: ${item.result}`);
+      }
+      // Increment the total count
+      resultCount.total++;
+    });
+    console.log(resultCount);
+    return resultCount;
+  };
   useEffect(() => {
     setRowData(allAbstractResults);
-    calculatePercentage();
+    countResults(allAbstractResults);
+    // Convert the countResults output to chartData format
+    const resultsCount = countResults(allAbstractResults);
+    const labels = Object.keys(resultsCount).filter(key => key !== 'total'); // Exclude 'total' from labels
+    // const labels = Object.keys(resultsCount); // Include 'total' in labels
+    const data = labels.map((label) => resultsCount[label]);
+
+    setChartData({
+      labels: labels,
+      datasets: [
+        {
+          label: "Results Count : " + resultsCount.total ,
+          backgroundColor: [
+            "#F87171",
+            "#FB923C",
+            "#F472B6",
+            "#C084FC",
+            "#34D399",
+            "#38BDF8",
+          ], // Different color for each category
+          borderColor: [
+            "#F87171",
+            "#FB923C",
+            "#F472B6",
+            "#C084FC",
+            "#34D399",
+            "#38BDF8",
+          ],
+          data: data,
+          fill: false,
+          barThickness: 8,
+        },
+      ],
+    });
   }, [allAbstractResults, calculatePercentage]);
 
   const gridRef = useRef(null);
@@ -223,6 +293,9 @@ const AbstractResults = () => {
     []
   );
 
+  const chartOptions = {
+    // You can specify any additional options here
+  };
   const onPrevClickedHandler = async () => {
     setCurrentAbstractId(currentAbstractId - 1);
     await dispatch(
@@ -324,8 +397,8 @@ const AbstractResults = () => {
           </div>
         </div>
       )}
-
-      <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg ">
+      <div className="flex"> 
+      <div className="relative w-9/12 break-words bg-white rounded mb-4 shadow-lg m-2 ml-0">
         <div className="flex-auto p-4">
           <div
             className={`ag-theme-alpine ${
@@ -394,7 +467,7 @@ const AbstractResults = () => {
               data-tooltip-id="action-btn-tooltip"
               data-tooltip-variant="error"
               data-tooltip-content="Click to halt the processing of examples."
-              >              
+            >
               <i className={`fas fa-stop  ${isStopping ? "fa-flip" : ""}`}></i>{" "}
               {isStopping ? "Stopping..." : "Stop"}
             </button>
@@ -424,6 +497,15 @@ const AbstractResults = () => {
             </div>
           )}
         </div>
+      </div>
+      <div className="w-3/12 m-2 mr-0">
+        <CardBarChart
+          data={chartData}
+          options={chartOptions}
+          title="Total Count by Category"
+          subtitle="Analysis Overview"
+        />
+      </div>
       </div>
     </>
   );
