@@ -49,7 +49,7 @@ export const generateSingleFileResults = (file, questions, selectedPrompt) => {
   };
 };
 
-export const generateExtractionResults = (files, questions, newBatchID, selectedPrompt) => {
+export const generateExtractionResults = (files, questions, newBatchID, selectedPrompt, includeAboutFile) => {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
     formData.append("files", files[i].file, files[i].filename);
@@ -58,6 +58,7 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
   formData.append("project_name", localStorage.getItem("selectedProject"));
   formData.append("batch_id", newBatchID);
   formData.append("prompt_text", selectedPrompt);
+  formData.append("include_about_file", includeAboutFile);
   return async (dispatch) => {
     dispatch(
       dataExtractionActions.setProgress({
@@ -178,7 +179,6 @@ export const fetchExtractionFileResults = (file_id, projectName) => {
     };
     try {
       const response = await sendData();
-      console.log(response.data);
       dispatch(
         dataExtractionActions.setExtractionResult({
           extractionResult: response.data.results,
@@ -453,6 +453,22 @@ export const setSelectedPrompt = (selectedPrompt) => {
       dispatch(dataExtractionActions.setSelectedPrompt(selectedPrompt));
     } catch (error) {
       console.log(error);
+    }
+  };
+};
+
+export const deleteAllSEAResults = (projectName) => {
+  return async (dispatch) => {
+    try {
+      const response = await api.delete(`/delete-all-results/${projectName}`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      return response;
+    } catch (error) {
+      console.log(error);
+      return error;
     }
   };
 };

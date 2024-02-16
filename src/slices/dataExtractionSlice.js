@@ -16,6 +16,7 @@ const initialState = {
   taskStatus: null,
   prompts: [],
   selectedPrompt: null,
+  includeAboutFile: false
 };
 const DataExtractionSlice = createSlice({
   name: "DataExtraction",
@@ -60,6 +61,9 @@ const DataExtractionSlice = createSlice({
     },
     setSelectedPrompt(state, action) {
       state.selectedPrompt = action.payload.selectedPrompt;
+    },
+    setIncludeAboutFile(state, action) {
+      state.includeAboutFile = action.payload.includeAboutFile;
     },
   },
 });

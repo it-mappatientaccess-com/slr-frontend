@@ -8,10 +8,11 @@ import {
   fetchExtractionFileResults,
   deletePdfData,
   fetchAllExtractionResults,
+  deleteAllSEAResults,
 } from "store/data-extraction-actions";
 import ExtractionResult from "./ExtractionResult";
 import { Tooltip } from "react-tooltip";
-
+import ModalSmall from "components/Modal/ModalSmall";
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
   const onViewResultsClickHandler = async () => {
@@ -78,6 +79,7 @@ const ExtractionFileList = () => {
     (state) => state.dataExtraction.selectedFile
   );
   const gridWrapperRef = useRef(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const columnDefs = [
     {
@@ -127,6 +129,17 @@ const ExtractionFileList = () => {
     setRowData(processedFiles);
   }, [processedFiles]);
 
+  // Function to clear all files
+  const handleClearAllResults = async () => {
+    const projectName = localStorage.getItem("selectedProject");
+    const response = await dispatch(deleteAllSEAResults(projectName));
+    // Close the modal after deletion
+    setShowDeleteModal(false);
+    if (response.status === 200) {
+      setRowData([]); // This will clear all files from the state
+    }
+  };
+
   return (
     <>
       {processedFiles.length !== 0 && (
@@ -163,6 +176,17 @@ const ExtractionFileList = () => {
               >
                 <i className="fas fa-file-export"></i> Export All
               </button>
+              {rowData.length > 2 && (
+                <button
+                  className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  data-tooltip-id="action-btn-tooltip"
+                  data-tooltip-content="Click to clear all generated results"
+                >
+                  <i className="fas fa-eraser"></i> Clear All Results
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -170,6 +194,18 @@ const ExtractionFileList = () => {
 
       {selectedFile && (
         <ExtractionResult result={selectedFileResult} fileName={selectedFile} />
+      )}
+      {showDeleteModal && (
+        <ModalSmall
+          title="Confirm Deletion"
+          content="This will delete the generated results for all pdf files, are you sure?"
+          secondaryButtonText="No, Close"
+          primaryButtonText="Yes, Delete"
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onPrimaryClick={() => handleClearAllResults()}
+          colorClasses="bg-red-500 text-white active:bg-red-600"
+        />
       )}
     </>
   );

@@ -43,6 +43,18 @@ const MultiFileUpload = () => {
   const [isUploadSuccessful, setIsUploadSuccessful] = useState(false);
   const fetchIntervalRef = useRef(null);
   const [showProgressBar, setShowProgressBar] = useState(false);
+  // New state for managing "Include AboutFile" checkbox
+  const includeAboutFile = useSelector(
+    (state) => state.dataExtraction.includeAboutFile
+  );
+  // Function to toggle the checkbox state
+  const toggleIncludeAboutFile = () => {
+    dispatch(
+      dataExtractionActions.setIncludeAboutFile({
+        includeAboutFile: !includeAboutFile,
+      })
+    );
+  };
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
@@ -113,10 +125,10 @@ const MultiFileUpload = () => {
           files,
           seaQuestions,
           newBatchID,
-          selectedPrompt
+          selectedPrompt,
+          includeAboutFile
         )
       );
-      console.log(response);
       // Check response status and update state
       if (response.status) {
         setIsUploadSuccessful(true);
@@ -204,63 +216,87 @@ const MultiFileUpload = () => {
             instantUpload={false}
           />
 
-          <div className="text-center">
-            <Tooltip id="action-btn-tooltip" />
+          {/* Flex container for all buttons */}
+          <div className="flex flex-col lg:flex-row justify-between items-center mt-4 lg:items-end">
+            {/* Center-aligned buttons container */}
+            <div className="flex flex-col lg:flex-row justify-center flex-grow lg:mb-0 mb-4">
+              <Tooltip id="action-btn-tooltip" />
 
-            <button
-              className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-                files.length === 0 ? "opacity-40" : ""
-              }`}
-              type="button"
-              onClick={onProcessFile}
-              disabled={files.length === 0}
-            >
-              <i className="fas fa-upload"></i> Upload
-            </button>
-            <button
-              className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-sm px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-                isRefreshing && isSubmitted ? "opacity-50" : ""
-              }`}
-              type="button"
-              onClick={onRefreshClickHandler}
-              disabled={isRefreshing}
-              data-tooltip-id="action-btn-tooltip"
-              data-tooltip-content="Refresh to view the recently processed files in the table."
-            >
-              <i
-                className={`fas fa-arrow-rotate-right ${
-                  isRefreshing ? "fa-spin" : ""
+              <button
+                className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+                  files.length === 0 ? "opacity-40" : ""
                 }`}
-              ></i>{" "}
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </button>
-            {files.length > 0 && (<button
-              className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-              type="button"
-              onClick={clearFiles}
-              data-tooltip-id="action-btn-tooltip"
-              data-tooltip-content="Click to clear all uploaded files from the list.."
-            >
-              <i className="fas fa-eraser"></i> Clear All
-            </button>)}
+                type="button"
+                onClick={onProcessFile}
+                disabled={files.length === 0}
+              >
+                <i className="fas fa-upload"></i> Upload
+              </button>
+              <button
+                className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-sm px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+                  isRefreshing && isSubmitted ? "opacity-50" : ""
+                }`}
+                type="button"
+                onClick={onRefreshClickHandler}
+                disabled={isRefreshing}
+                data-tooltip-id="action-btn-tooltip"
+                data-tooltip-content="Refresh to view the recently processed files in the table."
+              >
+                <i
+                  className={`fas fa-arrow-rotate-right ${
+                    isRefreshing ? "fa-spin" : ""
+                  }`}
+                ></i>{" "}
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </button>
+              {files.length > 0 && (
+                <button
+                  className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                  type="button"
+                  onClick={clearFiles}
+                  data-tooltip-id="action-btn-tooltip"
+                  data-tooltip-content="Click to clear all uploaded files from the list.."
+                >
+                  <i className="fas fa-eraser"></i> Clear All
+                </button>
+              )}
+            </div>
+            {files.length > 0 && (
+              <div className="lg:absolute lg:right-0">
+                <button
+                  className={`text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+                  type="button"
+                  onClick={toggleIncludeAboutFile}
+                  disabled={files.length === 0}
+                >
+                  <input
+                    type="checkbox"
+                    className="form-checkbox text-indigo-600 mr-2"
+                    checked={includeAboutFile}
+                    onChange={toggleIncludeAboutFile}
+                  />
+                  Include AboutFile
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-        {showProgressBar && progress < 100 && (
-          <ProgressBar
-            taskInProgress={`Processing Files: ${processedFilesCount}/${files.length}`}
-            percentage={progress}
-          />
-        )}
+          {showProgressBar && progress < 100 && (
+            <ProgressBar
+              taskInProgress={`Processing Files: ${processedFilesCount}/${files.length}`}
+              percentage={progress}
+            />
+          )}
 
-        {responseStatus.submitted && (
-          <Alert
-            alertClass={responseStatus.color}
-            alertTitle={responseStatus.status}
-            alertMessage={responseStatus.message}
-          />
-        )}
-        <div>
-          <ExtractionFileList />
+          {responseStatus.submitted && (
+            <Alert
+              alertClass={responseStatus.color}
+              alertTitle={responseStatus.status}
+              alertMessage={responseStatus.message}
+            />
+          )}
+          <div>
+            <ExtractionFileList />
+          </div>
         </div>
       </div>
     </div>
