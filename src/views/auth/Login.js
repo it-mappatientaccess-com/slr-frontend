@@ -6,7 +6,7 @@ import Alert from "components/Alerts/Alert";
 import AuthContext from "store/auth-context";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router-dom";
-import {api} from "util/api";
+import { api } from "util/api";
 
 const initialValues = {
   username: "",
@@ -33,7 +33,7 @@ export default function Login() {
     });
     handleChange(event);
   };
-  
+
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -117,10 +117,19 @@ export default function Login() {
         <div className="w-full lg:w-4/12 px-4">
           <div className="relative flex flex-col min-w-0 break-words w-full mb-6 shadow-lg rounded-lg bg-blueGray-200 border-0">
             <div className="rounded-t mb-0 px-6 py-6">
+              <div className="flex flex-wrap justify-center m-4">
+                <div className="w-6/12 sm:w-4/12 px-4">
+                  <img
+                    src={require("assets/img/MAP Patient Access_full.png")}
+                    alt="..."
+                    className="max-w-full h-auto align-middle border-none"
+                  />
+                </div>
+              </div>
               <div className="text-center mb-3">
                 <h4 className="text-blueGray-500 font-bold">Sign in</h4>
               </div>
-              <hr className="mt-6 border-b-1 border-blueGray-300" />
+              <hr className="mt-3 border-b-1 border-blueGray-300" />
             </div>
             <div className="flex-auto px-4 lg:px-10 py-10 pt-0">
               <form onSubmit={handleSubmit}>

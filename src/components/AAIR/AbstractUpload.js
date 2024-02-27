@@ -56,7 +56,7 @@ const AbstractUpload = () => {
       submitted: true,
       status: "Error",
       message:
-        e.detail?.message || "An error occurred while uploading the file.",
+        e?.detail || "An error occurred while uploading the file.",
       color: "bg-red-500",
     });
 

@@ -1033,6 +1033,11 @@ select {
   margin: 1rem;
 }
 
+.mx-2 {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
 .mx-4 {
   margin-left: 1rem;
   margin-right: 1rem;
@@ -1402,6 +1407,10 @@ select {
 
 .w-3\/12 {
   width: 25%;
+}
+
+.w-4\/12 {
+  width: 33.333333%;
 }
 
 .w-5 {
@@ -2798,6 +2807,10 @@ select {
 
   .sm\:block {
     display: block;
+  }
+
+  .sm\:w-4\/12 {
+    width: 33.333333%;
   }
 
   .sm\:w-6\/12 {
