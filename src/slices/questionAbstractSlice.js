@@ -16,7 +16,6 @@ const initialState = {
   isResultGenerated: false,
   isQuestionsEmpty: false,
   allAbstractResults: [],
-  abstractNerMappedText: "",
   resetStore: false,
   numberOfExamples: 0,
   isProcessing: false,
@@ -59,9 +58,6 @@ const QuestionAbstractSlice = createSlice({
     setAllAbstractResults(state, action) {
       state.allAbstractResults = action.payload.allAbstractResults;
       state.numberOfExamples = action.payload.numberOfExamples;
-    },
-    setAbstractNerMappedText(state, action) {
-      state.abstractNerMappedText = action.payload.abstractNerMappedText;
     },
     setNumberOfExamples(state, action) {
       state.numberOfExamples = action.payload.numberOfExamples;

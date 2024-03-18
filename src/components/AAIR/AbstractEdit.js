@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setAbstractText,
   setsubmitQABtn,
-  getNERData,
   getSingleQAResult,
   setSubmitClicked,
   setIsQuestionsEmpty,
@@ -21,9 +20,6 @@ const AbstractEdit = () => {
   const [charCount, setCharCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
-  const abstractNER = useSelector(
-    (state) => state.questionAbstractData.abstractNER
-  );
   const abstractText = useSelector(
     (state) => state.questionAbstractData.abstract
   );
@@ -77,7 +73,6 @@ const AbstractEdit = () => {
     } else {
       dispatch(setIsQuestionsEmpty(false));
       dispatch(setSubmitClicked(true));
-      dispatch(getNERData(abstractText));
       dispatch(getSingleQAResult(questions, abstractText));
     }
   };
@@ -97,9 +92,10 @@ const AbstractEdit = () => {
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
           <div className="flex-auto p-4">
             <p
-              className="text-xs"
-              dangerouslySetInnerHTML={{ __html: abstractNER }}
-            />
+              className="text-sm"
+              dangerouslySetInnerHTML={{ __html: abstractText }}
+            >
+            </p>
           </div>
         </div>
       )}

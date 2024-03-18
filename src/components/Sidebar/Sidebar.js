@@ -227,12 +227,14 @@ export default function Sidebar() {
               </li>
             </ul>
           </div>
-          <div className="w-4/12 sm:w-4/12 px-4">
+          <div className="px-4">
+          <a href="https://www.mappatientaccess.com/" target="_blank" rel="noopener noreferrer">
             <img
               src={require("assets/img/MAP Patient Access_full.png")}
-              alt="..."
+              alt="Map Patient Access"
               className="max-w-full h-auto align-middle border-none"
             />
+            </a>
           </div>
         </div>
       </nav>

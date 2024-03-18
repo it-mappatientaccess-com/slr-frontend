@@ -14,6 +14,7 @@ import Alert from "components/Alerts/Alert";
 import {
   generateExtractionResults,
   fetchProcessedFileNames,
+  // stopExtraction,
 } from "store/data-extraction-actions";
 import generateUniqueBatchID from "util/generateUUID";
 import { Tooltip } from "react-tooltip";
@@ -34,6 +35,7 @@ const MultiFileUpload = () => {
     (state) => state.dataExtraction.isRefreshing
   );
   const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
+  // const isStopping = useSelector((state) => state.dataExtraction.isStopping);
   const message = useSelector((state) => state.dataExtraction.message);
   const status = useSelector((state) => state.dataExtraction.status);
   const selectedPrompt = useSelector(
@@ -47,6 +49,8 @@ const MultiFileUpload = () => {
   const includeAboutFile = useSelector(
     (state) => state.dataExtraction.includeAboutFile
   );
+  // const extractionTaskId = useSelector((state) => state.dataExtraction.extractionTaskId);
+
   // Function to toggle the checkbox state
   const toggleIncludeAboutFile = () => {
     dispatch(
@@ -129,6 +133,7 @@ const MultiFileUpload = () => {
           includeAboutFile
         )
       );
+      // console.log(response);
       // Check response status and update state
       if (response.status) {
         setIsUploadSuccessful(true);
@@ -197,6 +202,26 @@ const MultiFileUpload = () => {
   const clearFiles = () => {
     setFiles([]); // This will clear all files from the state
   };
+
+  // const onStopClickedHandler = async () => {
+  //   dispatch(
+  //     dataExtractionActions.setIsStopping({
+  //       isStopping: true,
+  //     })
+  //   );
+  //   const response = await dispatch(stopExtraction(extractionTaskId));
+  //   alertTimeoutRef.current = setTimeout(() => {
+  //     setResponseStatus({
+  //       submitted: true,
+  //       status: response.data["status"],
+  //       message: response.data["message"],
+  //       color:
+  //         response.data["status"] === "success"
+  //           ? "bg-emrald-500"
+  //           : "bg-orange-500",
+  //     });
+  //   }, 10000); // 60 seconds = 1 minute
+  // };
   return (
     <div className="flex flex-wrap mt-4">
       <div className="w-full mb-12 px-4">
@@ -207,11 +232,11 @@ const MultiFileUpload = () => {
             allowMultiple={true}
             maxFiles={100}
             name="file"
-            labelIdle='Drag & Drop your pdf file or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 30MB)'
+            labelIdle='Drag & Drop your pdf file or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 25MB)'
             allowFileTypeValidation={true}
             acceptedFileTypes={["application/pdf"]}
             allowFileSizeValidation={true}
-            maxFileSize={"30MB"}
+            maxFileSize={"25MB"}
             credits={false}
             instantUpload={false}
           />
@@ -249,6 +274,24 @@ const MultiFileUpload = () => {
                 ></i>{" "}
                 {isRefreshing ? "Refreshing..." : "Refresh"}
               </button>
+              {/* {isSubmitted && (
+                <button
+                  className={`bg-red-500 text-white active:bg-red-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150
+              ${isStopping ? "opacity-50" : ""}`}
+                  type="button"
+                  onClick={onStopClickedHandler}
+                  alt="stop model's execution"
+                  disabled={isStopping}
+                  data-tooltip-id="action-btn-tooltip"
+                  data-tooltip-variant="error"
+                  data-tooltip-content="Click to halt the processing of files."
+                >
+                  <i
+                    className={`fas fa-stop  ${isStopping ? "fa-flip" : ""}`}
+                  ></i>{" "}
+                  {isStopping ? "Stopping..." : "Stop"}
+                </button>
+              )} */}
               {files.length > 0 && (
                 <button
                   className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"

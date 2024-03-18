@@ -92,6 +92,7 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
           progress: 100,
         })
       );
+
       return response.data;
     } catch (error) {
       console.log(error);
@@ -472,3 +473,53 @@ export const deleteAllSEAResults = (projectName) => {
     }
   };
 };
+
+
+// export const stopExtraction = (extractionTaskId) => {
+//   return async (dispatch) => {
+//     dispatch(
+//       dataExtractionActions.setProgress({
+//         progress: 50,
+//       })
+//     );
+//     const sendData = async () => {
+//       return await api
+//         .post(`stop_extraction/${extractionTaskId}`, {
+//           headers: {
+//             Authorization: localStorage.getItem("token"),
+//           },
+//         })
+//         .then((response) => {
+//           return response;
+//         });
+//     };
+//     try {
+//       const response = await sendData();
+//       console.log(response);
+//       dispatch(
+//         dataExtractionActions.setIsStopping({
+//           isStopping: false,
+//         })
+//       );
+//       dispatch(
+//         dataExtractionActions.setProgress({
+//           progress: 100,
+//         })
+//       );
+//       return response;
+//     } catch (error) {
+//       console.log(error);
+//       dispatch(
+//         dataExtractionActions.setIsStopping({
+//           isStopping: false,
+//         })
+//       );
+//       dispatch(
+//         dataExtractionActions.setProgress({
+//           progress: 100,
+//         })
+//       );
+//       return error;
+//     }
+//   };
+// };

@@ -293,203 +293,6 @@ export const setSubmitClicked = (submitStatus) => {
   };
 };
 
-function groupConsecutiveIndexes(arr) {
-  const result = [];
-  let group = [arr[0]];
-
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] === arr[i - 1] + 1) {
-      group.push(arr[i]);
-    } else {
-      result.push(group);
-      group = [arr[i]];
-    }
-  }
-
-  result.push(group);
-  return result;
-}
-
-function joinStringsByIndexGroups(stringsArr, indexGroups) {
-  const result = [];
-  let currentIndex = 0;
-
-  for (const group of indexGroups) {
-    const groupStrings = group.map((index) => stringsArr[index]);
-    const joinedGroup = groupStrings.join(" ");
-    result.push(stringsArr.slice(currentIndex, group[0]).concat(joinedGroup));
-    // pushing empty string for elements that are being replaced
-    for (let i = 1; i < group.length; i++) {
-      result.push("");
-    }
-    currentIndex = group[group.length - 1] + 1;
-  }
-
-  if (currentIndex < stringsArr.length) {
-    result.push(stringsArr.slice(currentIndex));
-  }
-
-  return result.flat();
-}
-
-function processArray(input_array) {
-  const output_array = [];
-
-  for (let i = 0; i < input_array.length; i++) {
-    if (input_array[i].includes("##")) {
-      // Concatenate with previous non-'##' element
-      let prev_index = i - 1;
-      while (prev_index >= 0 && input_array[prev_index] === "") {
-        prev_index--;
-      }
-      if (prev_index >= 0 && !input_array[prev_index].includes("##")) {
-        output_array[prev_index] += input_array[i].replace("##", "");
-      } else {
-        // Choose any previous non-'##' element
-        prev_index = i - 1;
-        while (prev_index >= 0 && input_array[prev_index].includes("##")) {
-          prev_index--;
-        }
-        if (prev_index >= 0) {
-          output_array[prev_index] += input_array[i].replace("##", "");
-        }
-      }
-
-      // Replace '##' element with empty string
-      output_array.push("");
-    } else if (input_array[i] === "[UNK]") {
-      // Replace '[UNK]' element with empty string
-      output_array.push("");
-    } else {
-      // Store non-'##' and non-'[UNK]' element
-      output_array.push(input_array[i]);
-    }
-  }
-
-  return output_array;
-}
-
-const abstractToNERText = (abstractNER, abstract) => {
-  let abstractNerMappedText = "";
-  let tokenizedInput = [];
-  let output = [];
-  tokenizedInput = ["", ...abstractNER["tokenized_input"]];
-  output = [...abstractNER["output"]];
-  const entityClassMapping = {
-    "B-PAR": {
-      classes:
-        "text-xs font-semibold inline-block py-1 px-2 rounded text-amber-600 bg-amber-200 last:mr-0 mr-1",
-      text: "POPULATION",
-    },
-    "B-INT": {
-      classes:
-        "text-xs font-semibold inline-block py-1 px-2 rounded text-pink-600 bg-pink-200 last:mr-0 mr-1",
-      text: "INTERVENTION",
-    },
-    "B-OUT": {
-      classes:
-        "text-xs font-semibold inline-block py-1 px-2 rounded text-teal-600 bg-teal-200 last:mr-0 mr-1",
-      text: "OUTCOME",
-    },
-  };
-  const indexes = [];
-  for (let entry of Object.values(output)) {
-    indexes.push(JSON.parse(entry)["index"]);
-  }
-  const indexGroups = groupConsecutiveIndexes(indexes);
-  tokenizedInput = processArray(tokenizedInput);
-  const aggregatedTokenizedInput = joinStringsByIndexGroups(
-    tokenizedInput,
-    indexGroups
-  );
-  // loop through tokenized input
-  for (let i = 0; i < aggregatedTokenizedInput.length; i++) {
-    // loop through model output
-    for (let j = 0; j < output.length; j++) {
-      let token = JSON.parse(output[j]);
-      if (i === token["index"] && aggregatedTokenizedInput[i] !== "") {
-        aggregatedTokenizedInput[i] = `<span class="${
-          entityClassMapping[token["entity"]]["classes"]
-        }">${`<span class="text-blueGray-700">${aggregatedTokenizedInput[i]}</span>`}  ${
-          entityClassMapping[token["entity"]]["text"]
-        }</span>`;
-      }
-    }
-  }
-
-  for (let i = 0; i < aggregatedTokenizedInput.length; i++) {
-    abstractNerMappedText = abstractNerMappedText.concat(
-      " ",
-      aggregatedTokenizedInput[i]
-    );
-  }
-  return abstractNerMappedText;
-};
-
-export const generateAbstractToNERText = (abstractNER, abstract) => {
-  const abstractNerText = abstractToNERText(abstractNER, abstract);
-  return (dispatch) => {
-    dispatch(
-      questionAbstractActions.setAbstractNerMappedText({
-        abstractNerMappedText: abstractNerText,
-      })
-    );
-    return abstractNerText;
-  };
-};
-
-export const getNERData = (abstract) => {
-  return async (dispatch) => {
-    dispatch(
-      questionAbstractActions.setProgress({
-        progress: 70,
-      })
-    );
-    const sendData = async (abstract) => {
-      return await api
-        .post(
-          "generate_ner",
-          {
-            abstract,
-          },
-          {
-            headers: {
-              Authorization: localStorage.getItem("token"),
-            },
-          }
-        )
-        .then((response) => {
-          return response;
-        });
-    };
-    try {
-      const response = await sendData(abstract);
-      dispatch(
-        questionAbstractActions.setAbstractNER({
-          abstractNER: abstractToNERText(response.data, abstract),
-        })
-      );
-      dispatch(
-        questionAbstractActions.setIsResultGenerated({
-          isResultGenerated: true,
-        })
-      );
-      dispatch(
-        questionAbstractActions.setProgress({
-          progress: 100,
-        })
-      );
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        questionAbstractActions.setProgress({
-          progress: 100,
-        })
-      );
-    }
-  };
-};
-
 export const getSingleQAResult = (questions, abstract) => {
   return async (dispatch) => {
     const sendData = async (questions, abstract) => {
@@ -512,13 +315,24 @@ export const getSingleQAResult = (questions, abstract) => {
     };
     try {
       const response = await sendData(questions, abstract);
+      console.log(response);
       dispatch(
         questionAbstractActions.setSingleAbstractResult({
           singleAbstractResult: response.data,
         })
       );
+      dispatch(
+        questionAbstractActions.setIsResultGenerated({
+          isResultGenerated: true,
+        })
+      );
     } catch (error) {
       console.log(error);
+      dispatch(
+        questionAbstractActions.setIsResultGenerated({
+          isResultGenerated: false,
+        })
+      );
     }
   };
 };

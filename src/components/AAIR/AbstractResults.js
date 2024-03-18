@@ -9,21 +9,19 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { useDispatch, useSelector } from "react-redux";
-import { getAllResults, generateAbstractToNERText } from "store/qa-actions";
+import { getAllResults, stopModelExecution } from "store/qa-actions";
 import Alert from "components/Alerts/Alert";
-import { stopModelExecution } from "store/qa-actions";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
-import { Tooltip } from "react-tooltip";
 import CardBarChart from "components/Cards/CardBarChart";
+
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
-    props.generateNer(
-      props.data.nerAbstract,
-      props.data.abstract,
-      props.data.result
-    );
-    props.setCurrentAbstractId(props.data.id);
+    props.setSelectedAbstract({
+      id: props.data.id,
+      abstract: props.data.abstract,
+      result: props.data.result,
+    });
     props.redrawRows();
   };
   return (
@@ -34,7 +32,7 @@ const btnCellRenderer = (props) => {
         data-action="update"
         onClick={onClickHandler}
       >
-        View PICO <i className="fas fa-circle-nodes"></i>
+        View <i className="fas fa-circle-nodes"></i>
       </button>
     </>
   );
@@ -53,9 +51,6 @@ const AbstractResults = () => {
   let allAbstractResults = useSelector(
     (state) => state.questionAbstractData.allAbstractResults
   );
-  let abstractNerMappedText = useSelector(
-    (state) => state.questionAbstractData.abstractNerMappedText
-  );
   const isProcessing = useSelector(
     (state) => state.questionAbstractData.isProcessing
   );
@@ -66,18 +61,20 @@ const AbstractResults = () => {
     (state) => state.questionAbstractData.isStopping
   );
   const taskId = useSelector((state) => state.questionAbstractData.taskId);
-  const [singleAbstractResult, setSingleAbstractResult] = useState("");
-  const [percentage, setPercentage] = useState(0);
-  const projectName = localStorage.getItem("selectedProject");
-  const [currentAbstractId, setCurrentAbstractId] = useState();
   const numOfExamples = useSelector(
     (state) => state.questionAbstractData.numberOfExamples
   );
+  const [selectedAbstract, setSelectedAbstract] = useState({
+    id: null,
+    abstract: "",
+    result: "",
+  });
+  const [percentage, setPercentage] = useState(0);
+  const projectName = localStorage.getItem("selectedProject");
   // Use useRef to create a mutable object that persists across renders
   const timerRef = useRef(null);
   const prevLengthRef = useRef(allAbstractResults.length);
   const noChangeCountRef = useRef(0); // New ref to track the count of no change in length
-  // State to store the formatted chart data
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [
@@ -91,10 +88,6 @@ const AbstractResults = () => {
       },
     ],
   });
-  const generateNer = (tokenizedAbstract, abstractText, result) => {
-    dispatch(generateAbstractToNERText(tokenizedAbstract, abstractText));
-    setSingleAbstractResult(result);
-  };
 
   const calculatePercentage = useCallback(() => {
     if (allAbstractResults.length > 0 && numOfExamples) {
@@ -104,13 +97,7 @@ const AbstractResults = () => {
       setPercentage(0);
     }
   }, [allAbstractResults.length, numOfExamples]);
-  // useEffect(() => {
-  //   // Recalculate percentage whenever there's a relevant change
-  //   if (numOfExamples > 0) {
-  //     const newPercentage = Math.round((allAbstractResults.length / numOfExamples) * 100);
-  //     setPercentage(newPercentage); // Assuming setPercentage updates a state variable
-  //   }
-  // }, [allAbstractResults.length, numOfExamples]); 
+
   const getAllResultsSafely = useCallback(() => {
     if (!isProcessing && !isStopping) {
       clearTimeout(timerRef.current);
@@ -146,7 +133,13 @@ const AbstractResults = () => {
     projectName,
     isStopping,
   ]);
-
+  const countResults = (abstractResults) => {
+    const resultCount = abstractResults.reduce((acc, item) => {
+      acc[item.result] = (acc[item.result] || 0) + 1;
+      return acc;
+    }, {});
+    return resultCount;
+  };
   useEffect(() => {
     // Initial fetch
     try {
@@ -162,7 +155,6 @@ const AbstractResults = () => {
       const max = Math.log(30000); // 30 seconds
       return Math.exp(min + (max - min) * Math.random());
     };
-
     // Setting up a loop with random but exponential wait times
     const setupTimer = () => {
       const delay = getRandomExponentialDelay();
@@ -181,39 +173,12 @@ const AbstractResults = () => {
     };
   }, [getAllResultsSafely, isStopping, dispatch, projectName]);
 
-  const countResults = (allAbstractResults) => {
-    // Initialize an object to hold the count of each result type
-    const resultCount = {
-      studyDesign: 0,
-      population: 0,
-      intervention: 0,
-      outcomes: 0,
-      include: 0,
-      total: 0,
-    };
-
-    // Iterate through allAbstractResults array
-    allAbstractResults.forEach((item) => {
-      if (resultCount.hasOwnProperty(item.result)) {
-        // Increment the count of the specific result type
-        resultCount[item.result]++;
-      } else {
-        // If the result type is not recognized, you can either ignore it or handle it differently
-        console.log(`Unrecognized result type: ${item.result}`);
-      }
-      // Increment the total count
-      resultCount.total++;
-    });
-    return resultCount;
-  };
   useEffect(() => {
     setRowData(allAbstractResults);
-    countResults(allAbstractResults);
     calculatePercentage();
     // Convert the countResults output to chartData format
     const resultsCount = countResults(allAbstractResults);
     const labels = Object.keys(resultsCount).filter((key) => key !== "total"); // Exclude 'total' from labels
-    // const labels = Object.keys(resultsCount); // Include 'total' in labels
     const data = labels.map((label) => resultsCount[label]);
 
     setChartData({
@@ -246,7 +211,6 @@ const AbstractResults = () => {
   }, [allAbstractResults, calculatePercentage]);
 
   const gridRef = useRef(null);
-
   const [rowData, setRowData] = useState([]);
 
   const redrawRows = useCallback(() => {
@@ -261,7 +225,7 @@ const AbstractResults = () => {
   const columnDefs = [
     {
       headerName: "ID",
-      valueGetter: "node.rowIndex + 1",
+      field: "id",
       width: 80,
     },
     {
@@ -281,8 +245,7 @@ const AbstractResults = () => {
       headerName: "Action",
       cellRenderer: btnCellRenderer,
       cellRendererParams: {
-        generateNer,
-        setCurrentAbstractId,
+        setSelectedAbstract,
         redrawRows,
       },
       editable: false,
@@ -299,37 +262,21 @@ const AbstractResults = () => {
     []
   );
 
-  const chartOptions = {
-    // You can specify any additional options here
-  };
-  const onPrevClickedHandler = async () => {
-    setCurrentAbstractId(currentAbstractId - 1);
-    await dispatch(
-      generateAbstractToNERText(
-        allAbstractResults[currentAbstractId - 1]["nerAbstract"],
-        allAbstractResults[currentAbstractId - 1]["abstract"]
-      )
-    );
-    setSingleAbstractResult(
-      allAbstractResults[currentAbstractId - 1]["result"]
-    );
-    redrawRows();
-  };
-
-  const onNextClickedHandler = async () => {
-    setCurrentAbstractId(currentAbstractId + 1);
-    await dispatch(
-      generateAbstractToNERText(
-        allAbstractResults[currentAbstractId + 1]["nerAbstract"],
-        allAbstractResults[currentAbstractId + 1]["abstract"]
-      )
-    );
-    // set single abstract result
-    setSingleAbstractResult(
-      allAbstractResults[currentAbstractId + 1]["result"]
-    );
-    redrawRows();
-  };
+  const onPrevNextClickedHandler = useCallback(
+    (direction) => {
+      const currentIndex = allAbstractResults.findIndex(
+        (item) => item.id === selectedAbstract.id
+      );
+      let newIndex;
+      if (direction === "prev") {
+        newIndex = Math.max(currentIndex - 1, 0); // Ensure not going below zero
+      } else if (direction === "next") {
+        newIndex = Math.min(currentIndex + 1, allAbstractResults.length - 1); // Ensure not exceeding array length
+      }
+      setSelectedAbstract(allAbstractResults[newIndex]); // Update the selected abstract
+    },
+    [allAbstractResults, selectedAbstract]
+  );
 
   const onRefreshClickHandler = () => {
     dispatch(
@@ -340,12 +287,16 @@ const AbstractResults = () => {
     dispatch(getAllResults(projectName));
   };
 
-  // set background colour on even rows again, this looks bad, should be using CSS classes
-  const getRowStyle = (params) => {
-    if (params.node.rowIndex === currentAbstractId) {
-      return { backgroundColor: "rgba(186,230,253,var(--tw-bg-opacity))" };
-    }
-  };
+  const getRowStyle = useCallback(
+    (params) => {
+      if (params.data.id === selectedAbstract.id) {
+        return { backgroundColor: "rgba(186,230,253,var(--tw-bg-opacity))" };
+      }
+      return null; // Make sure to return null or undefined when there's no specific style to apply.
+    },
+    [selectedAbstract.id] // This ensures getRowStyle uses the latest selectedAbstract.id
+  );
+
   const onBtnExport = useCallback(() => {
     gridRef.current.api.exportDataAsCsv(getParams());
   }, []);
@@ -358,28 +309,32 @@ const AbstractResults = () => {
     );
     dispatch(stopModelExecution(taskId));
   };
-
+  useEffect(() => {
+    if (selectedAbstract.id != null) {
+      // Make sure selectedAbstract is set
+      redrawRows();
+    }
+  }, [selectedAbstract, redrawRows]);
   return (
     <>
-      {abstractNerMappedText && (
+      {selectedAbstract.abstract && (
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg ">
           <div className="flex-auto p-4">
             <p
-              className="text-xs overflow-auto h-30v bg-blueGray-100 p-1"
-              dangerouslySetInnerHTML={{ __html: abstractNerMappedText }}
+              className="text-sm overflow-auto h-30v bg-blueGray-100 p-1"
+              dangerouslySetInnerHTML={{ __html: selectedAbstract.abstract }}
             />
-            {singleAbstractResult !== "" && (
+            {selectedAbstract.result && (
               <div className="flex justify-center items-center mt-2">
-                <div className="w-1/12">
-                  {/* Adjust this width as necessary */}
+                <div className="w-2/12">
                   <Alert
                     alertClass={`${
-                      singleAbstractResult === "include"
+                      selectedAbstract.result === "Include"
                         ? "bg-emerald-500"
                         : "bg-orange-500"
                     }`}
                     alertTitle="Result:"
-                    alertMessage={singleAbstractResult.toUpperCase()}
+                    alertMessage={selectedAbstract.result.toUpperCase()}
                     showCloseButton={false}
                   />
                 </div>
@@ -388,25 +343,29 @@ const AbstractResults = () => {
             <div>
               <button
                 className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-                  currentAbstractId === 0
+                  selectedAbstract.id === allAbstractResults[0]?.id
                     ? "disabled:opacity-75 cursor-not-allowed"
                     : ""
                 }`}
                 type="button"
-                onClick={onPrevClickedHandler}
-                disabled={currentAbstractId === 0}
+                onClick={() => onPrevNextClickedHandler("prev")}
+                disabled={selectedAbstract.id === allAbstractResults[0]?.id}
               >
                 <i className="fas fa-arrow-left"></i> Prev
               </button>
               <button
                 className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 float-right ${
-                  currentAbstractId === rowData.length - 1
+                  selectedAbstract.id ===
+                  allAbstractResults[allAbstractResults.length - 1]?.id
                     ? "disabled:opacity-75 cursor-not-allowed"
                     : ""
                 }`}
                 type="button"
-                onClick={onNextClickedHandler}
-                disabled={currentAbstractId === rowData.length - 1}
+                onClick={() => onPrevNextClickedHandler("next")}
+                disabled={
+                  selectedAbstract.id ===
+                  allAbstractResults[allAbstractResults.length - 1]?.id
+                }
               >
                 <i className="fas fa-arrow-right"></i> Next
               </button>
@@ -429,8 +388,6 @@ const AbstractResults = () => {
                 columnDefs={columnDefs}
                 defaultColDef={defaultColDef}
                 animateRows={true}
-                readOnlyEdit={true}
-                enableCellChangeFlash={true}
                 paginationAutoPageSize={true}
                 pagination={true}
                 suppressClickEdit={true}
@@ -446,7 +403,6 @@ const AbstractResults = () => {
               </div>
             )}
             <div className="text-center mt-4">
-              <Tooltip id="action-btn-tooltip" />
               <button
                 className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
                   isRefreshing ? "opacity-50" : ""
@@ -454,23 +410,18 @@ const AbstractResults = () => {
                 type="button"
                 onClick={onRefreshClickHandler}
                 disabled={isRefreshing}
-                data-tooltip-id="action-btn-tooltip"
-                data-tooltip-content="Refresh to view the recently processed examples in the table."
               >
                 <i
                   className={`fas fa-arrow-rotate-right ${
                     isRefreshing ? "fa-spin" : ""
                   }`}
                 ></i>{" "}
-                {isRefreshing ? "Refreshing..." : "Refresh"}
+                Refresh
               </button>
               <button
                 className="bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                 type="button"
                 onClick={onBtnExport}
-                data-tooltip-id="action-btn-tooltip"
-                data-tooltip-content="Click to download the results as a CSV file."
-                data-tooltip-variant="info"
               >
                 <i className="fas fa-file-export"></i> Export
               </button>
@@ -479,48 +430,24 @@ const AbstractResults = () => {
               ${isStopping ? "opacity-50" : ""}`}
                 type="button"
                 onClick={onStopClickedHandler}
-                alt="stop model's execution"
                 disabled={isStopping}
-                data-tooltip-id="action-btn-tooltip"
-                data-tooltip-variant="error"
-                data-tooltip-content="Click to halt the processing of examples."
               >
                 <i
                   className={`fas fa-stop  ${isStopping ? "fa-flip" : ""}`}
                 ></i>{" "}
-                {isStopping ? "Stopping..." : "Stop"}
+                Stop
               </button>
             </div>
-            {rowData.length === 0 && isRefreshing && (
-              <div
-                role="status"
-                className="absolute -translate-x-1/2 -translate-y-1/2 top-2/4 left-1/2"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="w-10 h-10 mr-2 text-gray-200 animate-spin fill-lightBlue-600"
-                  viewBox="0 0 100 101"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                    fill="currentFill"
-                  />
-                </svg>
-                <span className="sr-only">Loading...</span>
-              </div>
-            )}
           </div>
         </div>
         <div className="w-3/12 m-2 mr-0">
           <CardBarChart
             data={chartData}
-            options={chartOptions}
+            options={
+              {
+                /* chartOptions could be set here if any */
+              }
+            }
             title="Total Count by Category"
             subtitle="Analysis Overview"
           />
@@ -529,4 +456,5 @@ const AbstractResults = () => {
     </>
   );
 };
+
 export default AbstractResults;
