@@ -6,7 +6,7 @@ WORKDIR /app
 # Cache and Install dependencies
 COPY package.json package-lock.json ./  
 # Use the --legacy-peer-deps flag during installation
-RUN npm ci --legacy-peer-deps
+RUN npm ci --legacy-peer-deps --no-optional
 # Copy app files
 COPY . .
 # Build the app
