@@ -232,15 +232,30 @@ const MultiFileUpload = () => {
             allowMultiple={true}
             maxFiles={100}
             name="file"
-            labelIdle='Drag & Drop your pdf file or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 25MB)'
+            labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> <br/> (MAX FILES: 100, MAX FILESIZE: 25MB) <br/>Allowed file types: PDF, XPS, EPUB, MOBI, FB2, CBZ, SVG, TXT, PPT, DOC, DOCX, XLS, XLSX, CSV'
             allowFileTypeValidation={true}
-            acceptedFileTypes={["application/pdf"]}
+            acceptedFileTypes={[
+              "application/pdf",
+              "application/vnd.ms-xpsdocument",
+              "application/epub+zip",
+              "application/x-mobipocket-ebook",
+              "application/x-fictionbook+xml",
+              "application/x-cbr",
+              "image/svg+xml",
+              "text/plain",
+              "application/vnd.ms-powerpoint",
+              "application/msword",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "application/vnd.ms-excel",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "text/csv",
+            ]}
             allowFileSizeValidation={true}
             maxFileSize={"25MB"}
             credits={false}
             instantUpload={false}
           />
-
+          <p className="mt-2"></p>
           {/* Flex container for all buttons */}
           <div className="flex flex-col lg:flex-row justify-between items-center mt-4 lg:items-end">
             {/* Center-aligned buttons container */}
