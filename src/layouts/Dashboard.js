@@ -16,8 +16,6 @@ import AAIR from "views/dashboard/AAIR";
 import ResultHistory from "views/dashboard/ResultHistory";
 import SEA from "views/dashboard/SEA";
 
-import Feedback from "feeder-react-feedback";
-import "assets/styles/feederScoped.css";
 import UserManagement from "views/dashboard/UserManagement";
 export default function Dashboard() {
   const [isAccordionVisible, setIsAccordionVisible] = useState(false);
@@ -57,13 +55,13 @@ export default function Dashboard() {
         </div>
         <FooterAdmin />
       </div>
-        <Feedback
+        {/* <Feedback
           projectId="65403f6e33b84e00028c6640"
           email="true"
           primaryColor="rgb(249,115,22)"
           textColor="#ffffff"
           hoverBorderColor="#000000"
-        />
+        /> */}
     </>
   );
 }

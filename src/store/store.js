@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import thunkMiddleware from 'redux-thunk';
+import { thunk as thunkMiddleware } from 'redux-thunk';
 import questionAbstractReducer from '../slices/questionAbstractSlice';
 import rowReducer from '../slices/rowSlice';
 import projectReducer from '../slices/projectSlice';
@@ -14,7 +14,7 @@ const store = configureStore({
     dataExtraction: dataExtractionReducer,
     userManagement: userManagementReducer
   },
-  middleware: [thunkMiddleware],
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(thunkMiddleware),
 });
 
 export default store;

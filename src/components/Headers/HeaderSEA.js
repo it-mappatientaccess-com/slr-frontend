@@ -89,7 +89,7 @@ export default function HeaderSea({ isAccordionVisible }) {
   }
   const accordionItems = prompts.map((prompt) => ({
     title: prompt["prompt_title"],
-    content: !prompt["is_default"] ? prompt["prompt_text"] : null,
+    content: prompt["prompt_text"],
     actionButtonText:
       prompt["prompt_text"] === selectedPrompt ? "Active" : "Use Prompt",
     actionButtonState: prompt["prompt_text"] === selectedPrompt,
