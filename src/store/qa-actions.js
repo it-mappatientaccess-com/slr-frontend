@@ -1,5 +1,5 @@
 import { questionAbstractActions } from "../slices/questionAbstractSlice";
-import {api} from "util/api";
+import { api } from "util/api";
 
 export const setQuestions = (projectName, questions) => {
   return async (dispatch) => {
@@ -82,13 +82,13 @@ export const setSeaQuestions = (projectName, questions) => {
         })
       );
       // Wait for the seaQuestions state to be updated
-      await new Promise(resolve => setTimeout(resolve, 0));
-      
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       // Get the updated seaQuestions state
       const updatedSeaQuestions = getState().questionAbstractData.seaQuestions;
       // Send the updated seaQuestions state to the backend
       await sendData(projectName, updatedSeaQuestions);
-      
+
       dispatch(
         questionAbstractActions.setProgress({
           progress: 100,
@@ -104,7 +104,6 @@ export const setSeaQuestions = (projectName, questions) => {
     }
   };
 };
-
 
 export const fetchOldQuestions = (projectName) => {
   return async (dispatch) => {
@@ -246,7 +245,6 @@ export const fetchOldSeaQuestions = (projectName) => {
     }
   };
 };
-
 
 export const setAbstractText = (abstract) => {
   return (dispatch) => {
@@ -430,16 +428,19 @@ export const stopModelExecution = (taskId) => {
           isProcessing: response.data["is_processing"],
         })
       );
-      dispatch(
-        questionAbstractActions.setIsStopping({
-          isStopping: false,
-        })
-      );
+      setTimeout(() => {
+        dispatch(
+          questionAbstractActions.setIsStopping({
+            isStopping: false,
+          })
+        );
+      }, 1000);
       dispatch(
         questionAbstractActions.setProgress({
           progress: 100,
         })
       );
+      return response;
     } catch (error) {
       console.log(error);
       dispatch(
@@ -452,6 +453,7 @@ export const stopModelExecution = (taskId) => {
           progress: 100,
         })
       );
+      return error;
     }
   };
 };

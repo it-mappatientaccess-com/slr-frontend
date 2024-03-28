@@ -14,7 +14,7 @@ import Alert from "components/Alerts/Alert";
 import {
   generateExtractionResults,
   fetchProcessedFileNames,
-  // stopExtraction,
+  stopExtraction,
 } from "store/data-extraction-actions";
 import generateUniqueBatchID from "util/generateUUID";
 import { Tooltip } from "react-tooltip";
@@ -35,7 +35,7 @@ const MultiFileUpload = () => {
     (state) => state.dataExtraction.isRefreshing
   );
   const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
-  // const isStopping = useSelector((state) => state.dataExtraction.isStopping);
+  const isStopping = useSelector((state) => state.dataExtraction.isStopping);
   const message = useSelector((state) => state.dataExtraction.message);
   const status = useSelector((state) => state.dataExtraction.status);
   const selectedPrompt = useSelector(
@@ -49,8 +49,9 @@ const MultiFileUpload = () => {
   const includeAboutFile = useSelector(
     (state) => state.dataExtraction.includeAboutFile
   );
-  // const extractionTaskId = useSelector((state) => state.dataExtraction.extractionTaskId);
-
+  const extractionTaskId = useSelector(
+    (state) => state.dataExtraction.extractionTaskId
+  );
   // Function to toggle the checkbox state
   const toggleIncludeAboutFile = () => {
     dispatch(
@@ -133,10 +134,15 @@ const MultiFileUpload = () => {
           includeAboutFile
         )
       );
-      // console.log(response);
       // Check response status and update state
       if (response.status) {
         setIsUploadSuccessful(true);
+        // set extractionTaskId to response.data.task_id
+        dispatch(
+          dataExtractionActions.setExtractionTaskId({
+            extractionTaskId: response.task_id,
+          })
+        );
       } else {
         // Handle non-successful upload
         setResponseStatus({
@@ -188,7 +194,7 @@ const MultiFileUpload = () => {
           message: "",
           color: "",
         });
-      }, 60000); // 60 seconds = 1 minute
+      }, 5000);
     }
 
     // Clear timeout when component unmounts or when isSubmitted changes
@@ -203,25 +209,32 @@ const MultiFileUpload = () => {
     setFiles([]); // This will clear all files from the state
   };
 
-  // const onStopClickedHandler = async () => {
-  //   dispatch(
-  //     dataExtractionActions.setIsStopping({
-  //       isStopping: true,
-  //     })
-  //   );
-  //   const response = await dispatch(stopExtraction(extractionTaskId));
-  //   alertTimeoutRef.current = setTimeout(() => {
-  //     setResponseStatus({
-  //       submitted: true,
-  //       status: response.data["status"],
-  //       message: response.data["message"],
-  //       color:
-  //         response.data["status"] === "success"
-  //           ? "bg-emrald-500"
-  //           : "bg-orange-500",
-  //     });
-  //   }, 10000); // 60 seconds = 1 minute
-  // };
+  const onStopClickedHandler = async () => {
+    dispatch(
+      dataExtractionActions.setIsStopping({
+        isStopping: true,
+      })
+    );
+    const response = await dispatch(stopExtraction(extractionTaskId));
+    setResponseStatus({
+      submitted: true,
+      status: response.data["status"],
+      message: response.data["message"],
+      color:
+        response.data["status"] === "success"
+          ? "bg-emerald-500"
+          : "bg-orange-500",
+    });
+    // reset the response status after 3 seconds
+    setTimeout(() => {
+      setResponseStatus({
+        submitted: false,
+        status: "",
+        message: "",
+        color: "",
+      });
+    }, 3000);
+  };
   return (
     <div className="flex flex-wrap mt-4">
       <div className="w-full mb-12 px-4">
@@ -289,7 +302,7 @@ const MultiFileUpload = () => {
                 ></i>{" "}
                 {isRefreshing ? "Refreshing..." : "Refresh"}
               </button>
-              {/* {isSubmitted && (
+              {showProgressBar && (
                 <button
                   className={`bg-red-500 text-white active:bg-red-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150
               ${isStopping ? "opacity-50" : ""}`}
@@ -306,7 +319,7 @@ const MultiFileUpload = () => {
                   ></i>{" "}
                   {isStopping ? "Stopping..." : "Stop"}
                 </button>
-              )} */}
+              )}
               {files.length > 0 && (
                 <button
                   className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -340,11 +353,10 @@ const MultiFileUpload = () => {
           </div>
           {showProgressBar && progress < 100 && (
             <ProgressBar
-              taskInProgress={`Processing Files: ${processedFilesCount}/${files.length}`}
+              taskInProgress={`Progress: ${processedFilesCount}/${files.length}`}
               percentage={progress}
             />
           )}
-
           {responseStatus.submitted && (
             <Alert
               alertClass={responseStatus.color}

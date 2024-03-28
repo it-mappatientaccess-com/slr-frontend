@@ -113,6 +113,7 @@ const ExtractionFileList = () => {
     () => ({
       sortable: true,
       resizable: true,
+      enableCellChangeFlash:true
     }),
     []
   );
@@ -157,7 +158,6 @@ const ExtractionFileList = () => {
                 defaultColDef={defaultColDef}
                 animateRows={true}
                 readOnlyEdit={true}
-                enableCellChangeFlash={true}
                 suppressClickEdit={true}
                 paginationAutoPageSize={true}
                 pagination={true}

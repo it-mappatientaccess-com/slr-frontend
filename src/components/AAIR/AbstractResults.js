@@ -69,6 +69,12 @@ const AbstractResults = () => {
     abstract: "",
     result: "",
   });
+  const [responseStatus, setResponseStatus] = useState({
+    submitted: false,
+    status: "",
+    message: "",
+    color: "",
+  });
   const [percentage, setPercentage] = useState(0);
   const projectName = localStorage.getItem("selectedProject");
   // Use useRef to create a mutable object that persists across renders
@@ -301,13 +307,31 @@ const AbstractResults = () => {
     gridRef.current.api.exportDataAsCsv(getParams());
   }, []);
 
-  const onStopClickedHandler = () => {
+  const onStopClickedHandler = async() => {
     dispatch(
       questionAbstractActions.setIsStopping({
         isStopping: true,
       })
     );
-    dispatch(stopModelExecution(taskId));
+    const response = await dispatch(stopModelExecution(taskId));
+    setResponseStatus({
+      submitted: true,
+      status: response.data["status"],
+      message: response.data["message"],
+      color:
+        response.data["status"] === "success"
+          ? "bg-emerald-500"
+          : "bg-orange-500",
+    });
+    // reset the response status after 3 seconds
+    setTimeout(() => {
+      setResponseStatus({
+        submitted: false,
+        status: "",
+        message: "",
+        color: "",
+      });
+    }, 3000);
   };
   useEffect(() => {
     if (selectedAbstract.id != null) {
@@ -402,6 +426,13 @@ const AbstractResults = () => {
                 />
               </div>
             )}
+            {responseStatus.submitted && (
+            <Alert
+              alertClass={responseStatus.color}
+              alertTitle={responseStatus.status}
+              alertMessage={responseStatus.message}
+            />
+          )}
             <div className="text-center mt-4">
               <button
                 className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
@@ -435,7 +466,7 @@ const AbstractResults = () => {
                 <i
                   className={`fas fa-stop  ${isStopping ? "fa-flip" : ""}`}
                 ></i>{" "}
-                Stop
+                {isStopping ? "Stopping" : "Stop"}
               </button>
             </div>
           </div>

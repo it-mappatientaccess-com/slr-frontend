@@ -17,8 +17,8 @@ const initialState = {
   prompts: [],
   selectedPrompt: null,
   includeAboutFile: false,
-  // extractionTaskId: null,
-  // isStopping: false,
+  extractionTaskId: null,
+  isStopping: false,
 };
 const DataExtractionSlice = createSlice({
   name: "DataExtraction",
@@ -67,12 +67,12 @@ const DataExtractionSlice = createSlice({
     setIncludeAboutFile(state, action) {
       state.includeAboutFile = action.payload.includeAboutFile;
     },
-    // setExtractionTaskId(state, action) {
-    //   state.extractionTaskId = action.payload.extractionTaskId;
-    // },
-    // setIsStopping(state, action) {
-    //   state.isStopping = action.payload.isStopping;
-    // },
+    setExtractionTaskId(state, action) {
+      state.extractionTaskId = action.payload.extractionTaskId;
+    },
+    setIsStopping(state, action) {
+      state.isStopping = action.payload.isStopping;
+    },
   },
 });
 export const dataExtractionState = (state) => state.DataExtraction;

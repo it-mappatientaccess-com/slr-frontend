@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -32,7 +32,14 @@ const ExtractionResult = (props) => {
     (state) => state.dataExtraction.selectedPrompt
   );
   const prompts = useSelector((state) => state.dataExtraction.prompts);
-
+  const defaultColDef = useMemo(
+    () => ({
+      sortable: true,
+      resizable: true,
+      enableCellChangeFlash:true
+    }),
+    []
+  );
   useEffect(() => {
     if (props.result && props.result.length > 0) {
       let flattenedResult = {};
@@ -146,9 +153,9 @@ const ExtractionResult = (props) => {
               ref={gridRef}
               rowData={rowData}
               columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
               animateRows={true}
               readOnlyEdit={true}
-              enableCellChangeFlash={true}
               suppressClickEdit={true}
               components={{ customCellRenderer: CustomCellRenderer }}
             />

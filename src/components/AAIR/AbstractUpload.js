@@ -102,7 +102,7 @@ const AbstractUpload = () => {
           message: "",
           color: "",
         }));
-      }, 10000);
+      }, 5000);
     }
   };
 

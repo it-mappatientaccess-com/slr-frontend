@@ -2,53 +2,6 @@ import { dataExtractionActions } from "../slices/dataExtractionSlice";
 import {api} from "util/api";
 import * as XLSX from "xlsx";
 
-export const generateSingleFileResults = (file, questions, selectedPrompt) => {
-  const formData = new FormData();
-  formData.append("file", file[0], file[0].name);
-  formData.append("questions_dict", JSON.stringify(questions));
-  formData.append("project_name", localStorage.getItem("selectedProject"));
-  formData.append("prompt_text", selectedPrompt);
-  return async (dispatch) => {
-    dispatch(
-      dataExtractionActions.setProgress({
-        progress: 70,
-      })
-    );
-    dispatch(
-      dataExtractionActions.setSingleExtractionResult({
-        singleExtractionResult: [],
-      })
-    );
-    const sendData = async (formData) => {
-      return await api.post("single-pdf-extraction", formData, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-          "Content-Type": "multipart/form-data",
-        },
-      });
-    };
-    try {
-      const response = await sendData(formData);
-      dispatch(
-        dataExtractionActions.setFilesSubmitted({
-          isSubmitted: response.data["success"],
-        })
-      );
-      dispatch(
-        dataExtractionActions.setTaskId({ taskId: response.data["task_id"] })
-      );
-      dispatch(dataExtractionActions.setProgress({ progress: 100 }));
-    } catch (error) {
-      console.log(error);
-      dispatch(
-        dataExtractionActions.setProgress({
-          progress: 100,
-        })
-      );
-    }
-  };
-};
-
 export const generateExtractionResults = (files, questions, newBatchID, selectedPrompt, includeAboutFile) => {
   const formData = new FormData();
   for (let i = 0; i < files.length; i++) {
@@ -67,7 +20,7 @@ export const generateExtractionResults = (files, questions, newBatchID, selected
     );
 
     const sendData = async (formData) => {
-      return await api.post("multiple-pdf-extraction", formData, {
+      return await api.post("multi-file-extraction", formData, {
         headers: {
           Authorization: localStorage.getItem("token"),
           "Content-Type": "multipart/form-data",
@@ -475,51 +428,51 @@ export const deleteAllSEAResults = (projectName) => {
 };
 
 
-// export const stopExtraction = (extractionTaskId) => {
-//   return async (dispatch) => {
-//     dispatch(
-//       dataExtractionActions.setProgress({
-//         progress: 50,
-//       })
-//     );
-//     const sendData = async () => {
-//       return await api
-//         .post(`stop_extraction/${extractionTaskId}`, {
-//           headers: {
-//             Authorization: localStorage.getItem("token"),
-//           },
-//         })
-//         .then((response) => {
-//           return response;
-//         });
-//     };
-//     try {
-//       const response = await sendData();
-//       console.log(response);
-//       dispatch(
-//         dataExtractionActions.setIsStopping({
-//           isStopping: false,
-//         })
-//       );
-//       dispatch(
-//         dataExtractionActions.setProgress({
-//           progress: 100,
-//         })
-//       );
-//       return response;
-//     } catch (error) {
-//       console.log(error);
-//       dispatch(
-//         dataExtractionActions.setIsStopping({
-//           isStopping: false,
-//         })
-//       );
-//       dispatch(
-//         dataExtractionActions.setProgress({
-//           progress: 100,
-//         })
-//       );
-//       return error;
-//     }
-//   };
-// };
+export const stopExtraction = (extractionTaskId) => {
+  return async (dispatch) => {
+    dispatch(
+      dataExtractionActions.setProgress({
+        progress: 50,
+      })
+    );
+    const sendData = async () => {
+      return await api
+        .post(`stop_extraction/${extractionTaskId}`, {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        })
+        .then((response) => {
+          return response;
+        });
+    };
+    try {
+      const response = await sendData();
+      console.log(response);
+      dispatch(
+        dataExtractionActions.setIsStopping({
+          isStopping: false,
+        })
+      );
+      dispatch(
+        dataExtractionActions.setProgress({
+          progress: 100,
+        })
+      );
+      return response;
+    } catch (error) {
+      console.log(error);
+      dispatch(
+        dataExtractionActions.setIsStopping({
+          isStopping: false,
+        })
+      );
+      dispatch(
+        dataExtractionActions.setProgress({
+          progress: 100,
+        })
+      );
+      return error;
+    }
+  };
+};

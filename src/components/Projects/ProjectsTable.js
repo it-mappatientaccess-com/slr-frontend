@@ -159,6 +159,7 @@ const ProjectsTable = () => {
     () => ({
       sortable: true,
       resizable: true,
+      enableCellChangeFlash:true
     }),
     []
   );
@@ -263,7 +264,6 @@ const ProjectsTable = () => {
           readOnlyEdit={true}
           onCellEditRequest={onCellEditRequest}
           undoRedoCellEditing={true}
-          enableCellChangeFlash={true}
           paginationAutoPageSize={true}
           pagination={true}
           editType="fullRow"
