@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { useFormik } from "formik";
 import { createProjectSchema } from "../../schema/schema";
-import {api} from "util/api";
-import Alert from "components/Alerts/Alert";
+import { api } from "util/api";
 import { fetchProjectsData } from "store/project-actions";
 import { useDispatch } from "react-redux";
-
+import { notify } from "components/Notify/Notify";
 // components
 const initialValues = {
   projectName: "",
@@ -13,13 +12,7 @@ const initialValues = {
 };
 
 export default function CreateProject() {
-  const [isProjectCreated, setIsProjectCreated] = useState(false);
   const dispatch = useDispatch();
-  const [errorStatus, setErrorStatus] = useState({
-    status: "",
-    message: "",
-    color: "",
-  });
 
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
@@ -40,38 +33,20 @@ export default function CreateProject() {
             }
           )
           .then((response) => {
+            notify(response.data.detail, "success");
             if (response.status === 200) {
               dispatch(fetchProjectsData());
-              setIsProjectCreated(true);
-              setErrorStatus({
-                status: "Success: ",
-                message: response.data.detail,
-                color: "bg-emerald-500",
-              });
-              setTimeout(() => {
-                setErrorStatus({
-                  status: "",
-                  message: "",
-                  color: "",
-                });
-              }, 5000);
             }
             return response;
           })
           .catch((error) => {
             console.log(error);
-            if (error.response.status === 422) {
-              setIsProjectCreated(true);
-              setErrorStatus({
-                status: "Error: ",
-                message: error.response.data.detail,
-                color: "bg-orange-500",
-              });
-            }
+            notify(error.response.data.detail, "error");
           });
         action.resetForm();
       },
     });
+
   return (
     <>
       <div className="relative flex flex-col min-w-0 break-words w-full mb-6 shadow-lg rounded-lg bg-blueGray-100 border-0">
@@ -159,13 +134,6 @@ export default function CreateProject() {
               Create Project
             </button>
           </form>
-          {isProjectCreated && (
-            <Alert
-              alertClass={errorStatus.color}
-              alertTitle={errorStatus.status}
-              alertMessage={errorStatus.message}
-            />
-          )}
         </div>
       </div>
     </>

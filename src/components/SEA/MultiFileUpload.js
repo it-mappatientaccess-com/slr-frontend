@@ -10,7 +10,6 @@ import { useDispatch, useSelector } from "react-redux";
 import ExtractionFileList from "./ExtractionResult/ExtractionFileList";
 import { dataExtractionActions } from "slices/dataExtractionSlice";
 import ProgressBar from "components/ProgressBar/ProgressBar";
-import Alert from "components/Alerts/Alert";
 import {
   generateExtractionResults,
   fetchProcessedFileNames,
@@ -18,16 +17,11 @@ import {
 } from "store/data-extraction-actions";
 import generateUniqueBatchID from "util/generateUUID";
 import { Tooltip } from "react-tooltip";
+import { notify } from "components/Notify/Notify";
 
 const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const [files, setFiles] = useState([]);
-  const [responseStatus, setResponseStatus] = useState({
-    submitted: false,
-    status: "",
-    message: "",
-    color: "",
-  });
   const [progress, setProgress] = useState(0);
   const [processedFilesCount, setProcessedFilesCount] = useState(0);
 
@@ -63,7 +57,6 @@ const MultiFileUpload = () => {
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
-  const alertTimeoutRef = useRef(null);
   registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize,
@@ -144,22 +137,12 @@ const MultiFileUpload = () => {
           })
         );
       } else {
-        // Handle non-successful upload
-        setResponseStatus({
-          submitted: true,
-          status: "Error",
-          message: "File upload failed.",
-          color: "bg-orange-500",
-        });
+        // show toast
+        notify("File upload failed.", "error");
       }
     } catch (error) {
-      console.error(error);
-      setResponseStatus({
-        submitted: true,
-        status: "Error",
-        message: "An error occurred during file upload.",
-        color: "bg-orange-500",
-      });
+      // show toast
+      notify("An error occurred during file upload.", "error");
     }
   };
 
@@ -174,35 +157,9 @@ const MultiFileUpload = () => {
 
   useEffect(() => {
     if (isSubmitted) {
-      setResponseStatus({
-        submitted: true,
-        status: status ? "Success" : "Error",
-        message: message,
-        color: status ? "bg-emerald-500" : "bg-orange-500",
-      });
-
-      // Clear any existing timeout to avoid memory leaks
-      if (alertTimeoutRef.current) {
-        clearTimeout(alertTimeoutRef.current);
-      }
-
-      // Set a new timeout to hide the alert after 1 minute
-      alertTimeoutRef.current = setTimeout(() => {
-        setResponseStatus({
-          submitted: false,
-          status: "",
-          message: "",
-          color: "",
-        });
-      }, 5000);
+      // show toast
+      notify(message, status ? "success" : "error");
     }
-
-    // Clear timeout when component unmounts or when isSubmitted changes
-    return () => {
-      if (alertTimeoutRef.current) {
-        clearTimeout(alertTimeoutRef.current);
-      }
-    };
   }, [isSubmitted, status, message]);
   // Function to clear all files
   const clearFiles = () => {
@@ -216,24 +173,8 @@ const MultiFileUpload = () => {
       })
     );
     const response = await dispatch(stopExtraction(extractionTaskId));
-    setResponseStatus({
-      submitted: true,
-      status: response.data["status"],
-      message: response.data["message"],
-      color:
-        response.data["status"] === "success"
-          ? "bg-emerald-500"
-          : "bg-orange-500",
-    });
-    // reset the response status after 3 seconds
-    setTimeout(() => {
-      setResponseStatus({
-        submitted: false,
-        status: "",
-        message: "",
-        color: "",
-      });
-    }, 3000);
+    // show toast
+    notify(response.data["message"], response.data["status"]);
   };
   return (
     <div className="flex flex-wrap mt-4">
@@ -355,13 +296,6 @@ const MultiFileUpload = () => {
             <ProgressBar
               taskInProgress={`Progress: ${processedFilesCount}/${files.length}`}
               percentage={progress}
-            />
-          )}
-          {responseStatus.submitted && (
-            <Alert
-              alertClass={responseStatus.color}
-              alertTitle={responseStatus.status}
-              alertMessage={responseStatus.message}
             />
           )}
           <div>

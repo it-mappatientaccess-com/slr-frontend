@@ -7,14 +7,13 @@ import { FilePond, registerPlugin } from "react-filepond";
 import FilePondPluginFileValidateType from "filepond-plugin-file-validate-type";
 import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import FilePondPluginFileMetadata from "filepond-plugin-file-metadata";
-import Alert from "components/Alerts/Alert";
 import AbstractResults from "./AbstractResults";
 import { useDispatch } from "react-redux";
 import { setNumberOfExamples } from "store/qa-actions";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
 import "./AbstractUpload.css";
 import "filepond/dist/filepond.min.css";
-
+import { notify } from "components/Notify/Notify";
 const AbstractUpload = () => {
   const dispatch = useDispatch();
   // Register the plugins
@@ -31,7 +30,6 @@ const AbstractUpload = () => {
     color: "",
   });
   const [invalidRows, setInvalidRows] = useState([]);
-
   const onUpdateFiles = (fileItems) => {
     // Set current file objects to state
     setFile(fileItems.map((fileItem) => fileItem.file));
@@ -55,16 +53,15 @@ const AbstractUpload = () => {
     setResponseStatus({
       submitted: true,
       status: "Error",
-      message:
-        e?.detail || "An error occurred while uploading the file.",
+      message: e?.detail || "An error occurred while uploading the file.",
       color: "bg-red-500",
     });
-
+    // show toast
+    notify(e?.detail || "An error occurred while uploading the file.", "error");
     setInvalidRows(e.detail?.invalid_rows || []);
   };
 
   const onUploadComplete = (res) => {
-    console.log(res);
     if (res.status === "error") {
       // Handle the error response
       setResponseStatus({
@@ -73,6 +70,8 @@ const AbstractUpload = () => {
         message: res.message,
         color: "bg-red-500",
       });
+      // show toast
+      notify(res?.message, "error");
       setInvalidRows(res.invalid_rows || []); // Set to an empty array if undefined
     } else if (res.status === "success") {
       // Dispatch actions for success
@@ -91,7 +90,8 @@ const AbstractUpload = () => {
         message: res.message,
         color: "bg-emerald-500",
       });
-
+      // show toast
+      notify(res?.message, "success");
       // Clear any previous errors
       setInvalidRows([]);
 
@@ -107,7 +107,7 @@ const AbstractUpload = () => {
   };
 
   return (
-    <div>
+    <>
       <FilePond
         files={file}
         onupdatefiles={onUpdateFiles}
@@ -148,13 +148,6 @@ const AbstractUpload = () => {
         maxFileSize={"5MB"}
         credits={false}
       />
-      {responseStatus.submitted && responseStatus.message && (
-        <Alert
-          alertClass={responseStatus.color}
-          alertTitle={responseStatus.status}
-          alertMessage={responseStatus.message}
-        />
-      )}
       {responseStatus.status === "Error" && invalidRows.length > 0 && (
         <div className="mt-2">
           <p className="text-sm font-semibold text-red-600">
@@ -165,7 +158,7 @@ const AbstractUpload = () => {
       {responseStatus.status === "Success" && file.length !== 0 && (
         <AbstractResults />
       )}
-    </div>
+    </>
   );
 };
 export default AbstractUpload;

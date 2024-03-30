@@ -14,6 +14,7 @@ import Alert from "components/Alerts/Alert";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
 import CardBarChart from "components/Cards/CardBarChart";
+import { notify } from "components/Notify/Notify";
 
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
@@ -69,12 +70,7 @@ const AbstractResults = () => {
     abstract: "",
     result: "",
   });
-  const [responseStatus, setResponseStatus] = useState({
-    submitted: false,
-    status: "",
-    message: "",
-    color: "",
-  });
+
   const [percentage, setPercentage] = useState(0);
   const projectName = localStorage.getItem("selectedProject");
   // Use useRef to create a mutable object that persists across renders
@@ -314,24 +310,18 @@ const AbstractResults = () => {
       })
     );
     const response = await dispatch(stopModelExecution(taskId));
-    setResponseStatus({
-      submitted: true,
-      status: response.data["status"],
-      message: response.data["message"],
-      color:
-        response.data["status"] === "success"
-          ? "bg-emerald-500"
-          : "bg-orange-500",
-    });
-    // reset the response status after 3 seconds
-    setTimeout(() => {
-      setResponseStatus({
-        submitted: false,
-        status: "",
-        message: "",
-        color: "",
-      });
-    }, 3000);
+    console.log(response);
+    // check if response exists and has a message and status in its data object before passing to notify
+    if (response.data && response.data.message && response.data.status) {
+      notify(response.data.message, response.data.status);
+    }
+    if (response.data.status === "success") {
+      dispatch(
+        questionAbstractActions.setIsStopping({
+          isStopping: false,
+        })
+      );
+    }
   };
   useEffect(() => {
     if (selectedAbstract.id != null) {
@@ -426,13 +416,6 @@ const AbstractResults = () => {
                 />
               </div>
             )}
-            {responseStatus.submitted && (
-            <Alert
-              alertClass={responseStatus.color}
-              alertTitle={responseStatus.status}
-              alertMessage={responseStatus.message}
-            />
-          )}
             <div className="text-center mt-4">
               <button
                 className={`bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${

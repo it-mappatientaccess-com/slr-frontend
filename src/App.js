@@ -1,9 +1,9 @@
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
-
+import { ToastContainer } from "react-toastify";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "assets/styles/tailwind.css";
-
+import "react-toastify/dist/ReactToastify.css";
 // layouts
 import Dashboard from "layouts/Dashboard";
 import Auth from "layouts/Auth.js";
@@ -20,6 +20,7 @@ import { AuthContextProvider } from "store/auth-context";
 const App = () => {
   return (
     <AuthContextProvider>
+      <ToastContainer />
       <Routes>
         {/* add routes with layouts */}
         <Route element={<PrivateRoutes />}>

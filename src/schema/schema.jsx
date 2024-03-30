@@ -61,10 +61,10 @@ const promptTextValidation = Yup.string()
   )
   .test(
     'max-words',
-    'Prompt text should be at most 60 words or 300 characters.',
+    'Prompt text should be at most 120 words or 600 characters.',
     value => {
       if (!value) return false;
-      return wordCount(value) <= 60 && value.length <= 300;
+      return wordCount(value) <= 120 && value.length <= 600;
     }
   )
   .required('Please enter the prompt text.');

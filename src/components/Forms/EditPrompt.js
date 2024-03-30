@@ -1,20 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
 import {api} from "util/api";
-import Alert from "components/Alerts/Alert";
 import { fetchPrompts } from "store/data-extraction-actions";
 import { useDispatch } from "react-redux";
-
+import { notify } from "components/Notify/Notify";
 
 export default function EditPrompt({ title, content, onEditSuccess }) {
-  const [isPromptCreated, setIsPromptCreated] = useState(false);
   const dispatch = useDispatch();
-  const [errorStatus, setErrorStatus] = useState({
-    status: "",
-    message: "",
-    color: "",
-  });
     // Set initial values using the passed props
     const initialValues = {
       promptTitle: title || "",
@@ -43,22 +36,15 @@ export default function EditPrompt({ title, content, onEditSuccess }) {
           )
           .then((response) => {
             if (response.status === 200) {
+              notify("Prompt updated successfully", "success");
               dispatch(fetchPrompts());
-              setIsPromptCreated(true);
               onEditSuccess && onEditSuccess();
             }
             return response;
           })
           .catch((error) => {
             console.log(error);
-            if (error.response.status === 422) {
-              setIsPromptCreated(true);
-              setErrorStatus({
-                status: "Error: ",
-                message: error.response.data.message,
-                color: "bg-orange-500",
-              });
-            }
+            notify(error?.response?.data?.message, "error");
           });
         action.resetForm();
       },
@@ -150,13 +136,6 @@ export default function EditPrompt({ title, content, onEditSuccess }) {
               Submit
             </button>
           </form>
-          {isPromptCreated && (
-            <Alert
-              alertClass={errorStatus.color}
-              alertTitle={errorStatus.status}
-              alertMessage={errorStatus.message}
-            />
-          )}
         </div>
       </div>
     </>

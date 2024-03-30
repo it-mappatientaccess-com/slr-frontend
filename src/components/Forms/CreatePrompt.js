@@ -1,25 +1,19 @@
-import React, { useState } from "react";
+import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
 import {api} from "util/api";
-import Alert from "components/Alerts/Alert";
 import { fetchPrompts } from "store/data-extraction-actions";
 import { useDispatch } from "react-redux";
+import { notify } from "components/Notify/Notify";
 
-// components
 const initialValues = {
   promptTitle: "",
   promptText: "",
 };
 
 export default function CreatePrompt() {
-  const [isPromptCreated, setIsPromptCreated] = useState(false);
   const dispatch = useDispatch();
-  const [errorStatus, setErrorStatus] = useState({
-    status: "",
-    message: "",
-    color: "",
-  });
+
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -30,7 +24,7 @@ export default function CreatePrompt() {
             "prompt",
             {
               projectName: localStorage.getItem("selectedProject"),
-              prompt_title: values.promptTitle,
+              prompt_title: values.promptTitle.trim(),
               prompt_text: values.promptText,
               is_default: false
             },
@@ -42,32 +36,17 @@ export default function CreatePrompt() {
           )
           .then((response) => {
             if (response.status === 200) {
+            notify(response.data.detail, "success");
               dispatch(fetchPrompts());
-              setIsPromptCreated(true);
-              setErrorStatus({
-                status: "Success: ",
-                message: response.data.message,
-                color: "bg-emerald-500",
-              });
-              setTimeout(() => {
-                setErrorStatus({
-                  status: "",
-                  message: "",
-                  color: "",
-                });
-              }, 3000);
             }
             return response;
           })
           .catch((error) => {
             console.log(error);
+            notify(error.response.data.detail, "error");
+
             if (error.response.status === 422) {
-              setIsPromptCreated(true);
-              setErrorStatus({
-                status: "Error: ",
-                message: error.response.data.message,
-                color: "bg-orange-500",
-              });
+              notify(error.response.data.detail, "error");
             }
           });
         action.resetForm();
@@ -160,13 +139,6 @@ export default function CreatePrompt() {
               Submit
             </button>
           </form>
-          {isPromptCreated && (
-            <Alert
-              alertClass={errorStatus.color}
-              alertTitle={errorStatus.status}
-              alertMessage={errorStatus.message}
-            />
-          )}
         </div>
       </div>
     </>
