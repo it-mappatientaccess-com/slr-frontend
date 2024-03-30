@@ -19,9 +19,9 @@ import { notify } from "components/Notify/Notify";
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
     props.setSelectedAbstract({
-      id: props.data.id,
-      abstract: props.data.abstract,
-      result: props.data.result,
+      id: props?.data?.id,
+      abstract: props?.data?.abstract,
+      result: props?.data?.result,
     });
     props.redrawRows();
   };
@@ -215,15 +215,22 @@ const AbstractResults = () => {
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
 
+  // const redrawRows = useCallback(() => {
+  //   var rows = [];
+  //   for (var i = 0; i < 6; i++) {
+  //     var row = gridRef.current.api.getDisplayedRowAtIndex(i);
+  //     rows.push(row);
+  //   }
+  //   gridRef.current.api.redrawRows({ rowNodes: rows });
+  // }, []);
   const redrawRows = useCallback(() => {
-    var rows = [];
-    for (var i = 0; i < 6; i++) {
-      var row = gridRef.current.api.getDisplayedRowAtIndex(i);
-      rows.push(row);
+    // Ensure gridRef.current and gridRef.current.api are defined
+    if (gridRef.current && gridRef.current.api) {
+      // Redraw all rows - you might adjust this to only redraw specific rows as needed
+      gridRef.current.api.redrawRows();
     }
-    gridRef.current.api.redrawRows({ rowNodes: rows });
   }, []);
-
+  
   const columnDefs = [
     {
       headerName: "ID",
@@ -340,7 +347,7 @@ const AbstractResults = () => {
             />
             {selectedAbstract.result && (
               <div className="flex justify-center items-center mt-2">
-                <div className="w-2/12">
+                <div className="w-3/12">
                   <Alert
                     alertClass={`${
                       selectedAbstract.result === "Include"
