@@ -137,6 +137,7 @@ export const fetchOldQuestions = (projectName) => {
           population: [""],
           intervention: [""],
           outcomes: [""],
+          exclusionCriteria: [""],
         };
         localStorage.setItem("questions", JSON.stringify(questions));
         dispatch(
@@ -168,6 +169,7 @@ export const fetchOldQuestions = (projectName) => {
           population: [""],
           intervention: [""],
           outcomes: [""],
+          exclusionCriteria: [""],
         })
       );
       dispatch(

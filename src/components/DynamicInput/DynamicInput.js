@@ -99,17 +99,27 @@ const DynamicInput = ({ category: rawCategory }) => {
 
   const saveQuestionsHandler = useCallback(
     (event, index) => {
-      const currentQuestion = event.target.value;
+      let currentQuestion = event.target.value;
       const wordCount = currentQuestion.split(/\s+/).length;
       const charCount = currentQuestion.length;
       let errorMessage = "";
-
-      if (wordCount < 3 || wordCount > 50) {
-        errorMessage = "Question should have between 3 and 50 words.";
-      } else if (charCount > 300) {
-        errorMessage = "Question should not exceed 300 characters.";
+      // if category is not exclusionCriteria, validate question length
+      if (category !== "exclusionCriteria") {
+        if (wordCount < 3 || wordCount > 50) {
+          errorMessage = "Question should have between 3 and 50 words.";
+        } else if (charCount > 300) {
+          errorMessage = "Question should not exceed 300 characters.";
+        }
       }
-
+      // if category is exclusionCriteria
+      // append "exclusion criteria:" to the beginning of the question
+      if (category === "exclusionCriteria") {
+        if (charCount > 300) {
+          errorMessage = "Exclusion keyword should not exceed 300 characters.";
+        } else {
+          currentQuestion = `exclusion criteria: ${currentQuestion}`;
+        }
+      } 
       // Set the error for the specific question being saved
       setQuestionList((prevList) => {
         const newList = [...prevList];
@@ -143,7 +153,7 @@ const DynamicInput = ({ category: rawCategory }) => {
   );
   return (
     <div className={styles["pt-0 mt-2 flex-col max-h-60 overflow-y-auto"]}>
-      <span>Question(s)</span>
+      {category !== "exclusionCriteria" ? <span>Question(s)</span> :  <span>Exclusion Keyword(s)</span>}
       {questionList.map((singleQuestion, idx) => (
         <React.Fragment key={idx}>
           <div className={styles.questions}>
@@ -153,7 +163,7 @@ const DynamicInput = ({ category: rawCategory }) => {
                 rows="1"
                 type="text"
                 name="question"
-                placeholder="Please enter a question"
+                placeholder={category !== "exclusionCriteria" ? "Please enter a question": "Please enter an exclusion keywords"}
                 className="pl-2 pr-8 py-1 placeholder-blueGray-300 text-blueGray-600 relativebg-white rounded text-sm border border-blueGray-300 outline-none focus:outline-none focus:shadow-outline w-full resize-none"
                 required
                 value={singleQuestion.question}

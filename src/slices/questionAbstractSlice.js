@@ -6,6 +6,7 @@ const initialState = {
     population: [""],
     intervention: [""],
     outcomes: [""],
+    exclusionCriteria: [""],
   },
   seaQuestions: {},
   abstract: "",

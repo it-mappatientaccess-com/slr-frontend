@@ -12,7 +12,15 @@ export default function HeaderStats() {
         <div className="px-4 mx-auto w-full">
           <div>
             <div className="flex flex-wrap">
-              <div className="w-full lg:w-6/12 xl:w-3/12 px-2">
+            <div className="w-full md:w-6/12 lg:w-4/12 xl:w-1/5 px-4">
+                <CardCategories
+                  subtitle="Irrelevant, limited, outdated, non-empirical"
+                  title="Exclusion Criteria"
+                  iconName="fas fa-ban"
+                  iconColor="bg-red-500"
+                />
+              </div>
+              <div className="w-full md:w-6/12 lg:w-4/12 xl:w-1/5 px-2">
                 <CardCategories
                   subtitle="RCT, NON-RCT, cohort study"
                   title="STUDY DESIGN"
@@ -20,7 +28,7 @@ export default function HeaderStats() {
                   iconColor="bg-red-500"
                 />
               </div>
-              <div className="w-full lg:w-6/12 xl:w-3/12 px-4 ">
+              <div className="w-full md:w-6/12 lg:w-4/12 xl:w-1/5 px-4 ">
                 <CardCategories
                   subtitle="Patient, problem or population"
                   title="POPULATION"
@@ -28,7 +36,7 @@ export default function HeaderStats() {
                   iconColor="bg-orange-500"
                 />
               </div>
-              <div className="w-full lg:w-6/12 xl:w-3/12 px-4">
+              <div className="w-full md:w-6/12 lg:w-4/12 xl:w-1/5 px-4">
                 <CardCategories
                   subtitle="Investigated condition, exposure"
                   title="INTERVENTION"
@@ -36,7 +44,7 @@ export default function HeaderStats() {
                   iconColor="bg-pink-500"
                 />
               </div>
-              <div className="w-full lg:w-6/12 xl:w-3/12 px-4">
+              <div className="w-full md:w-6/12 lg:w-4/12 xl:w-1/5 px-4">
                 <CardCategories
                   subtitle="symptom, syndrome, disease"
                   title="OUTCOMES"
