@@ -43,68 +43,80 @@ const ExtractionResult = (props) => {
     []
   );
   const [showQuestions, setShowQuestions] = useState(true); // By default, questions are shown
+
   useEffect(() => {
-    if (props.result && props.result.length > 0 && props.selectedFileQuestions) {
-      let columnDataMap = {};
+    let columnDataMap = {};
   
-      // Initialize column data map for all keys including 'aboutFile'
-      Object.keys(props.selectedFileQuestions).concat('aboutFile').forEach((key) => {
-        columnDataMap[key] = [];
-      });
+    // Initialize column data map for all keys found in selectedFileQuestions
+    Object.keys(props.selectedFileQuestions).forEach((key) => {
+      columnDataMap[key] = [];
+    });
   
-      // Populate each column with the data
-      props.result.forEach((resultItem) => {
-        Object.keys(resultItem).forEach((key) => {
-          if (key === 'aboutFile') {
-            // Directly use the content for 'aboutFile' and treat as descriptive text
-            columnDataMap[key].push(resultItem[key]);
-          } else {
-            const answers = resultItem[key];
-            const questions = props.selectedFileQuestions[key];
-            if (answers && questions) {
-              answers.forEach((answer, index) => {
-                const question = questions[index] || "Question not available";
-                columnDataMap[key].push(`Q${index + 1}: ${question}`);
-                columnDataMap[key].push(answer);  // Display only the answer text
-              });
-            }
+    // Check and handle 'aboutFile' if it appears in any result item
+    // props.result.forEach((item) => {
+    //   if (item.hasOwnProperty('aboutFile')) {
+    //     if (!columnDataMap.hasOwnProperty('aboutFile')) {
+    //       columnDataMap['aboutFile'] = [];
+    //     }
+    //     columnDataMap['aboutFile'].push(item['aboutFile']);
+    //   }
+    // });
+  
+    // Populate each column with the data
+    props.result.forEach((resultItem) => {
+      Object.keys(resultItem).forEach((key) => {
+        if (props.selectedFileQuestions.hasOwnProperty(key)) {
+          const answers = resultItem[key];
+          const questions = props.selectedFileQuestions[key];
+          if (answers && questions) {
+            answers.forEach((answer, index) => {
+              const question = questions[index] || "Question not available";
+              columnDataMap[key].push(`Q${index + 1}: ${question}`);
+              columnDataMap[key].push(answer);
+            });
           }
-        });
+        }
       });
+    });
   
-      const filteredData = showQuestions ? columnDataMap : Object.keys(columnDataMap).reduce((acc, key) => {
-        acc[key] = columnDataMap[key].filter((text, index) => {
-          return !(typeof text === 'string' && text.startsWith('Q'));
-        });
-        return acc;
-      }, {});
-  
-      // Determine the maximum number of entries for consistent row construction
-      const maxLength = Math.max(...Object.values(filteredData).map(col => col.length));
-      let rowData = [];
-  
-      for (let i = 0; i < maxLength; i++) {
-        let row = {};
-        Object.keys(filteredData).forEach(key => {
-          row[key] = filteredData[key][i] || "";
-        });
+    // Filter rowData to handle show/hide questions correctly
+    let rowData = [];
+    const maxLength = Math.max(...Object.values(columnDataMap).map(col => col.length));
+    for (let i = 0; i < maxLength; i++) {
+      let row = {};
+      Object.keys(columnDataMap).forEach(key => {
+        let cellContent = columnDataMap[key][i] || "";
+        if (typeof cellContent === "string") {
+          if (showQuestions || (!showQuestions && !cellContent.startsWith('Q'))) {
+            row[key] = cellContent;
+          }
+        } else {
+          // Handle non-string cell content
+          if (showQuestions) {
+            row[key] = cellContent;
+          }
+        }
+      });
+      if (Object.keys(row).length > 0) { // Ensure row is not empty
         rowData.push(row);
       }
-  
-      // Setup columns based on keys, ensuring 'aboutFile' is first
-      const columnsOrder = ['aboutFile', ...Object.keys(filteredData).filter(k => k !== 'aboutFile')];
-      const columns = columnsOrder.map(key => ({
-        field: key,
-        headerName: key,
-        cellStyle: { whiteSpace: "normal" },
-        autoHeight: true,
-        cellRenderer: "customCellRenderer",
-        flex: 1
-      }));
-  
-      setRowData(rowData);
-      setColumnDefs(columns);
     }
+  
+    // Define column definitions, dynamically including 'aboutFile' if it exists
+    const columnsOrder = columnDataMap.hasOwnProperty('aboutFile') ? 
+      ['aboutFile', ...Object.keys(columnDataMap).filter(key => key !== 'aboutFile')] :
+      [...Object.keys(columnDataMap)];
+    const columns = columnsOrder.map(key => ({
+      field: key,
+      headerName: key,
+      cellStyle: { whiteSpace: "normal" },
+      autoHeight: true,
+      cellRenderer: "customCellRenderer",
+      flex: 1
+    })).filter(colDef => showQuestions || (!showQuestions && !colDef.field.toLowerCase().includes('question')));
+  
+    setRowData(rowData);
+    setColumnDefs(columns);
   }, [props.result, props.selectedFileQuestions, showQuestions]);
   
 
