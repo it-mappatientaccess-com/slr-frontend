@@ -9,20 +9,22 @@ import { useSelector } from "react-redux";
 
 const CustomCellRenderer = (props) => {
   const value = props.value || "";
-  const content = value.split("\n").map((item, index) => {
-    return (
-      <div
-        key={index}
-        style={{ borderBottom: "1px solid #ccc", padding: "5px 0" }}
-      >
-        {item}
-      </div>
-    );
-  });
+  const content =
+    typeof value === "string"
+      ? value.split("\n").map((item, index) => {
+          return (
+            <div
+              key={index}
+              style={{ borderBottom: "1px solid #ccc", padding: "5px 0" }}
+            >
+              {item}
+            </div>
+          );
+        })
+      : value; // if value is not a string, just use it as is
 
   return <div>{content}</div>;
 };
-
 const ExtractionResult = (props) => {
   const [rowData, setRowData] = useState([]);
   const [columnDefs, setColumnDefs] = useState([]);
@@ -36,46 +38,89 @@ const ExtractionResult = (props) => {
     () => ({
       sortable: true,
       resizable: true,
-      enableCellChangeFlash:true
+      enableCellChangeFlash: true,
     }),
     []
   );
+  const [showQuestions, setShowQuestions] = useState(true); // By default, questions are shown
   useEffect(() => {
-    if (props.result && props.result.length > 0) {
-      let flattenedResult = {};
-      props.result.forEach((item) => {
-        Object.keys(item).forEach((key) => {
-          if (Array.isArray(item[key])) {
-            flattenedResult[key] = item[key].join("\n");
+    if (props.result && props.result.length > 0 && props.selectedFileQuestions) {
+      let columnDataMap = {};
+  
+      // Initialize column data map for all keys including 'aboutFile'
+      Object.keys(props.selectedFileQuestions).concat('aboutFile').forEach((key) => {
+        columnDataMap[key] = [];
+      });
+  
+      // Populate each column with the data
+      props.result.forEach((resultItem) => {
+        Object.keys(resultItem).forEach((key) => {
+          if (key === 'aboutFile') {
+            // Directly use the content for 'aboutFile' and treat as descriptive text
+            columnDataMap[key].push(resultItem[key]);
           } else {
-            flattenedResult[key] = item[key]; // handle non-array values
+            const answers = resultItem[key];
+            const questions = props.selectedFileQuestions[key];
+            if (answers && questions) {
+              answers.forEach((answer, index) => {
+                const question = questions[index] || "Question not available";
+                columnDataMap[key].push(`Q${index + 1}: ${question}`);
+                columnDataMap[key].push(answer);  // Display only the answer text
+              });
+            }
           }
         });
       });
-
-      const modifiedData = [flattenedResult]; // put the flattenedResult in an array
-      const columnsOrder = Object.keys(flattenedResult).sort((a, b) => {
-        if (a === "aboutFile") return -1;
-        if (b === "aboutFile") return 1;
-        return 0;
-      }); // sort keys to ensure 'aboutFile' is first
-      const columns = columnsOrder.map((key) => {
-        return {
-          field: key,
-          headerName: key.charAt(0).toUpperCase() + key.slice(1),
-          suppressSizeToFit: true,
-          flex: 1,
-          filter: true,
-          editable: false,
-          cellRenderer: "customCellRenderer",
-          cellStyle: { whiteSpace: "normal" },
-          autoHeight: true,
-        };
-      });
-      setRowData(modifiedData);
+  
+      const filteredData = showQuestions ? columnDataMap : Object.keys(columnDataMap).reduce((acc, key) => {
+        acc[key] = columnDataMap[key].filter((text, index) => {
+          return !(typeof text === 'string' && text.startsWith('Q'));
+        });
+        return acc;
+      }, {});
+  
+      // Determine the maximum number of entries for consistent row construction
+      const maxLength = Math.max(...Object.values(filteredData).map(col => col.length));
+      let rowData = [];
+  
+      for (let i = 0; i < maxLength; i++) {
+        let row = {};
+        Object.keys(filteredData).forEach(key => {
+          row[key] = filteredData[key][i] || "";
+        });
+        rowData.push(row);
+      }
+  
+      // Setup columns based on keys, ensuring 'aboutFile' is first
+      const columnsOrder = ['aboutFile', ...Object.keys(filteredData).filter(k => k !== 'aboutFile')];
+      const columns = columnsOrder.map(key => ({
+        field: key,
+        headerName: key,
+        cellStyle: { whiteSpace: "normal" },
+        autoHeight: true,
+        cellRenderer: "customCellRenderer",
+        flex: 1
+      }));
+  
+      setRowData(rowData);
       setColumnDefs(columns);
     }
-  }, [props.result]);
+  }, [props.result, props.selectedFileQuestions, showQuestions]);
+  
+
+  const gridOptions = {
+    getRowStyle: function (params) {
+      // Check each field in the row to see if it contains a question
+      for (const key of Object.keys(params.data)) {
+        if (
+          typeof params.data[key] === "string" &&
+          params.data[key].startsWith("Q")
+        ) {
+          return { backgroundColor: "lightblue" };
+        }
+      }
+    },
+  };
 
   const onBtnExport = () => {
     const headers = columnDefs.map((colDef) => colDef.headerName); // Get column headers
@@ -109,7 +154,9 @@ const ExtractionResult = (props) => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
     XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
   };
-
+  const toggleShowQuestions = () => {
+    setShowQuestions(!showQuestions);
+  };
   return (
     <div>
       <Tooltip id="export-btn-tooltip" />
@@ -119,7 +166,23 @@ const ExtractionResult = (props) => {
             Filename: {props.fileName}
           </h5>
         </div>
+
         <div>
+          <span>
+            <button
+              className={`text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+              type="button"
+              onClick={toggleShowQuestions}
+            >
+              <input
+                type="checkbox"
+                className="form-checkbox text-indigo-600 mr-2"
+                checked={showQuestions}
+                onChange={toggleShowQuestions}
+              />
+              {showQuestions ? "Hide Questions" : "Show Questions"}
+            </button>
+          </span>
           {selectedPrompt === prompts[0].prompt_text && (
             <span className="mx-2">
               <input
@@ -129,9 +192,7 @@ const ExtractionResult = (props) => {
                 onChange={(e) => setIncludeExtraInfo(e.target.checked)}
                 className="mr-2"
               />
-              <label htmlFor="includeExtraInfo mx-2">
-                Include Details
-              </label>
+              <label htmlFor="includeExtraInfo mx-2">Include Details</label>
             </span>
           )}
           <button
@@ -157,6 +218,7 @@ const ExtractionResult = (props) => {
               animateRows={true}
               readOnlyEdit={true}
               suppressClickEdit={true}
+              gridOptions={gridOptions}
               components={{ customCellRenderer: CustomCellRenderer }}
             />
           </div>

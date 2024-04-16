@@ -144,6 +144,11 @@ export const fetchExtractionFileResults = (file_id, projectName) => {
         })
       );
       dispatch(
+        dataExtractionActions.setSelectedFileQuestions({
+          selectedFileQuestions: response.data["questions"],
+        })
+      );  
+      dispatch(
         dataExtractionActions.setProgress({
           progress: 100,
         })

@@ -19,6 +19,7 @@ const initialState = {
   includeAboutFile: false,
   extractionTaskId: null,
   isStopping: false,
+  selectedFileQuestions: null
 };
 const DataExtractionSlice = createSlice({
   name: "DataExtraction",
@@ -48,6 +49,9 @@ const DataExtractionSlice = createSlice({
     },
     setSelectedFile(state, action) {
       state.selectedFile = action.payload.selectedFile;
+    },
+    setSelectedFileQuestions(state, action) {
+      state.selectedFileQuestions = action.payload.selectedFileQuestions;
     },
     setProgress(state, actions) {
       state.progress = actions.payload.progress

@@ -78,6 +78,9 @@ const ExtractionFileList = () => {
   const selectedFile = useSelector(
     (state) => state.dataExtraction.selectedFile
   );
+  const selectedFileQuestions = useSelector(
+    (state) => JSON.parse(state.dataExtraction.selectedFileQuestions)
+  );
   const gridWrapperRef = useRef(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -193,7 +196,7 @@ const ExtractionFileList = () => {
       )}
 
       {selectedFile && (
-        <ExtractionResult result={selectedFileResult} fileName={selectedFile} />
+        <ExtractionResult result={selectedFileResult} fileName={selectedFile} selectedFileQuestions={selectedFileQuestions}/>
       )}
       {showDeleteModal && (
         <ModalSmall
