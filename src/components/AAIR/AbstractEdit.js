@@ -20,7 +20,7 @@ const categoryStyles = {
   population: "bg-purple-200 text-purple-600",
   intervention: "bg-pink-200 text-pink-600",
   outcomes: "bg-emerald-200 text-emerald-600",
-  exclusion_criteria: "bg-red-200 text-red-600",
+  exclusionCriteria: "bg-red-200 text-red-600",
   // Define additional categories and their styles here
 };
 const AbstractEdit = () => {
