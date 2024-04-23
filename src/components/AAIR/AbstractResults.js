@@ -10,11 +10,20 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllResults, stopModelExecution } from "store/qa-actions";
-import Alert from "components/Alerts/Alert";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import { questionAbstractActions } from "slices/questionAbstractSlice";
 import CardBarChart from "components/Cards/CardBarChart";
 import { notify } from "components/Notify/Notify";
+import CardTable from "components/Cards/CardTable";
+
+const categoryStyles = {
+  studyDesign: "bg-indigo-200 text-indigo-600",
+  population: "bg-purple-200 text-purple-600",
+  intervention: "bg-pink-200 text-pink-600",
+  outcomes: "bg-emerald-200 text-emerald-600",
+  exclusion_criteria: "bg-red-200 text-red-600",
+  // Define additional categories and their styles here
+};
 
 const btnCellRenderer = (props) => {
   const onClickHandler = () => {
@@ -52,6 +61,7 @@ const AbstractResults = () => {
   let allAbstractResults = useSelector(
     (state) => state.questionAbstractData.allAbstractResults
   );
+  console.log(allAbstractResults);
   const isProcessing = useSelector(
     (state) => state.questionAbstractData.isProcessing
   );
@@ -68,9 +78,44 @@ const AbstractResults = () => {
   const [selectedAbstract, setSelectedAbstract] = useState({
     id: null,
     abstract: "",
-    result: "",
+    result: {},
   });
+  const [highlightedAbstract, setHighlightedAbstract] = useState("");
+  const columns = [
+    {
+      label: "Category",
+      accessor: "category",
+      className: "text-left flex items-center",
+    },
+    { label: "Confidence", accessor: "confidence" },
+    { label: "Reasoning", accessor: "reasoning" },
+  ];
 
+  const data = [
+    {
+      category: (
+        <h6 className="text-xl font-normal leading-normal mt-0 mb-2 text-lightBlue-800">
+          {selectedAbstract?.result?.category}
+        </h6>
+      ),
+      confidence: (
+        <span
+          className={`text-xs font-semibold inline-block py-1 px-2 rounded  uppercase last:mr-0 mr-1 ${
+            selectedAbstract?.result["confidence_score"] === "High"
+              ? "text-emerald-600 bg-emerald-200"
+              : selectedAbstract?.result["confidence_score"] === "Medium"
+              ? "text-lightBlue-600 bg-lightBlue-200"
+              : selectedAbstract?.result["confidence_score"] === "Low"
+              ? "text-orange-600 bg-orange-200"
+              : ""
+          }`}
+        >
+          {selectedAbstract?.result["confidence_score"]}
+        </span>
+      ), // JSX for badge,
+      reasoning: selectedAbstract?.result["reasoning"],
+    },
+  ];
   const [percentage, setPercentage] = useState(0);
   const projectName = localStorage.getItem("selectedProject");
   // Use useRef to create a mutable object that persists across renders
@@ -135,13 +180,40 @@ const AbstractResults = () => {
     projectName,
     isStopping,
   ]);
+
   const countResults = (abstractResults) => {
     const resultCount = abstractResults.reduce((acc, item) => {
-      acc[item.result] = (acc[item.result] || 0) + 1;
+      // Access the 'category' property from the 'result' object
+      const category = item.result.category;
+      acc[category] = (acc[category] || 0) + 1;
       return acc;
     }, {});
     return resultCount;
   };
+  
+  useEffect(() => {
+    if (selectedAbstract?.abstract && selectedAbstract?.result?.highlighted_keywords) {
+      setHighlightedAbstract(
+        highlightKeywords(
+          selectedAbstract?.abstract,
+          selectedAbstract?.result?.highlighted_keywords
+        )
+      );
+    }
+  }, [selectedAbstract]);
+
+  function highlightKeywords(text, highlightedKeywords) {
+    let modifiedText = text;
+    Object.entries(highlightedKeywords).forEach(([category, keywords]) => {
+      const colorClass = categoryStyles[category] || "text-gray-500"; // Default color
+      keywords.forEach((keyword) => {
+        const badge = `<span class="${colorClass} text-xs font-semibold inline-block py-1 px-2 rounded  uppercase last:mr-0 mr-1">${keyword} <small>(${category})</small></span>`;
+        const regex = new RegExp(`\\b${keyword}\\b`, "gi"); // Match whole word, case-insensitive
+        modifiedText = modifiedText.replace(regex, badge);
+      });
+    });
+    return modifiedText;
+  }
   useEffect(() => {
     // Initial fetch
     try {
@@ -180,6 +252,7 @@ const AbstractResults = () => {
     calculatePercentage();
     // Convert the countResults output to chartData format
     const resultsCount = countResults(allAbstractResults);
+    console.log(resultsCount);
     const labels = Object.keys(resultsCount).filter((key) => key !== "total"); // Exclude 'total' from labels
     const data = labels.map((label) => resultsCount[label]);
 
@@ -215,14 +288,6 @@ const AbstractResults = () => {
   const gridRef = useRef(null);
   const [rowData, setRowData] = useState([]);
 
-  // const redrawRows = useCallback(() => {
-  //   var rows = [];
-  //   for (var i = 0; i < 6; i++) {
-  //     var row = gridRef.current.api.getDisplayedRowAtIndex(i);
-  //     rows.push(row);
-  //   }
-  //   gridRef.current.api.redrawRows({ rowNodes: rows });
-  // }, []);
   const redrawRows = useCallback(() => {
     // Ensure gridRef.current and gridRef.current.api are defined
     if (gridRef.current && gridRef.current.api) {
@@ -245,7 +310,7 @@ const AbstractResults = () => {
       editable: false,
     },
     {
-      field: "result",
+      field: "result.category",
       flex: 1,
       filter: true,
       editable: true,
@@ -317,7 +382,6 @@ const AbstractResults = () => {
       })
     );
     const response = await dispatch(stopModelExecution(taskId));
-    console.log(response);
     // check if response exists and has a message and status in its data object before passing to notify
     if (response.data && response.data.message && response.data.status) {
       notify(response.data.message, response.data.status);
@@ -331,6 +395,7 @@ const AbstractResults = () => {
     }
   };
   useEffect(() => {
+    console.log(selectedAbstract);
     if (selectedAbstract.id != null) {
       // Make sure selectedAbstract is set
       redrawRows();
@@ -341,11 +406,19 @@ const AbstractResults = () => {
       {selectedAbstract.abstract && (
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg ">
           <div className="flex-auto p-4">
-            <p
+            {/* <p
               className="text-sm overflow-auto h-30v bg-blueGray-100 p-1"
               dangerouslySetInnerHTML={{ __html: selectedAbstract.abstract }}
-            />
-            {selectedAbstract.result && (
+            /> */}
+                  {highlightedAbstract &&(
+        <div className="mt-4 p-4 border border-gray-200 rounded">
+          <div dangerouslySetInnerHTML={{ __html: highlightedAbstract }} />
+        </div>
+      )}
+        <>
+          <CardTable title="" color="light" columns={columns} data={data} />
+        </>
+            {/* {selectedAbstract.result && (
               <div className="flex justify-center items-center mt-2">
                 <div className="w-3/12">
                   <Alert
@@ -355,12 +428,12 @@ const AbstractResults = () => {
                         : "bg-orange-500"
                     }`}
                     alertTitle="Result:"
-                    alertMessage={selectedAbstract.result.toUpperCase()}
+                    alertMessage={selectedAbstract.result}
                     showCloseButton={false}
                   />
                 </div>
               </div>
-            )}
+            )} */}
             <div>
               <button
                 className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${

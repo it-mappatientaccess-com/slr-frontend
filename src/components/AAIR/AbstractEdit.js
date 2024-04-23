@@ -8,13 +8,21 @@ import {
   setIsQuestionsEmpty,
 } from "store/qa-actions";
 import Alert from "components/Alerts/Alert";
+import CardTable from "components/Cards/CardTable";
 
 function getWordCount(str) {
   return str.split(" ").filter(function (num) {
     return num !== "";
   }).length;
 }
-
+const categoryStyles = {
+  studyDesign: "bg-indigo-200 text-indigo-600",
+  population: "bg-purple-200 text-purple-600",
+  intervention: "bg-pink-200 text-pink-600",
+  outcomes: "bg-emerald-200 text-emerald-600",
+  exclusion_criteria: "bg-red-200 text-red-600",
+  // Define additional categories and their styles here
+};
 const AbstractEdit = () => {
   const dispatch = useDispatch();
   const [charCount, setCharCount] = useState(0);
@@ -32,12 +40,36 @@ const AbstractEdit = () => {
   const submitBtnState = useSelector(
     (state) => state.questionAbstractData.submitQABtn
   );
+  const [highlightedAbstract, setHighlightedAbstract] = useState("");
   const singleAbstractResult = useSelector(
     (state) => state.questionAbstractData.singleAbstractResult
   );
   const questions = useSelector(
     (state) => state.questionAbstractData.questions
   );
+  useEffect(() => {
+    if (abstractText && singleAbstractResult?.highlighted_keywords) {
+      setHighlightedAbstract(
+        highlightKeywords(
+          abstractText,
+          singleAbstractResult.highlighted_keywords
+        )
+      );
+    }
+  }, [abstractText, singleAbstractResult]);
+
+  function highlightKeywords(text, highlightedKeywords) {
+    let modifiedText = text;
+    Object.entries(highlightedKeywords).forEach(([category, keywords]) => {
+      const colorClass = categoryStyles[category] || "text-gray-500"; // Default color
+      keywords.forEach((keyword) => {
+        const badge = `<span class="${colorClass} text-xs font-semibold inline-block py-1 px-2 rounded  uppercase last:mr-0 mr-1">${keyword} <small>(${category})</small></span>`;
+        const regex = new RegExp(`\\b${keyword}\\b`, "gi"); // Match whole word, case-insensitive
+        modifiedText = modifiedText.replace(regex, badge);
+      });
+    });
+    return modifiedText;
+  }
   const onBlurHandler = (event) => {
     setIsFocused(true);
     // save abstract text
@@ -85,18 +117,56 @@ const AbstractEdit = () => {
     setCharCount(0);
     setIsFocused(false);
   };
+  const columns = [
+    {
+      label: "Category",
+      accessor: "category",
+      className: "text-left flex items-center",
+    },
+    { label: "Confidence", accessor: "confidence" },
+    { label: "Reasoning", accessor: "reasoning" },
+  ];
 
+  const data = [
+    {
+      category: (
+        <h6 className="text-xl font-normal leading-normal mt-0 mb-2 text-lightBlue-800">
+          {singleAbstractResult["category"]}
+        </h6>
+      ),
+      confidence: (
+        <span
+          className={`text-xs font-semibold inline-block py-1 px-2 rounded  uppercase last:mr-0 mr-1 ${
+            singleAbstractResult["confidence_score"] === "High"
+              ? "text-emerald-600 bg-emerald-200"
+              : singleAbstractResult["confidence_score"] === "Medium"
+              ? "text-lightBlue-600 bg-lightBlue-200"
+              : singleAbstractResult["confidence_score"] === "Low"
+              ? "text-orange-600 bg-orange-200"
+              : ""
+          }`}
+        >
+          {singleAbstractResult["confidence_score"]}
+        </span>
+      ), // JSX for badge,
+      reasoning: singleAbstractResult["reasoning"],
+    },
+  ];
   return (
     <div className="mb-3 pt-0">
-      {isResultGenerated && (
+      {/* {isResultGenerated && (
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
           <div className="flex-auto p-4">
             <p
               className="text-sm"
               dangerouslySetInnerHTML={{ __html: abstractText }}
-            >
-            </p>
+            ></p>
           </div>
+        </div>
+      )} */}
+      {highlightedAbstract && isResultGenerated &&(
+        <div className="mt-4 p-4 border border-gray-200 rounded">
+          <div dangerouslySetInnerHTML={{ __html: highlightedAbstract }} />
         </div>
       )}
       {!isResultGenerated && (
@@ -129,15 +199,13 @@ const AbstractEdit = () => {
               />
             </span>
           )}
-          {charCount > 16000 &&
-            wordCount >
-              2000 && (
-                <Alert
-                  alertClass="bg-orange-500 inline-block float-right"
-                  alertTitle="Input invalid!"
-                  alertMessage="You can enter at max 16000 Characters or 2000 Words."
-                />
-              )}
+          {charCount > 16000 && wordCount > 2000 && (
+            <Alert
+              alertClass="bg-orange-500 inline-block float-right"
+              alertTitle="Input invalid!"
+              alertMessage="You can enter at max 16000 Characters or 2000 Words."
+            />
+          )}
           {submitClicked && (
             <div
               role="status"
@@ -165,11 +233,9 @@ const AbstractEdit = () => {
         </div>
       )}
       {isResultGenerated && singleAbstractResult && (
-        <Alert
-          alertClass="bg-emerald-500"
-          alertTitle="Result:"
-          alertMessage={singleAbstractResult.toUpperCase()}
-        />
+        <>
+          <CardTable title="" color="light" columns={columns} data={data} />
+        </>
       )}
       <div className="text-center mt-8">
         <button

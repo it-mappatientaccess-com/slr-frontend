@@ -11,7 +11,7 @@ const initialState = {
   seaQuestions: {},
   abstract: "",
   abstractNER: [],
-  singleAbstractResult: "",
+  singleAbstractResult: {},
   submitQABtn: false,
   submitClicked: false,
   isResultGenerated: false,

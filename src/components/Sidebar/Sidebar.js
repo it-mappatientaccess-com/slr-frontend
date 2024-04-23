@@ -161,7 +161,7 @@ export default function Sidebar() {
                             : "text-blueGray-300")
                         }
                       ></i>
-                      Abstract AI Reviewer
+                      Abstract Reviewer
                     </Link>
                   </li>
                   <li className="items-center">
@@ -203,7 +203,7 @@ export default function Sidebar() {
                             : "text-blueGray-300")
                         }
                       ></i>
-                      Systematic Extraction Assistant
+                      Data Extraction
                     </Link>
                   </li>
                 </Fragment>
