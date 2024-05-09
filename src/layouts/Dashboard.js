@@ -29,9 +29,9 @@ export default function Dashboard() {
           <Outlet />
           <Routes>
             <Route path="my-projects" exact element={<MyProjects />} />
-            <Route path="aair" exact element={<AAIR />} />
+            <Route path="abstract-reviewer" exact element={<AAIR />} />
             <Route
-              path="sea"
+              path="data-extraction"
               exact
               element={<SEA />}
             />

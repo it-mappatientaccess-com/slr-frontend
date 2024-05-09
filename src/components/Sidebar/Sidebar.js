@@ -147,16 +147,16 @@ export default function Sidebar() {
                     <Link
                       className={
                         "text-xs uppercase py-3 font-bold block " +
-                        (location.pathname === "/dashboard/aair"
+                        (location.pathname === "/dashboard/abstract-reviewer"
                           ? "text-lightBlue-500 hover:text-lightBlue-600"
                           : "text-blueGray-700 hover:text-blueGray-500")
                       }
-                      to="/dashboard/aair"
+                      to="/dashboard/abstract-reviewer"
                     >
                       <i
                         className={
                           "fas fa-spell-check mr-2 text-sm " +
-                          (location.pathname === "/dashboard/aair"
+                          (location.pathname === "/dashboard/abstract-reviewer"
                             ? "opacity-75"
                             : "text-blueGray-300")
                         }
@@ -189,16 +189,16 @@ export default function Sidebar() {
                     <Link
                       className={
                         "text-xs uppercase py-3 font-bold block " +
-                        (location.pathname === "/dashboard/sea"
+                        (location.pathname === "/dashboard/data-extraction"
                           ? "text-lightBlue-500 hover:text-lightBlue-600"
                           : "text-blueGray-700 hover:text-blueGray-500")
                       }
-                      to="/dashboard/sea"
+                      to="/dashboard/data-extraction"
                     >
                       <i
                         className={
                           "fas fa-magnet mr-2 text-sm " +
-                          (location.pathname === "/dashboard/sea"
+                          (location.pathname === "/dashboard/data-extraction"
                             ? "opacity-75"
                             : "text-blueGray-300")
                         }
