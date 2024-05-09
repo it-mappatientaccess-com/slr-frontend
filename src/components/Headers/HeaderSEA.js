@@ -1,22 +1,16 @@
 import React, { useEffect, useState } from "react";
 import DynamicCardColumns from "components/DynamicCardColumns/DynamicCardColumns";
-import Accordion from "components/Accordion/Accordion";
 
 import { useDispatch, useSelector } from "react-redux";
 import { fetchOldSeaQuestions, setSeaQuestions } from "store/qa-actions";
-import { fetchPrompts, setSelectedPrompt, deletePrompt } from "store/data-extraction-actions";
-import CreatePrompt from "components/Forms/CreatePrompt";
 
-export default function HeaderSea({ isAccordionVisible }) {
+export default function HeaderSea() {
   const dispatch = useDispatch();
   const projectName = localStorage.getItem("selectedProject");
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
-  const prompts = useSelector((state) => state.dataExtraction.prompts);
-  const selectedPrompt = useSelector(
-    (state) => state.dataExtraction.selectedPrompt
-  );
+
   // Initialize columnOrder with keys from seaQuestions
   const [columnOrder, setColumnOrder] = useState(Object.keys(seaQuestions));
 
@@ -27,10 +21,6 @@ export default function HeaderSea({ isAccordionVisible }) {
   useEffect(() => {
     setColumnOrder(Object.keys(seaQuestions));
   }, [seaQuestions]);
-
-  useEffect(() => {
-    dispatch(fetchPrompts());
-  }, [dispatch]);
 
   const addColumn = () => {
     if (columnOrder.length < 10) {
@@ -77,52 +67,9 @@ export default function HeaderSea({ isAccordionVisible }) {
     setColumnOrder(updatedColumnOrder);
   };
 
-  const handleSelectPrompt = (prompt) => {
-    dispatch(setSelectedPrompt({ selectedPrompt: prompt["prompt_text"] }));
-  };
-  const handleEditPrompt = (prompt) => {
-    console.log("edit active");
-    console.log(prompt)
-  };
-  const handleDeletePrompt = (prompt) => {
-    dispatch(deletePrompt(prompt['prompt_title']))
-  }
-  const accordionItems = prompts.map((prompt) => ({
-    title: prompt["prompt_title"],
-    content: prompt["prompt_text"],
-    actionButtonText:
-      prompt["prompt_text"] === selectedPrompt ? "Active" : "Use Prompt",
-    actionButtonState: prompt["prompt_text"] === selectedPrompt,
-    onAction: () => handleSelectPrompt(prompt),
-    editButtonText: "Edit",
-    editButtonState: !prompt["is_default"],
-    onEdit: () => handleEditPrompt(prompt),
-    deleteButtonText: "Delete",
-    deleteButtonState: !prompt["is_default"],
-    onDelete: () => handleDeletePrompt(prompt),
-  }));
   return (
     <>
-      {isAccordionVisible && (
-        <div>
-          <Accordion
-            accordionTitle={"Prompt Templates"}
-            accordionSubTitle={
-              "Explore default prompts or craft your own for tailored responses."
-            }
-            items={accordionItems}
-          />
-          <div className="flex items-center">
-            <hr className="flex-grow border-t border-blue-300" />
-            <span className="px-3 text-lightblue-500">
-              Or create your own prompt for the AI model using the below form
-            </span>
-            <hr className="flex-grow border-t border-blue-300" />
-          </div>
-          <CreatePrompt />
-        </div>
-      )}
-      <div className="relative bg-lightBlue-600 pb-16">
+      <div className="relative bg-lightBlue-600 pt-8 pb-8">
         <div className="px-4 mx-auto w-full">
           <div className="flex flex-wrap items-center justify-center">
             {columnOrder.map((column, index) => (

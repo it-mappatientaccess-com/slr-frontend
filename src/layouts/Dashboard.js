@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 // components
@@ -18,18 +18,11 @@ import SEA from "views/dashboard/SEA";
 
 import UserManagement from "views/dashboard/UserManagement";
 export default function Dashboard() {
-  const [isAccordionVisible, setIsAccordionVisible] = useState(false);
-
-  const toggleAccordionVisibility = () => {
-    setIsAccordionVisible((prevState) => !prevState);
-  };
   return (
     <>
       <Sidebar />
       <div className="relative md:ml-64 bg-blueGray-100">
         <AdminNavbar
-          isAccordionVisible={isAccordionVisible}
-          toggleAccordion={toggleAccordionVisibility}
         />
 
         <div className="mx-auto w-full min-h-screen-85">
@@ -40,7 +33,7 @@ export default function Dashboard() {
             <Route
               path="sea"
               exact
-              element={<SEA isAccordionVisible={isAccordionVisible} />}
+              element={<SEA />}
             />
             <Route path="result-history" exact element={<ResultHistory />} />
             <Route path="settings" exact element={<Settings />} />
@@ -55,13 +48,6 @@ export default function Dashboard() {
         </div>
         <FooterAdmin />
       </div>
-        {/* <Feedback
-          projectId="65403f6e33b84e00028c6640"
-          email="true"
-          primaryColor="rgb(249,115,22)"
-          textColor="#ffffff"
-          hoverBorderColor="#000000"
-        /> */}
     </>
   );
 }

@@ -15,6 +15,7 @@ module.exports = {
       "./src/*.html",
       "./public/**/*.js",
       "./public/*.js",
+      'node_modules/flowbite-react/lib/esm/**/*.js'
     ],
     options: {
       safelist: [],
@@ -111,6 +112,7 @@ module.exports = {
   ],
   plugins: [
     require("@tailwindcss/forms"),
+    require('flowbite/plugin'),
     plugin(function ({ addComponents, theme }) {
       const screens = theme("screens", {});
       addComponents([

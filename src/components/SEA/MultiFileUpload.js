@@ -7,7 +7,6 @@ import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import FilePondPluginFileMetadata from "filepond-plugin-file-metadata";
 import "filepond/dist/filepond.min.css";
 import { useDispatch, useSelector } from "react-redux";
-import ExtractionFileList from "./ExtractionResult/ExtractionFileList";
 import { dataExtractionActions } from "slices/dataExtractionSlice";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import {
@@ -298,9 +297,6 @@ const MultiFileUpload = () => {
               percentage={progress}
             />
           )}
-          <div>
-            <ExtractionFileList />
-          </div>
         </div>
       </div>
     </div>
