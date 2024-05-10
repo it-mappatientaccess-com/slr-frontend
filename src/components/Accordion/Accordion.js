@@ -21,9 +21,25 @@ const AccordionItem = ({
   const contentRef = useRef(null);
   const toggleAccordion = () => {
     setIsOpen((prevState) => !prevState);
-    setShowEditPrompt(false); // Always hide EditPrompt when toggling accordion
-    setShowCancelButton(false); // Always hide Cancel button when toggling accordion
+    setShowEditPrompt(false);
+    setShowCancelButton(false);
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      setContentHeight(
+        contentRef.current ? contentRef.current.scrollHeight : 0
+      );
+    }
+  }, [isOpen, showEditPrompt]);
+  // Use TailwindCSS for conditional styling based on active state
+  const titleClasses = actionButtonState
+    ? "text-lg font-semibold" // Active state: blue background, white text
+    : ""; // Inactive state: white background, dark text
+
+  const elevationClasses = actionButtonState
+    ? "shadow-lg" // Elevated shadow for active item
+    : ""; // Normal shadow for inactive item
   const handleEditSuccess = () => {
     setShowEditPrompt(false);
     setShowCancelButton(false);
@@ -40,12 +56,12 @@ const AccordionItem = ({
 
   return (
     <div
-      className={`transition hover:bg-indigo-50 ${
+      className={`${elevationClasses} transition hover:bg-indigo-50 ${
         isOpen ? "bg-indigo-50" : ""
       }`}
     >
       <div
-        className="accordion-header cursor-pointer transition flex space-x-5 px-4 items-center h-16"
+        className={`accordion-header cursor-pointer flex space-x-5 px-4 items-center h-16 ${titleClasses}`}
         onClick={toggleAccordion}
       >
         <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`}></i>
@@ -131,7 +147,7 @@ const AccordionItem = ({
 // Main Accordion Component
 const Accordion = ({ accordionTitle, accordionSubTitle, items }) => {
   return (
-    <div className="w-10/12 mx-auto rounded border">
+    <div className="mx-auto rounded border">
       <div className="bg-white p-10 shadow-sm">
         <h3 id="accordionTitle" className="text-lg font-medium text-gray-800">
           {accordionTitle}

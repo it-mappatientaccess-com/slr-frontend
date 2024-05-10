@@ -18,7 +18,7 @@ module.exports = {
       'node_modules/flowbite-react/lib/esm/**/*.js'
     ],
     options: {
-      safelist: [],
+      safelist: ["animate-pulse"],
     },
   },
   theme: {

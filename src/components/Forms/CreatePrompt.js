@@ -2,7 +2,7 @@ import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
 import {api} from "util/api";
-import { fetchPrompts } from "store/data-extraction-actions";
+import { fetchPrompts, setSelectedPrompt } from "store/data-extraction-actions";
 import { useDispatch } from "react-redux";
 import { notify } from "components/Notify/Notify";
 
@@ -11,7 +11,7 @@ const initialValues = {
   promptText: "",
 };
 
-export default function CreatePrompt() {
+export default function CreatePrompt({ onPromptSubmitSuccess }) {
   const dispatch = useDispatch();
 
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
@@ -36,25 +36,24 @@ export default function CreatePrompt() {
           )
           .then((response) => {
             if (response.status === 200) {
-            notify(response.data.detail, "success");
+              notify(response.data.detail, "success");
               dispatch(fetchPrompts());
+
+              dispatch(setSelectedPrompt({ selectedPrompt: values.promptText }));
+              onPromptSubmitSuccess();  // Call the callback function to switch tab and highlight
             }
             return response;
           })
           .catch((error) => {
             console.log(error);
             notify(error.response.data.detail, "error");
-
-            if (error.response.status === 422) {
-              notify(error.response.data.detail, "error");
-            }
           });
         action.resetForm();
       },
     });
   return (
     <>
-      <div className="relative flex flex-col min-w-0 break-words w-10/12 mx-auto mb-6 shadow-lg rounded-lg bg-blueGray-100 border-0">
+      <div className="relative flex flex-col min-w-0 break-words w-full mx-auto mb-6 shadow-lg rounded-lg bg-blueGray-100 border-0">
         <div className="rounded-t bg-white mb-0 px-6 py-6">
           <div className="text-center flex justify-between">
             <h6 className="text-blueGray-700 text-xl font-bold">

@@ -68,7 +68,7 @@ const btnCellRenderer = (params) => {
     params.dispatchProp(setSelectedProject(params.data.projectName));
     await params.dispatchProp(fetchOldQuestions(params.data.projectName));
     await params.dispatchProp(fetchOldSeaQuestions(params.data.projectName));
-    params.navigateProp("/dashboard/aair");
+    params.navigateProp("/dashboard/abstract-reviewer");
   };
   return (
     <>

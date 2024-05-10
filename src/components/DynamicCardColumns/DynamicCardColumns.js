@@ -180,7 +180,7 @@ const DynamicCardColumns = (props) => {
                   )}
                   {questionList.length > 1 && (
                     <span
-                      className="z-10 leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
+                      className="leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
                       onClick={() => questionRemoveHandler(index)}
                     >
                       <i className="fas fa-times"></i>

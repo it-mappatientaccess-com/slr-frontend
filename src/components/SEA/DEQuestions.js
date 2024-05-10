@@ -4,7 +4,7 @@ import DynamicCardColumns from "components/DynamicCardColumns/DynamicCardColumns
 import { useDispatch, useSelector } from "react-redux";
 import { fetchOldSeaQuestions, setSeaQuestions } from "store/qa-actions";
 
-export default function HeaderSea() {
+export default function DEQuestions() {
   const dispatch = useDispatch();
   const projectName = localStorage.getItem("selectedProject");
   const seaQuestions = useSelector(
@@ -24,7 +24,7 @@ export default function HeaderSea() {
 
   const addColumn = () => {
     if (columnOrder.length < 10) {
-      const newColumn = `Column${columnOrder.length + 1}`;
+      const newColumn = `Question Set ${columnOrder.length + 1}`;
       setColumnOrder((prevColumnOrder) => [...prevColumnOrder, newColumn]);
       dispatch(
         setSeaQuestions(projectName, { ...seaQuestions, [newColumn]: [""] })

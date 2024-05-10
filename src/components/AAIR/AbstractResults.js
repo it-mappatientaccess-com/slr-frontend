@@ -52,7 +52,7 @@ const getParams = () => {
   const projectName = localStorage.getItem("selectedProject");
   return {
     columnKeys: ["ID", "abstract", "result"],
-    fileName: `${projectName}_aair_results.csv`,
+    fileName: `${projectName}_abstract_review_results.csv`,
   };
 };
 

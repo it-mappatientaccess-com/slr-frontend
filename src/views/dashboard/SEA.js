@@ -5,7 +5,7 @@ import MultiFileUpload from "components/SEA/MultiFileUpload";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
 import { setProgress } from "store/data-extraction-actions";
-import HeaderSea from "components/Headers/HeaderSEA";
+import DEQuestions from "components/SEA/DEQuestions";
 import VerticalStepper from "components/VerticalStepper/VerticalStepper";
 import PromptSelection from "components/SEA/PromptSelection";
 import ExtractionFileList from "components/SEA/ExtractionResult/ExtractionFileList";
@@ -29,7 +29,7 @@ const SEA = () => {
             {
               title: "Step 1: Organise Your Questions",
               content: "Add and arrange your questions or keywords in up to 10 columns.",
-              component: <HeaderSea />,
+              component: <DEQuestions />,
               iconClass: "fas fa-question",
             },
             {

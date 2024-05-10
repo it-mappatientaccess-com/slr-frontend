@@ -210,7 +210,7 @@ export const fetchOldSeaQuestions = (projectName) => {
       }
       if (response.data.length === 0 || isEmptyFlag === true) {
         const questions = {
-          column1: [""],
+          "Question Set 1": [""],
         };
         dispatch(
           questionAbstractActions.setSEAQuestionsDict({
@@ -231,7 +231,7 @@ export const fetchOldSeaQuestions = (projectName) => {
       );
     } catch (error) {
       const questions = {
-        column1: [""],
+        "Question Set 1": [""],
       };
       dispatch(
         questionAbstractActions.setSEAQuestionsDict({

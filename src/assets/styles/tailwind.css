@@ -2167,11 +2167,6 @@ input[type="range"]::-ms-fill-lower {
   border-style: none;
 }
 
-.border-blue-300 {
-  --tw-border-opacity: 1;
-  border-color: rgb(164 202 254 / var(--tw-border-opacity));
-}
-
 .border-blueGray-100 {
   --tw-border-opacity: 1;
   border-color: rgb(241 245 249 / var(--tw-border-opacity));
