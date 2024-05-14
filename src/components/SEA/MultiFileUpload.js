@@ -207,6 +207,9 @@ const MultiFileUpload = () => {
             maxFileSize={"25MB"}
             credits={false}
             instantUpload={false}
+            chunkUploads={true}
+            chunkSize={5000000}
+            maxParallelUploads={10}
           />
           <p className="mt-2"></p>
           {/* Flex container for all buttons */}
