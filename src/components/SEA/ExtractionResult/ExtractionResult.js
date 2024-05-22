@@ -52,16 +52,6 @@ const ExtractionResult = (props) => {
       columnDataMap[key] = [];
     });
   
-    // Check and handle 'aboutFile' if it appears in any result item
-    // props.result.forEach((item) => {
-    //   if (item.hasOwnProperty('aboutFile')) {
-    //     if (!columnDataMap.hasOwnProperty('aboutFile')) {
-    //       columnDataMap['aboutFile'] = [];
-    //     }
-    //     columnDataMap['aboutFile'].push(item['aboutFile']);
-    //   }
-    // });
-  
     // Populate each column with the data
     props.result.forEach((resultItem) => {
       Object.keys(resultItem).forEach((key) => {
@@ -195,7 +185,7 @@ const ExtractionResult = (props) => {
               {showQuestions ? "Hide Questions" : "Show Questions"}
             </button>
           </span>
-          {selectedPrompt === prompts[0].prompt_text && (
+          {selectedPrompt === prompts[1].prompt_text && (
             <span className="mx-2">
               <input
                 type="checkbox"
