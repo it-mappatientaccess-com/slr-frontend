@@ -17,34 +17,29 @@ const actionCellRenderer = (params) => {
   });
   return (
     <>
-      {isCurrentRowEditing ? (
+      {isCurrentRowEditing && (
         <div>
           <button
             className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             type="button"
-            data-action="save"
-            onClick={() => params.api.stopEditing(false)}
+            data-action="update"
           >
-            Save <i className="fas fa-arrows-rotate"></i>
+            Update <i className="fas fa-arrows-rotate"></i>
           </button>
           <button
             className="bg-blueGray-500 text-white active:bg-blueGray-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="cancel"
-            onClick={() => params.api.stopEditing(true)}
             type="button"
           >
             Cancel <i className="fas fa-xmark"></i>
           </button>
         </div>
-      ) : (
+      )}
+      {!isCurrentRowEditing && (
         <div>
           <button
             className="bg-amber-500 text-white active:bg-amber-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="edit"
-            onClick={() => params.api.startEditingCell({
-              rowIndex: params.node.rowIndex,
-              colKey: params.columnApi.getDisplayedCenterColumns()[0].colId,
-            })}
             type="button"
           >
             Edit <i className="fas fa-pen"></i>
@@ -52,10 +47,6 @@ const actionCellRenderer = (params) => {
           <button
             className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             data-action="delete"
-            onClick={() => {
-              params.api.stopEditing(true);
-              params.context.handleDeleteUser(params.node.data.username);
-            }}
             type="button"
           >
             Delete <i className="fas fa-trash-can"></i>
@@ -68,6 +59,7 @@ const actionCellRenderer = (params) => {
 
 const UserManagementTable = () => {
   const dispatch = useDispatch();
+
   const gridRef = useRef(null);
 
   let usersData = useSelector((state) => state.userManagement.listOfUsers);
@@ -78,55 +70,146 @@ const UserManagementTable = () => {
     type: "",
     message: "",
   });
+  // New state to manage the visibility of the alert
   const [showAlert, setShowAlert] = useState(false);
   const [isEditCanceled, setIsEditCanceled] = useState(false);
-  const columnDefs = useMemo(() => [
-    { headerName: "ID", valueGetter: "node.rowIndex + 1", width: 80 },
-    { field: "name", suppressSizeToFit: true, flex: 1, minWidth: 100, filter: true, editable: true },
-    { field: "username", flex: 2, filter: true, editable: true },
-    { headerName: "Set New Password", field: "newPassword", editable: true, flex: 1 },
-    { headerName: "Action", cellRenderer: actionCellRenderer, editable: false, colId: "action", flex: 2 },
-  ], []);
+  const columnDefs = [
+    {
+      headerName: "ID",
+      valueGetter: "node.rowIndex + 1",
+      width: 80,
+    },
+    {
+      field: "name",
+      suppressSizeToFit: true,
+      flex: 1,
+      minWidth: 100,
+      filter: true,
+      editable: true,
+    },
+    {
+      field: "username",
+      flex: 2,
+      filter: true,
+      editable: true,
+    },
+    {
+      headerName: "Set New Password",
+      field: "newPassword",
+      editable: true,
+      flex: 1,
+    },
+    {
+      headerName: "Action",
+      cellRenderer: actionCellRenderer,
+      editable: false,
+      colId: "action",
+      flex: 2,
+    },
+  ];
+  // State to manage modal visibility
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-
   const currentRowChangesRef = useRef({});
 
   const handleDeleteUser = async (username) => {
+    // Function to handle user deletion logic
+
+    // Apply the transaction to remove the data from the grid
     const usersData = rowImmutableStore.find((e) => e.username === username);
-    currentParams.api.applyTransaction({ remove: [usersData] });
+    currentParams.api.applyTransaction({
+      remove: [usersData],
+    });
     setResponse(await dispatch(deleteUserData(username)));
+    // Close the modal after deletion
     setShowDeleteModal(false);
   };
 
-  const defaultColDef = useMemo(() => ({ sortable: true, resizable: true, enableCellChangeFlash: true }), []);
+  const defaultColDef = useMemo(
+    () => ({
+      sortable: true,
+      resizable: true,
+      enableCellChangeFlash:true
+    }),
+    []
+  );
+
+  const cellClickedListener = useCallback((params) => {
+    // Handle click event for action cells
+    if (params.column.colId === "action" && params.event.target.dataset.action) {
+      let action = params.event.target.dataset.action;
+      if (action === "edit") {
+        params.api.startEditingCell({
+          rowIndex: params.node.rowIndex,
+          colKey: params.columnApi.getDisplayedCenterColumns()[0].colId,
+        });
+      } else if (action === "update") {
+        setIsEditCanceled(false);
+        params.api.stopEditing(false);  // Ends editing and triggers onRowEditingStopped
+      } else if (action === "cancel") {
+        setIsEditCanceled(true);
+        params.api.stopEditing(true);  // Ends editing and will not trigger onRowEditingStopped due to cancel flag
+      } else if (action === "delete") {
+        setUserToDelete(params.node.data.username);
+        setShowDeleteModal(true);
+        setCurrentParams(params);
+      }
+    }
+  }, []);
+  
 
   const onRowEditingStarted = (params) => {
-    params.api.refreshCells({ columns: ["action"], rowNodes: [params.node], force: true });
+    // setCurrentRowChanges({});
+    params.api.refreshCells({
+      columns: ["action"],
+      rowNodes: [params.node],
+      force: true,
+    });
   };
 
-  const onRowEditingStopped = useCallback(async (params) => {
-    if (isEditCanceled) {
-      setIsEditCanceled(false);
-      return;
-    }
-    const currentRowChanges = currentRowChangesRef.current;
-    const updatedData = { ...params.data, ...currentRowChanges };
-    try {
-      const response = await dispatch(setUsersData(params.data.username, updatedData));
-      if (response?.status === 200) {
-        setUpdateResponse({ type: "success", message: `User updated successfully: ${response?.data?.data?.username}` });
-      } else {
-        setUpdateResponse({ type: "error", message: response?.response?.data?.detail ?? "Failed to update user." });
+  const onRowEditingStopped = useCallback(
+    (params) => {
+      if (isEditCanceled) {
+        setIsEditCanceled(false); // Reset the flag
+        return; // Exit early if edit was canceled
       }
-    } catch (error) {
-      setUpdateResponse({ type: "error", message: "Failed to update user." });
-    }
-    rowImmutableStore = rowImmutableStore.map((item, index) => index === params.node.rowIndex ? updatedData : item);
-    setRowData(rowImmutableStore);
-    currentRowChangesRef.current = {};
-    params.api.refreshCells({ columns: ["action"], rowNodes: [params.node], force: true });
-  }, [dispatch, isEditCanceled]);
+      const currentRowChanges = currentRowChangesRef.current;
+      const updatedData = { ...params.data, ...currentRowChanges };
+  
+      dispatch(setUsersData(params.data.username, updatedData))
+        .then((response) => {
+          if (response?.status === 200) {
+            setUpdateResponse({
+              type: "success",
+              message: `User updated successfully: ${response?.data?.data?.username}`,
+            });
+          } else {
+            setUpdateResponse({
+              type: "error",
+              message: response?.response?.data?.detail ?? "Failed to update user.",
+            });
+          }
+        })
+        .catch((error) => {
+          setUpdateResponse({
+            type: "error",
+            message: "Failed to update user.",
+          });
+        });
+  
+      // Update the row data state to reflect changes
+      setRowData((prevRowData) =>
+        prevRowData.map((item, index) =>
+          index === params.node.rowIndex ? updatedData : item
+        )
+      );
+  
+      // Reset the current row changes
+      currentRowChangesRef.current = {};
+    },
+    [dispatch, isEditCanceled]
+  );
+  
 
   useEffect(() => {
     setRowData(usersData);
@@ -134,28 +217,37 @@ const UserManagementTable = () => {
   }, [usersData]);
 
   const onCellEditRequest = useCallback((event) => {
-    currentRowChangesRef.current = { ...currentRowChangesRef.current, [event.colDef.field]: event.newValue };
+    currentRowChangesRef.current = {
+      ...currentRowChangesRef.current,
+      [event.colDef.field]: event.newValue,
+    };
   }, []);
 
   useEffect(() => {
     if (response) {
-      setShowAlert(true);
-      const timer = setTimeout(() => setShowAlert(false), 5000);
+      setShowAlert(true); // Show the alert when there's a response
+      const timer = setTimeout(() => {
+        setShowAlert(false); // Hide the alert after 3 seconds
+      }, 5000);
+
+      // Clean up the timer when the component is unmounted or the response changes
       return () => clearTimeout(timer);
     }
   }, [response]);
 
+  // Function to clear update response message
   const clearUpdateResponse = () => {
     setUpdateResponse({ type: "", message: "" });
   };
 
+  // Clear the update response after a specified duration (e.g., 5000 milliseconds)
   useEffect(() => {
+    let timer;
     if (updateResponse.message) {
-      const timer = setTimeout(clearUpdateResponse, 5000);
-      return () => clearTimeout(timer);
+      timer = setTimeout(clearUpdateResponse, 5000);
     }
+    return () => clearTimeout(timer);
   }, [updateResponse]);
-
   return (
     <>
       <div className="ag-theme-alpine" style={{ height: "80vh" }}>
@@ -168,14 +260,20 @@ const UserManagementTable = () => {
         )}
         {updateResponse.message && (
           <Alert
-            alertClass={updateResponse.type === "success" ? "bg-emerald-500" : "bg-red-500"}
-            alertTitle={updateResponse.type === "success" ? "Success:" : "Error:"}
+            alertClass={
+              updateResponse.type === "success"
+                ? "bg-emerald-500"
+                : "bg-red-500"
+            }
+            alertTitle={
+              updateResponse.type === "success" ? "Success:" : "Error:"
+            }
             alertMessage={updateResponse.message}
           />
         )}
         <AgGridReact
           ref={gridRef}
-          context={{ handleDeleteUser }}
+          onCellClicked={cellClickedListener}
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
