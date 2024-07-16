@@ -115,7 +115,7 @@ const DynamicCardColumns = (props) => {
               <>
                 <input
                   type="text"
-                  maxLength="30"
+                  maxLength="300"
                   value={columnName}
                   onChange={(e) => setColumnName(e.target.value)}
                   className="border rounded pl-2 flex-grow" // Flex grow to take available space
