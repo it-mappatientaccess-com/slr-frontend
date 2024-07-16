@@ -37,7 +37,7 @@ const DynamicCardColumns = (props) => {
 
   const isValidQuestion = useCallback((question) => {
     const words = question.trim().split(/\s+/);
-    return words.length >= 3 && words.length <= 50;
+    return words.length >= 3 && words.length <= 2000;
   }, []);
 
   const questionChangeHandler = useCallback(
@@ -175,7 +175,7 @@ const DynamicCardColumns = (props) => {
                   />
                   {!validQuestions[index] && (
                     <p className="text-red-500 text-xs italic">
-                      Question must be between 3 to 50 words.
+                      Question must be between 3 to 2000 words.
                     </p>
                   )}
                   {questionList.length > 1 && (
