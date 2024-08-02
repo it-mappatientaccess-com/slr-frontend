@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setSeaQuestions } from "../../store/qa-actions";
+import { setSeaQuestions } from "../../redux/thunks/qa-thunks";
 
 const DynamicCardColumns = (props) => {
   const dispatch = useDispatch();
@@ -66,10 +66,10 @@ const DynamicCardColumns = (props) => {
   };
 
   const questionRemoveHandler = (index) => {
-    setQuestionList((prevQuestions) =>
-      prevQuestions.filter((_, i) => i !== index)
-    );
+    const updatedQuestions = questionList.filter((_, i) => i !== index);
+    setQuestionList(updatedQuestions);
     setValidQuestions((prevValid) => prevValid.filter((_, i) => i !== index));
+    saveQuestionsHandler(updatedQuestions); // Save questions after removing
   };
 
   const saveColumnNameHandler = () => {
@@ -79,7 +79,7 @@ const DynamicCardColumns = (props) => {
     }
   };
 
-  const saveQuestionsHandler = () => {
+  const saveQuestionsHandler = (updatedQuestions = questionList) => {
     const hasInvalidQuestion = validQuestions.some((isValid) => !isValid);
 
     if (hasInvalidQuestion) {
@@ -88,19 +88,22 @@ const DynamicCardColumns = (props) => {
     }
 
     setSubmissionError(false); // Reset error state on successful validation
-    let updatedQuestions = {
+    let updatedSeaQuestions = {
       ...seaQuestions,
-      [category]: Object.values(questionList),
+      [category]: updatedQuestions,
     };
-    dispatch(setSeaQuestions(projectName, updatedQuestions));
+    dispatch(setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions }));
   };
 
   const updateRows = useCallback(() => {
     if (!textareaRef.current) return;
     const lines = textareaRef.current.value.split("\n");
     const rows = lines.length + 1;
-    textareaRef.current.rows = rows;
+    textareaRef.current.rows = rows > 3 ? rows : 3; // Ensure at least 3 rows
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
   }, []);
+  
 
   useEffect(() => {
     updateRows();
@@ -118,7 +121,7 @@ const DynamicCardColumns = (props) => {
                   maxLength="300"
                   value={columnName}
                   onChange={(e) => setColumnName(e.target.value)}
-                  className="border rounded pl-2 flex-grow" // Flex grow to take available space
+                  className="border rounded pl-2 flex-grow"
                 />
                 <button
                   className="text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -158,7 +161,7 @@ const DynamicCardColumns = (props) => {
                 <div className="relative flex w-full flex-wrap items-stretch mb-3">
                   <textarea
                     ref={index === 0 ? textareaRef : null}
-                    rows="1"
+                    rows="3"
                     type="text"
                     name="question"
                     placeholder="Please enter a question"
@@ -171,7 +174,7 @@ const DynamicCardColumns = (props) => {
                     value={singleQuestion}
                     onChange={(e) => questionChangeHandler(e, index)}
                     onInput={updateRows}
-                    onBlur={saveQuestionsHandler}
+                    onBlur={() => saveQuestionsHandler(questionList)} // Save questions on blur
                   />
                   {!validQuestions[index] && (
                     <p className="text-red-500 text-xs italic">

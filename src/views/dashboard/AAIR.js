@@ -3,8 +3,7 @@ import AbstractTabs from "components/AAIR/AbstractTabs";
 import HeaderStats from "components/Headers/HeaderAAIR.js";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
-import { setProgress } from "store/qa-actions";
-
+import { setProgress } from "../../redux/slices/loadingSlice";
 export default function AAIR() {
   let progress = useSelector((state) => state.questionAbstractData.progress);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setQuestions } from "../../store/qa-actions";
+import { setQuestions } from "../../redux/thunks/qa-thunks";
 import styles from "./DynamicInput.module.css";
 
 const camelize = (str) => {
@@ -19,7 +19,6 @@ const DynamicInput = ({ category: rawCategory }) => {
     (state) => state.questionAbstractData.questions
   );
 
-  // Updated state structure
   const [questionList, setQuestionList] = useState([]);
   const projectName = localStorage.getItem("selectedProject");
 
@@ -32,7 +31,6 @@ const DynamicInput = ({ category: rawCategory }) => {
     );
 
     if (formattedQuestions.length === 0) {
-      // If there are no questions for this category, add a default empty question
       formattedQuestions.push({ question: "", error: "" });
     }
 
@@ -47,11 +45,9 @@ const DynamicInput = ({ category: rawCategory }) => {
   }, []);
 
   useEffect(() => {
-    // Just call updateRows without arguments, it will loop through the refs internally
     questionList.forEach((_, index) => updateRows(index));
   }, [questionList, updateRows]);
 
-  // Updated to include error property
   const questionAddHandler = useCallback(() => {
     setQuestionList((prevQuestions) => [
       ...prevQuestions,
@@ -61,7 +57,6 @@ const DynamicInput = ({ category: rawCategory }) => {
 
   const questionRemoveHandler = useCallback(
     (index, item) => {
-      // Set the error for the specific question being saved
       setQuestionList((prevList) => {
         const newList = [...prevList];
         newList.splice(index, 1);
@@ -78,7 +73,7 @@ const DynamicInput = ({ category: rawCategory }) => {
         ].filter((question) => question !== item);
       }
 
-      dispatch(setQuestions(projectName, updatedExistingQuestions));
+      dispatch(setQuestions({ projectName, category, questions: updatedExistingQuestions }));
     },
     [existingQuestions, category, dispatch, projectName]
   );
@@ -103,7 +98,7 @@ const DynamicInput = ({ category: rawCategory }) => {
       const wordCount = currentQuestion.split(/\s+/).length;
       const charCount = currentQuestion.length;
       let errorMessage = "";
-      // if category is not exclusionCriteria, validate question length
+
       if (category !== "exclusionCriteria") {
         if (wordCount < 3 || wordCount > 50) {
           errorMessage = "Question should have between 3 and 50 words.";
@@ -111,30 +106,27 @@ const DynamicInput = ({ category: rawCategory }) => {
           errorMessage = "Question should not exceed 300 characters.";
         }
       }
-      // if category is exclusionCriteria
-      // append "exclusion criteria:" to the beginning of the question
+
       if (category === "exclusionCriteria") {
         if (charCount > 300) {
           errorMessage = "Exclusion keyword should not exceed 300 characters.";
         } else {
-          currentQuestion = `exclusion criteria: ${currentQuestion}`;
+          currentQuestion = `${currentQuestion}`;
         }
-      } 
-      // Set the error for the specific question being saved
+      }
+
       setQuestionList((prevList) => {
         const newList = [...prevList];
-
         if (typeof index === "number" && newList[index]) {
           newList[index].error = errorMessage;
         } else {
           console.warn("Invalid index:", index);
         }
-
         return newList;
       });
 
       if (errorMessage) {
-        return; // Prevent saving if there's an error
+        return;
       }
 
       const updatedExistingQuestions = { ...existingQuestions };
@@ -142,15 +134,15 @@ const DynamicInput = ({ category: rawCategory }) => {
         updatedExistingQuestions[category] = [];
       }
 
-      // Create a deep copy of the category array, modify it, then assign it back
       const categoryQuestionsCopy = [...updatedExistingQuestions[category]];
       categoryQuestionsCopy[index] = currentQuestion;
       updatedExistingQuestions[category] = categoryQuestionsCopy;
 
-      dispatch(setQuestions(projectName, updatedExistingQuestions));
+      dispatch(setQuestions({ projectName, category, questions: updatedExistingQuestions }));
     },
     [existingQuestions, category, dispatch, projectName]
   );
+
   return (
     <div className={styles["pt-0 mt-2 flex-col max-h-60 overflow-y-auto"]}>
       {category !== "exclusionCriteria" ? <span>Question(s)</span> :  <span>Exclusion Keyword(s)</span>}
@@ -171,7 +163,6 @@ const DynamicInput = ({ category: rawCategory }) => {
                 onInput={updateRows}
                 onBlur={(e) => saveQuestionsHandler(e, idx)}
               />
-            {/* Updated to display error for each specific question */}
             {singleQuestion.error && (
               <p className="text-xs text-red-500 float-right bg-red-100 p-1">
                 <i className="fas fa-triangle-exclamation"></i>

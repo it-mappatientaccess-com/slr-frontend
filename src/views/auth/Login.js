@@ -3,7 +3,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { useFormik } from "formik";
 import { signInSchema } from "../../schema/schema";
 import Alert from "components/Alerts/Alert";
-import AuthContext from "store/auth-context";
+import AuthContext from "context/AuthContext";
 import { useNavigate } from "react-router";
 import { useLocation } from "react-router-dom";
 import { api } from "util/api";

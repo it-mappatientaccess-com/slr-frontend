@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ProjectsTable from "./ProjectsTable";
-import { fetchProjectsData } from "store/project-actions";
+import { fetchProjectsData } from "../../redux/slices/projectSlice";
 import LoadingBar from "react-top-loading-bar";
 import Alert from "components/Alerts/Alert";
 const CardProjectList = ({ handleProjectClicked }) => {

@@ -1,17 +1,14 @@
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { useDispatch, useSelector } from "react-redux";
-import { getAllResults, stopModelExecution } from "store/qa-actions";
+import { getAllResults, stopModelExecution } from "../../redux/thunks/qa-thunks";
 import ProgressBar from "components/ProgressBar/ProgressBar";
-import { questionAbstractActions } from "slices/questionAbstractSlice";
+import {
+  setIsRefreshing,
+  setIsStopping,
+} from "../../redux/slices/questionAbstractSlice";
 import CardBarChart from "components/Cards/CardBarChart";
 import { notify } from "components/Notify/Notify";
 import CardTable from "components/Cards/CardTable";
@@ -51,7 +48,7 @@ const btnCellRenderer = (props) => {
 const getParams = () => {
   const projectName = localStorage.getItem("selectedProject");
   return {
-    columnKeys: ["ID", "abstract", "result"],
+    columnKeys: ["id", "abstract", "result.category"],
     fileName: `${projectName}_abstract_review_results.csv`,
   };
 };
@@ -117,10 +114,9 @@ const AbstractResults = () => {
   ];
   const [percentage, setPercentage] = useState(0);
   const projectName = localStorage.getItem("selectedProject");
-  // Use useRef to create a mutable object that persists across renders
   const timerRef = useRef(null);
   const prevLengthRef = useRef(allAbstractResults.length);
-  const noChangeCountRef = useRef(0); // New ref to track the count of no change in length
+  const noChangeCountRef = useRef(0);
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [
@@ -145,11 +141,11 @@ const AbstractResults = () => {
   }, [allAbstractResults.length, numOfExamples]);
 
   const getAllResultsSafely = useCallback(() => {
-    if (!isProcessing && !isStopping) {
+    if (isStopping) {
       clearTimeout(timerRef.current);
       return; // Stop the loop if isStopping is true
     }
-    if (allAbstractResults.length < numOfExamples && !isStopping) {
+    if (allAbstractResults.length < numOfExamples && isProcessing) {
       if (prevLengthRef.current === allAbstractResults.length) {
         noChangeCountRef.current += 1;
         if (noChangeCountRef.current >= 5) {
@@ -182,7 +178,6 @@ const AbstractResults = () => {
 
   const countResults = (abstractResults) => {
     const resultCount = abstractResults.reduce((acc, item) => {
-      // Access the 'category' property from the 'result' object
       const category = item.result.category;
       acc[category] = (acc[category] || 0) + 1;
       return acc;
@@ -207,28 +202,24 @@ const AbstractResults = () => {
       const colorClass = categoryStyles[category] || "text-gray-500"; // Default color
       keywords.forEach((keyword) => {
         const badge = `<span class="${colorClass} text-xs font-semibold inline-block py-1 px-2 rounded  uppercase last:mr-0 mr-1">${keyword} <small>(${category})</small></span>`;
-        const regex = new RegExp(`\\b${keyword}\\b`, "gi"); // Match whole word, case-insensitive
+        const regex = new RegExp(`\\b${keyword}\\b`, "gi");
         modifiedText = modifiedText.replace(regex, badge);
       });
     });
     return modifiedText;
   }
   useEffect(() => {
-    // Initial fetch
     try {
       dispatch(getAllResults(projectName));
     } catch (error) {
       console.error("Error while fetching results: ", error);
-      // Implement additional error handling logic as needed
     }
 
-    // Function to calculate random exponential delay
     const getRandomExponentialDelay = () => {
       const min = Math.log(3000); // 3 seconds
       const max = Math.log(30000); // 30 seconds
       return Math.exp(min + (max - min) * Math.random());
     };
-    // Setting up a loop with random but exponential wait times
     const setupTimer = () => {
       const delay = getRandomExponentialDelay();
       if (!isStopping) {
@@ -249,9 +240,8 @@ const AbstractResults = () => {
   useEffect(() => {
     setRowData(allAbstractResults);
     calculatePercentage();
-    // Convert the countResults output to chartData format
     const resultsCount = countResults(allAbstractResults);
-    const labels = Object.keys(resultsCount).filter((key) => key !== "total"); // Exclude 'total' from labels
+    const labels = Object.keys(resultsCount).filter((key) => key !== "total");
     const data = labels.map((label) => resultsCount[label]);
 
     setChartData({
@@ -266,7 +256,7 @@ const AbstractResults = () => {
             "#C084FC",
             "#34D399",
             "#38BDF8",
-          ], // Different color for each category
+          ],
           borderColor: [
             "#F87171",
             "#FB923C",
@@ -287,9 +277,7 @@ const AbstractResults = () => {
   const [rowData, setRowData] = useState([]);
 
   const redrawRows = useCallback(() => {
-    // Ensure gridRef.current and gridRef.current.api are defined
     if (gridRef.current && gridRef.current.api) {
-      // Redraw all rows - you might adjust this to only redraw specific rows as needed
       gridRef.current.api.redrawRows();
     }
   }, []);
@@ -309,9 +297,10 @@ const AbstractResults = () => {
     },
     {
       field: "result.category",
+      headerName: "Category",
       flex: 1,
       filter: true,
-      editable: true,
+      editable: false,
     },
     {
       headerName: "Action",
@@ -341,96 +330,67 @@ const AbstractResults = () => {
       );
       let newIndex;
       if (direction === "prev") {
-        newIndex = Math.max(currentIndex - 1, 0); // Ensure not going below zero
+        newIndex = Math.max(currentIndex - 1, 0);
       } else if (direction === "next") {
-        newIndex = Math.min(currentIndex + 1, allAbstractResults.length - 1); // Ensure not exceeding array length
+        newIndex = Math.min(currentIndex + 1, allAbstractResults.length - 1);
       }
-      setSelectedAbstract(allAbstractResults[newIndex]); // Update the selected abstract
+      setSelectedAbstract(allAbstractResults[newIndex]);
     },
     [allAbstractResults, selectedAbstract]
   );
 
-  const onRefreshClickHandler = () => {
-    dispatch(
-      questionAbstractActions.setIsRefreshing({
-        isRefreshing: true,
-      })
-    );
-    dispatch(getAllResults(projectName));
+  const onRefreshClickHandler = async () => {
+    dispatch(setIsRefreshing({ isRefreshing: true }));
+    try {
+      await dispatch(getAllResults(projectName));
+    } finally {
+      dispatch(setIsRefreshing({ isRefreshing: false }));
+    }
   };
+  
 
   const getRowStyle = useCallback(
     (params) => {
       if (params.data.id === selectedAbstract.id) {
         return { backgroundColor: "rgba(186,230,253,var(--tw-bg-opacity))" };
       }
-      return null; // Make sure to return null or undefined when there's no specific style to apply.
+      return null;
     },
-    [selectedAbstract.id] // This ensures getRowStyle uses the latest selectedAbstract.id
+    [selectedAbstract.id]
   );
 
   const onBtnExport = useCallback(() => {
     gridRef.current.api.exportDataAsCsv(getParams());
   }, []);
 
-  const onStopClickedHandler = async() => {
-    dispatch(
-      questionAbstractActions.setIsStopping({
-        isStopping: true,
-      })
-    );
+  const onStopClickedHandler = async () => {
+    dispatch(setIsStopping({ isStopping: true }));
     const response = await dispatch(stopModelExecution(taskId));
-    // check if response exists and has a message and status in its data object before passing to notify
     if (response.data && response.data.message && response.data.status) {
       notify(response.data.message, response.data.status);
-    }
-    if (response.data.status === "success") {
-      dispatch(
-        questionAbstractActions.setIsStopping({
-          isStopping: false,
-        })
-      );
+      if (response.data.status === "success") {
+        dispatch(setIsStopping({ isStopping: false }));
+      }
     }
   };
+
   useEffect(() => {
     if (selectedAbstract.id != null) {
-      // Make sure selectedAbstract is set
       redrawRows();
     }
   }, [selectedAbstract, redrawRows]);
+
   return (
     <>
       {selectedAbstract.abstract && (
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg ">
           <div className="flex-auto p-4">
-            {/* <p
-              className="text-sm overflow-auto h-30v bg-blueGray-100 p-1"
-              dangerouslySetInnerHTML={{ __html: selectedAbstract.abstract }}
-            /> */}
-                  {highlightedAbstract &&(
-        <div className="mt-4 p-4 border border-gray-200 rounded">
-          <div dangerouslySetInnerHTML={{ __html: highlightedAbstract }} />
-        </div>
-      )}
-        <>
-          <CardTable title="" color="light" columns={columns} data={data} />
-        </>
-            {/* {selectedAbstract.result && (
-              <div className="flex justify-center items-center mt-2">
-                <div className="w-3/12">
-                  <Alert
-                    alertClass={`${
-                      selectedAbstract.result === "Include"
-                        ? "bg-emerald-500"
-                        : "bg-orange-500"
-                    }`}
-                    alertTitle="Result:"
-                    alertMessage={selectedAbstract.result}
-                    showCloseButton={false}
-                  />
-                </div>
+            {highlightedAbstract && (
+              <div className="mt-4 p-4 border border-gray-200 rounded">
+                <div dangerouslySetInnerHTML={{ __html: highlightedAbstract }} />
               </div>
-            )} */}
+            )}
+            <CardTable title="" color="light" columns={columns} data={data} />
             <div>
               <button
                 className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${

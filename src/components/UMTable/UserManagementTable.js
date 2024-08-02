@@ -2,7 +2,7 @@ import React from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css"; // Optional theme CSS
-import { deleteUserData, setUsersData } from "store/user-management-actions";
+import { deleteUserData, setUsersData } from "../../redux/slices/userManagementSlice";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import ModalSmall from "components/Modal/ModalSmall";
@@ -225,6 +225,7 @@ const UserManagementTable = () => {
 
   useEffect(() => {
     if (response) {
+      console.log(response);
       setShowAlert(true); // Show the alert when there's a response
       const timer = setTimeout(() => {
         setShowAlert(false); // Hide the alert after 3 seconds

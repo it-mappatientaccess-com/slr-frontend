@@ -2,7 +2,7 @@ import React from "react";
 import { useFormik } from "formik";
 import { createProjectSchema } from "../../schema/schema";
 import { api } from "util/api";
-import { fetchProjectsData } from "store/project-actions";
+import { fetchProjectsData } from "../../redux/slices/projectSlice";
 import { useDispatch } from "react-redux";
 import { notify } from "components/Notify/Notify";
 // components

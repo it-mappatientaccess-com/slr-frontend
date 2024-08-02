@@ -4,10 +4,10 @@ import { Link } from "react-router-dom";
 import { useLocation } from "react-router";
 import NotificationDropdown from "components/Dropdowns/NotificationDropdown.js";
 import UserDropdown from "components/Dropdowns/UserDropdown.js";
-import AuthContext from "store/auth-context";
+import AuthContext from "context/AuthContext";
 import { useDispatch } from "react-redux";
-import { resetQAStore } from "store/qa-actions";
-import { resetProjectStore } from "store/project-actions";
+import { resetQAStore } from "../../redux/slices/questionAbstractSlice";
+import { resetProjectStore } from "../../redux/slices/projectSlice";
 
 export default function Sidebar() {
   const ctx = useContext(AuthContext);

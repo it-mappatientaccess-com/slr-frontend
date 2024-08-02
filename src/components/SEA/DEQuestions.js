@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import DynamicCardColumns from "components/DynamicCardColumns/DynamicCardColumns";
-
 import { useDispatch, useSelector } from "react-redux";
-import { fetchOldSeaQuestions, setSeaQuestions } from "store/qa-actions";
+import {
+  fetchOldSeaQuestions,
+  setSeaQuestions,
+} from "../../redux/thunks/qa-thunks";
 
 export default function DEQuestions() {
   const dispatch = useDispatch();
@@ -11,15 +13,17 @@ export default function DEQuestions() {
     (state) => state.questionAbstractData.seaQuestions
   );
 
-  // Initialize columnOrder with keys from seaQuestions
-  const [columnOrder, setColumnOrder] = useState(Object.keys(seaQuestions));
+  // Initialize columnOrder with keys from seaQuestions, handle undefined case
+  const [columnOrder, setColumnOrder] = useState([]);
 
   useEffect(() => {
     dispatch(fetchOldSeaQuestions(projectName));
   }, [dispatch, projectName]);
 
   useEffect(() => {
-    setColumnOrder(Object.keys(seaQuestions));
+    if (seaQuestions) {
+      setColumnOrder(Object.keys(seaQuestions));
+    }
   }, [seaQuestions]);
 
   const addColumn = () => {
@@ -27,7 +31,10 @@ export default function DEQuestions() {
       const newColumn = `Question Set ${columnOrder.length + 1}`;
       setColumnOrder((prevColumnOrder) => [...prevColumnOrder, newColumn]);
       dispatch(
-        setSeaQuestions(projectName, { ...seaQuestions, [newColumn]: [""] })
+        setSeaQuestions({
+          projectName,
+          seaQuestions: { ...seaQuestions, [newColumn]: [""] },
+        })
       );
     }
   };
@@ -37,22 +44,18 @@ export default function DEQuestions() {
       const updatedColumnOrder = columnOrder.slice(0, -1);
       const updatedSeaQuestions = { ...seaQuestions };
       delete updatedSeaQuestions[columnOrder[columnOrder.length - 1]];
-      dispatch(setSeaQuestions(projectName, updatedSeaQuestions));
+      dispatch(
+        setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions })
+      );
       setColumnOrder(updatedColumnOrder);
     }
   };
 
   const updateColumnNameHandler = (oldColumnName, newColumnName) => {
-    // Create a copy of the current seaQuestions and columnOrder
     const updatedColumnOrder = [...columnOrder];
-
-    // Find the index of the column to rename
     const columnIndex = updatedColumnOrder.indexOf(oldColumnName);
-
-    // Update the column name in the columnOrder array
     updatedColumnOrder[columnIndex] = newColumnName;
 
-    // Create a new seaQuestions object with keys ordered according to updatedColumnOrder
     const updatedSeaQuestions = {};
     for (const column of updatedColumnOrder) {
       updatedSeaQuestions[column] =
@@ -61,9 +64,9 @@ export default function DEQuestions() {
           : seaQuestions[column];
     }
 
-    // Dispatch the updated questions to the backend
-    dispatch(setSeaQuestions(projectName, updatedSeaQuestions));
-    // Update the local state
+    dispatch(
+      setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions })
+    );
     setColumnOrder(updatedColumnOrder);
   };
 

@@ -8,8 +8,6 @@ import Sidebar from "components/Sidebar/Sidebar.js";
 import FooterAdmin from "components/Footers/FooterAdmin.js";
 
 // views
-
-import Settings from "views/dashboard/Settings.js";
 import Tables from "views/dashboard/Tables.js";
 import MyProjects from "views/dashboard/MyProjects";
 import AAIR from "views/dashboard/AAIR";
@@ -36,7 +34,6 @@ export default function Dashboard() {
               element={<SEA />}
             />
             <Route path="result-history" exact element={<ResultHistory />} />
-            <Route path="settings" exact element={<Settings />} />
             <Route path="tables" exact element={<Tables />} />
             <Route
               path="/dashboard/*"

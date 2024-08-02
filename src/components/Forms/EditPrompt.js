@@ -2,7 +2,7 @@ import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
 import {api} from "util/api";
-import { fetchPrompts } from "store/data-extraction-actions";
+import { fetchPrompts } from "../../redux/thunks/dataExtractionThunks";
 import { useDispatch } from "react-redux";
 import { notify } from "components/Notify/Notify";
 

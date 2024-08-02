@@ -9,13 +9,8 @@ import Dashboard from "layouts/Dashboard";
 import Auth from "layouts/Auth.js";
 
 // views without layouts
-
-// import Landing from "views/Landing.js";
-import Profile from "views/Profile.js";
-// import Home from "views/Home.js";
 import PrivateRoutes from "util/PrivateRoutes";
-// import AuthContext from "store/auth-context";
-import { AuthContextProvider } from "store/auth-context";
+import { AuthContextProvider } from "context/AuthContext";
 
 const App = () => {
   return (
@@ -28,9 +23,6 @@ const App = () => {
         </Route>
         <Route path="/auth/*" element={<Auth />} />
         {/* add routes without layouts */}
-        <Route path="/profile" exact element={<Profile />} />
-        {/* <Route path="/" exact element={<Landing />} /> */}
-        {/* <Route path="/" exact element={<Home />} /> */}
         <Route path="/" exact element={<Navigate to="/auth/login"/>} /> 
         {/* add redirect for first page */}
         <Route path="*" element={<Navigate to="/" />} />

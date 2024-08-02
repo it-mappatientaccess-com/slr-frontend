@@ -9,11 +9,15 @@ import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import FilePondPluginFileMetadata from "filepond-plugin-file-metadata";
 import AbstractResults from "./AbstractResults";
 import { useDispatch } from "react-redux";
-import { setNumberOfExamples } from "store/qa-actions";
-import { questionAbstractActions } from "slices/questionAbstractSlice";
+import { setNumberOfExamples } from "../../redux/slices/questionAbstractSlice"; // Updated import
+import {
+  setIsProcessing,
+  setTaskId,
+} from "../../redux/slices/questionAbstractSlice"; // Updated import
 import "./AbstractUpload.css";
 import "filepond/dist/filepond.min.css";
 import { notify } from "components/Notify/Notify";
+
 const AbstractUpload = () => {
   const dispatch = useDispatch();
   // Register the plugins
@@ -30,6 +34,7 @@ const AbstractUpload = () => {
     color: "",
   });
   const [invalidRows, setInvalidRows] = useState([]);
+  
   const onUpdateFiles = (fileItems) => {
     // Set current file objects to state
     setFile(fileItems.map((fileItem) => fileItem.file));
@@ -75,13 +80,9 @@ const AbstractUpload = () => {
       setInvalidRows(res.invalid_rows || []); // Set to an empty array if undefined
     } else if (res.status === "success") {
       // Dispatch actions for success
-      dispatch(questionAbstractActions.setTaskId({ taskId: res.task_id }));
+      dispatch(setTaskId({ taskId: res.task_id }));
       dispatch(setNumberOfExamples(res.num_of_examples));
-      dispatch(
-        questionAbstractActions.setIsProcessing({
-          isProcessing: res.is_processing,
-        })
-      );
+      dispatch(setIsProcessing({ isProcessing: res.is_processing }));
 
       // Set success response status
       setResponseStatus({
@@ -161,4 +162,5 @@ const AbstractUpload = () => {
     </>
   );
 };
+
 export default AbstractUpload;

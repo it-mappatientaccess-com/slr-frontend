@@ -1,8 +1,11 @@
 import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
-import {api} from "util/api";
-import { fetchPrompts, setSelectedPrompt } from "store/data-extraction-actions";
+import { api } from "util/api";
+import {
+  fetchPrompts,
+} from "../../redux/thunks/dataExtractionThunks";
+import { setSelectedPrompt } from "../../redux/slices/dataExtractionSlice";
 import { useDispatch } from "react-redux";
 import { notify } from "components/Notify/Notify";
 
@@ -26,7 +29,7 @@ export default function CreatePrompt({ onPromptSubmitSuccess }) {
               projectName: localStorage.getItem("selectedProject"),
               prompt_title: values.promptTitle.trim(),
               prompt_text: values.promptText,
-              is_default: false
+              is_default: false,
             },
             {
               headers: {
@@ -39,8 +42,10 @@ export default function CreatePrompt({ onPromptSubmitSuccess }) {
               notify(response.data.detail, "success");
               dispatch(fetchPrompts());
 
-              dispatch(setSelectedPrompt({ selectedPrompt: values.promptText }));
-              onPromptSubmitSuccess();  // Call the callback function to switch tab and highlight
+              dispatch(
+                setSelectedPrompt({ selectedPrompt: values.promptText })
+              );
+              onPromptSubmitSuccess(); // Call the callback function to switch tab and highlight
             }
             return response;
           })

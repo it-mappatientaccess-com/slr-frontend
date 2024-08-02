@@ -19,6 +19,7 @@ const AccordionItem = ({
   const [showCancelButton, setShowCancelButton] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const contentRef = useRef(null);
+
   const toggleAccordion = () => {
     setIsOpen((prevState) => !prevState);
     setShowEditPrompt(false);
@@ -27,11 +28,10 @@ const AccordionItem = ({
 
   useEffect(() => {
     if (isOpen) {
-      setContentHeight(
-        contentRef.current ? contentRef.current.scrollHeight : 0
-      );
+      setContentHeight(contentRef.current ? contentRef.current.scrollHeight : 0);
     }
   }, [isOpen, showEditPrompt]);
+
   // Use TailwindCSS for conditional styling based on active state
   const titleClasses = actionButtonState
     ? "text-lg font-semibold" // Active state: blue background, white text
@@ -40,50 +40,39 @@ const AccordionItem = ({
   const elevationClasses = actionButtonState
     ? "shadow-lg" // Elevated shadow for active item
     : ""; // Normal shadow for inactive item
+
   const handleEditSuccess = () => {
     setShowEditPrompt(false);
     setShowCancelButton(false);
   };
+
   // Recalculate height whenever showEditPrompt changes
   useEffect(() => {
     if (isOpen) {
-      setContentHeight(
-        contentRef.current ? contentRef.current.scrollHeight : 0
-      );
+      setContentHeight(contentRef.current ? contentRef.current.scrollHeight : 0);
       contentRef.current.style.maxHeight = `${contentHeight}px`;
     }
   }, [showEditPrompt, contentHeight, isOpen]);
 
   return (
-    <div
-      className={`${elevationClasses} transition hover:bg-indigo-50 ${
-        isOpen ? "bg-indigo-50" : ""
-      }`}
-    >
-      <div
-        className={`accordion-header cursor-pointer flex space-x-5 px-4 items-center h-16 ${titleClasses}`}
-        onClick={toggleAccordion}
-      >
+    <div className={`${elevationClasses} transition hover:bg-indigo-50 ${isOpen ? "bg-indigo-50" : ""}`}>
+      <div className={`accordion-header cursor-pointer flex space-x-5 px-4 items-center h-16 ${titleClasses}`} onClick={toggleAccordion}>
         <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`}></i>
         <h3>{title}</h3>
         <div className="!ml-auto">
-          {isOpen &&
-            editButtonText &&
-            onEdit &&
-            editButtonState &&
-            !showCancelButton && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowEditPrompt(true);
-                  setShowCancelButton(true);
-                }}
-                className={`bg-amber-500 text-white active:bg-amber-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
-                type="button"
-              >
-                <i className="fas fa-pencil"></i> {editButtonText}
-              </button>
-            )}
+          {isOpen && editButtonText && onEdit && editButtonState && !showCancelButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEditPrompt(true);
+                setShowCancelButton(true);
+              }}
+              className={`bg-amber-500 text-white active:bg-amber-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+              type="button"
+            >
+              <i className="fas fa-pencil"></i> {editButtonText}
+            </button>
+          )}
           {isOpen && showCancelButton && (
             <button
               onClick={(e) => {
@@ -101,9 +90,7 @@ const AccordionItem = ({
           {deleteButtonText && onDelete && deleteButtonState && (
             <button
               onClick={onDelete}
-              className={
-                "bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-              }
+              className={"bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"}
               type="button"
             >
               <i className="fas fa-trash-can"></i> {deleteButtonText}
@@ -111,7 +98,10 @@ const AccordionItem = ({
           )}
           {actionButtonText && onAction && (
             <button
-              onClick={onAction}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction();
+              }}
               className={
                 actionButtonState
                   ? `text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`
@@ -125,17 +115,9 @@ const AccordionItem = ({
           )}
         </div>
       </div>
-      <div
-        ref={contentRef}
-        className="accordion-content pt-0 px-4 overflow-hidden"
-        style={{ maxHeight: isOpen ? `${contentHeight + 32}px` : "0px" }}
-      >
+      <div ref={contentRef} className="accordion-content pt-0 px-4 overflow-hidden" style={{ maxHeight: isOpen ? `${contentHeight + 32}px` : "0px" }}>
         {showEditPrompt ? (
-          <EditPrompt
-            title={title}
-            content={content}
-            onEditSuccess={handleEditSuccess}
-          />
+          <EditPrompt title={title} content={content} onEditSuccess={handleEditSuccess} />
         ) : (
           <div>{content}</div>
         )}

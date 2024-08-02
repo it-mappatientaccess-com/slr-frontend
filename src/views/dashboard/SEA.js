@@ -4,11 +4,13 @@ import MultiFileUpload from "components/SEA/MultiFileUpload";
 // import SingleFileUpload from "components/SEA/SingleFileUpload";
 import { useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
-import { setProgress } from "store/data-extraction-actions";
+import { setProgress } from "../../redux/slices/loadingSlice";
 import DEQuestions from "components/SEA/DEQuestions";
 import VerticalStepper from "components/VerticalStepper/VerticalStepper";
 import PromptSelection from "components/SEA/PromptSelection";
 import ExtractionFileList from "components/SEA/ExtractionResult/ExtractionFileList";
+
+
 const SEA = () => {
   // const [openTab, setOpenTab] = React.useState(1);
   let progress = useSelector((state) => state.dataExtraction.progress);

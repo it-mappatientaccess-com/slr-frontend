@@ -1,28 +1,34 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Accordion from "components/Accordion/Accordion";
 import CreatePrompt from "components/Forms/CreatePrompt";
 import {
   fetchPrompts,
-  setSelectedPrompt,
   deletePrompt,
-} from "store/data-extraction-actions";
+} from "../../redux/thunks/dataExtractionThunks";
+import { setSelectedPrompt } from "../../redux/slices/dataExtractionSlice";
 import { useDispatch, useSelector } from "react-redux";
 
 const PromptSelection = () => {
   const dispatch = useDispatch();
-  const [openTab, setOpenTab] = React.useState(1);
+  const [openTab, setOpenTab] = useState(1);
 
   const prompts = useSelector((state) => state.dataExtraction.prompts);
   const selectedPrompt = useSelector(
     (state) => state.dataExtraction.selectedPrompt
   );
+  const status = useSelector((state) => state.dataExtraction.status);
 
   useEffect(() => {
     dispatch(fetchPrompts());
   }, [dispatch]);
 
+  useEffect(() => {
+    if (status === "succeeded" && !selectedPrompt && prompts.length > 0) {
+      dispatch(setSelectedPrompt({ selectedPrompt: prompts[0].prompt_text }));
+    }
+  }, [status, selectedPrompt, prompts, dispatch]);
+
   const handleSelectPrompt = (prompt) => {
-    console.log(prompt);
     dispatch(setSelectedPrompt({ selectedPrompt: prompt["prompt_text"] }));
   };
 
@@ -31,12 +37,13 @@ const PromptSelection = () => {
   };
 
   const handleEditPrompt = (prompt) => {
-    console.log("edit active");
-    console.log(prompt);
+    // Handle edit prompt logic here
   };
+
   const handleDeletePrompt = (prompt) => {
-    dispatch(deletePrompt(prompt["prompt_title"]));
+    dispatch(deletePrompt({ projectName: localStorage.getItem("selectedProject"), promptTitle: prompt["prompt_title"] }));
   };
+
   const accordionItems = prompts.map((prompt) => {
     const isActive = prompt["prompt_text"] === selectedPrompt;
     return {

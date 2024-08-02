@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
 import refreshToken from "util/refreshToken";
-
 let refreshTimer;
 
 const AuthContext = React.createContext({

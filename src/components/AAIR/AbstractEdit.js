@@ -3,10 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setAbstractText,
   setsubmitQABtn,
-  getSingleQAResult,
   setSubmitClicked,
   setIsQuestionsEmpty,
-} from "store/qa-actions";
+  resetQAStore,
+} from "../../redux/slices/questionAbstractSlice";
+import { getSingleQAResult } from '../../redux/thunks/qa-thunks';
 import Alert from "components/Alerts/Alert";
 import CardTable from "components/Cards/CardTable";
 
@@ -15,6 +16,7 @@ function getWordCount(str) {
     return num !== "";
   }).length;
 }
+
 const categoryStyles = {
   studyDesign: "bg-indigo-200 text-indigo-600",
   population: "bg-purple-200 text-purple-600",
@@ -23,11 +25,13 @@ const categoryStyles = {
   exclusionCriteria: "bg-red-200 text-red-600",
   // Define additional categories and their styles here
 };
+
 const AbstractEdit = () => {
   const dispatch = useDispatch();
   const [charCount, setCharCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+
   const abstractText = useSelector(
     (state) => state.questionAbstractData.abstract
   );
@@ -40,13 +44,15 @@ const AbstractEdit = () => {
   const submitBtnState = useSelector(
     (state) => state.questionAbstractData.submitQABtn
   );
-  const [highlightedAbstract, setHighlightedAbstract] = useState("");
   const singleAbstractResult = useSelector(
     (state) => state.questionAbstractData.singleAbstractResult
   );
   const questions = useSelector(
     (state) => state.questionAbstractData.questions
   );
+
+  const [highlightedAbstract, setHighlightedAbstract] = useState("");
+
   useEffect(() => {
     if (abstractText && singleAbstractResult?.highlighted_keywords) {
       setHighlightedAbstract(
@@ -70,10 +76,11 @@ const AbstractEdit = () => {
     });
     return modifiedText;
   }
+
   const onBlurHandler = (event) => {
     setIsFocused(true);
     // save abstract text
-    dispatch(setAbstractText(event.target.value));
+    dispatch(setAbstractText({ abstract: event.target.value }));
   };
 
   useEffect(() => {
@@ -85,10 +92,10 @@ const AbstractEdit = () => {
       wordCount < 500
     ) {
       // enable submit btn
-      dispatch(setsubmitQABtn(true));
+      dispatch(setsubmitQABtn({ submitQABtn: true }));
     } else {
       // else disable submit btn
-      dispatch(setsubmitQABtn(false));
+      dispatch(setsubmitQABtn({ submitQABtn: false }));
     }
   }, [dispatch, charCount, wordCount]);
 
@@ -96,27 +103,26 @@ const AbstractEdit = () => {
     const inputStr = event.target.value;
     setWordCount(getWordCount(inputStr));
     setCharCount(inputStr.length);
-    dispatch(setAbstractText(event.target.value));
+    dispatch(setAbstractText({ abstract: inputStr }));
   };
 
   const onSubmitHandler = () => {
     if (Object.values(questions).every((v) => v.length === 0)) {
-      dispatch(setIsQuestionsEmpty(true));
+      dispatch(setIsQuestionsEmpty({ isQuestionsEmpty: true }));
     } else {
-      dispatch(setIsQuestionsEmpty(false));
-      dispatch(setSubmitClicked(true));
-      dispatch(getSingleQAResult(questions, abstractText));
+      dispatch(setIsQuestionsEmpty({ isQuestionsEmpty: false }));
+      dispatch(setSubmitClicked({ submitClicked: true }));
+      dispatch(getSingleQAResult({ questions, abstract: abstractText }));
     }
   };
 
   const onResetHandler = () => {
-    dispatch(setSubmitClicked(false));
-    dispatch(setsubmitQABtn(false));
-    dispatch(setAbstractText(""));
+    dispatch(resetQAStore());
     setWordCount(0);
     setCharCount(0);
     setIsFocused(false);
   };
+
   const columns = [
     {
       label: "Category",
@@ -152,19 +158,10 @@ const AbstractEdit = () => {
       reasoning: singleAbstractResult["reasoning"],
     },
   ];
+
   return (
     <div className="mb-3 pt-0">
-      {/* {isResultGenerated && (
-        <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
-          <div className="flex-auto p-4">
-            <p
-              className="text-sm"
-              dangerouslySetInnerHTML={{ __html: abstractText }}
-            ></p>
-          </div>
-        </div>
-      )} */}
-      {highlightedAbstract && isResultGenerated &&(
+      {highlightedAbstract && isResultGenerated && (
         <div className="mt-4 p-4 border border-gray-200 rounded">
           <div dangerouslySetInnerHTML={{ __html: highlightedAbstract }} />
         </div>
@@ -259,4 +256,5 @@ const AbstractEdit = () => {
     </div>
   );
 };
+
 export default AbstractEdit;

@@ -2,8 +2,8 @@ import UserManagementTable from "components/UMTable/UserManagementTable";
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import LoadingBar from "react-top-loading-bar";
-import { fetchUsersData } from "store/user-management-actions";
-import { setProgress } from "store/qa-actions";
+import { fetchUsersData } from "../../redux/slices/userManagementSlice";
+import { setProgress } from "../../redux/slices/loadingSlice";
 import Register from "views/auth/Register";
 
 export default function UserManagement() {

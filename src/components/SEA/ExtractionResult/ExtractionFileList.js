@@ -4,43 +4,43 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  fetchProcessedFileNames,
-  fetchExtractionFileResults,
   deletePdfData,
   fetchAllExtractionResults,
   deleteAllSEAResults,
-} from "store/data-extraction-actions";
+  fetchExtractionFileResults,
+  fetchProcessedFileNames,
+} from "../../../redux/thunks/dataExtractionThunks";
 import ExtractionResult from "./ExtractionResult";
 import { Tooltip } from "react-tooltip";
 import ModalSmall from "components/Modal/ModalSmall";
+
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
   const onViewResultsClickHandler = async () => {
     await props.dispatch(
-      fetchExtractionFileResults(
-        props.data["file_id"],
-        localStorage.getItem("selectedProject")
-      )
+      fetchExtractionFileResults({
+        file_id: props.data["file_id"],
+        projectName: localStorage.getItem("selectedProject"),
+      })
     );
 
-    // Calculate the position of the gridWrapper relative to the viewport
     const topPosition =
       props.gridWrapperRef.current.getBoundingClientRect().top + window.scrollY;
 
-    // Scroll to the calculated position with smooth behavior
     window.scrollTo({
       top: topPosition,
       behavior: "smooth",
     });
   };
+
   const onDeleteHandler = async () => {
     setDeleteClicked(true);
     try {
       await props.dispatch(deletePdfData(props.data["file_id"]));
       setDeleteClicked(false);
-      // Stop the loader here since the deletion is successful
+      props.dispatch(fetchProcessedFileNames());
     } catch (error) {
-      // Handle the error here if needed, and maybe stop the loader as well
+      // Handle error
     }
   };
 
@@ -78,8 +78,8 @@ const ExtractionFileList = () => {
   const selectedFile = useSelector(
     (state) => state.dataExtraction.selectedFile
   );
-  const selectedFileQuestions = useSelector(
-    (state) => JSON.parse(state.dataExtraction.selectedFileQuestions)
+  const selectedFileQuestions = useSelector((state) =>
+    state.dataExtraction.selectedFileQuestions
   );
   const gridWrapperRef = useRef(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -116,7 +116,7 @@ const ExtractionFileList = () => {
     () => ({
       sortable: true,
       resizable: true,
-      enableCellChangeFlash:true
+      enableCellChangeFlash: true,
     }),
     []
   );
@@ -125,6 +125,7 @@ const ExtractionFileList = () => {
     const projectName = localStorage.getItem("selectedProject");
     await dispatch(fetchAllExtractionResults(projectName));
   };
+
   useEffect(() => {
     dispatch(fetchProcessedFileNames());
   }, [dispatch]);
@@ -133,14 +134,13 @@ const ExtractionFileList = () => {
     setRowData(processedFiles);
   }, [processedFiles]);
 
-  // Function to clear all files
   const handleClearAllResults = async () => {
     const projectName = localStorage.getItem("selectedProject");
     const response = await dispatch(deleteAllSEAResults(projectName));
-    // Close the modal after deletion
     setShowDeleteModal(false);
+    dispatch(fetchProcessedFileNames());
     if (response.status === 200) {
-      setRowData([]); // This will clear all files from the state
+      setRowData([]);
     }
   };
 
@@ -196,7 +196,11 @@ const ExtractionFileList = () => {
       )}
 
       {selectedFile && (
-        <ExtractionResult result={selectedFileResult} fileName={selectedFile} selectedFileQuestions={selectedFileQuestions}/>
+        <ExtractionResult
+          result={selectedFileResult}
+          fileName={selectedFile}
+          selectedFileQuestions={selectedFileQuestions}
+        />
       )}
       {showDeleteModal && (
         <ModalSmall
@@ -213,4 +217,5 @@ const ExtractionFileList = () => {
     </>
   );
 };
+
 export default ExtractionFileList;

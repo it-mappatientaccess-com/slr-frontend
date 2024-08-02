@@ -1,28 +1,40 @@
 import React, { useEffect, useState, useRef } from "react";
-// Import React FilePond
+import { useDispatch, useSelector } from "react-redux";
 import { FilePond, registerPlugin } from "react-filepond";
-// Import FilePond styles
+import "filepond/dist/filepond.min.css";
 import FilePondPluginFileValidateType from "filepond-plugin-file-validate-type";
 import FilePondPluginFileValidateSize from "filepond-plugin-file-validate-size";
 import FilePondPluginFileMetadata from "filepond-plugin-file-metadata";
-import "filepond/dist/filepond.min.css";
-import { useDispatch, useSelector } from "react-redux";
-import { dataExtractionActions } from "slices/dataExtractionSlice";
+import {
+  setIncludeAboutFile,
+  setExtractionTaskId,
+  setIsRefreshing,
+  setIsStopping,
+} from "../../redux/slices/dataExtractionSlice";
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import {
   generateExtractionResults,
   fetchProcessedFileNames,
   stopExtraction,
-} from "store/data-extraction-actions";
+} from "../../redux/thunks/dataExtractionThunks";
 import generateUniqueBatchID from "util/generateUUID";
 import { Tooltip } from "react-tooltip";
 import { notify } from "components/Notify/Notify";
+
+registerPlugin(
+  FilePondPluginFileValidateType,
+  FilePondPluginFileValidateSize,
+  FilePondPluginFileMetadata
+);
 
 const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const [files, setFiles] = useState([]);
   const [progress, setProgress] = useState(0);
   const [processedFilesCount, setProcessedFilesCount] = useState(0);
+  const [isUploadSuccessful, setIsUploadSuccessful] = useState(false);
+  const [showProgressBar, setShowProgressBar] = useState(false);
+  const [currentBatchID, setCurrentBatchID] = useState(null);
 
   const isRefreshing = useSelector(
     (state) => state.dataExtraction.isRefreshing
@@ -34,38 +46,30 @@ const MultiFileUpload = () => {
   const selectedPrompt = useSelector(
     (state) => state.dataExtraction.selectedPrompt
   );
-  const [currentBatchID, setCurrentBatchID] = useState(null);
-  const [isUploadSuccessful, setIsUploadSuccessful] = useState(false);
-  const fetchIntervalRef = useRef(null);
-  const [showProgressBar, setShowProgressBar] = useState(false);
-  // New state for managing "Include AboutFile" checkbox
   const includeAboutFile = useSelector(
     (state) => state.dataExtraction.includeAboutFile
   );
   const extractionTaskId = useSelector(
     (state) => state.dataExtraction.extractionTaskId
   );
-  // Function to toggle the checkbox state
+  const seaQuestions = useSelector(
+    (state) => state.questionAbstractData.seaQuestions
+  );
+
+  const fetchIntervalRef = useRef(null);
+
   const toggleIncludeAboutFile = () => {
     dispatch(
-      dataExtractionActions.setIncludeAboutFile({
+      setIncludeAboutFile({
         includeAboutFile: !includeAboutFile,
       })
     );
   };
-  const seaQuestions = useSelector(
-    (state) => state.questionAbstractData.seaQuestions
-  );
-  registerPlugin(
-    FilePondPluginFileValidateType,
-    FilePondPluginFileValidateSize,
-    FilePondPluginFileMetadata
-  );
+
   const exponentialBackoff = (min, max, attempt) => {
     return Math.min(max, Math.pow(2, attempt) * min);
   };
 
-  // Effect for handling file processing after upload
   useEffect(() => {
     let attempt = 1;
     const maxDelay = 120000; // 120 seconds
@@ -77,8 +81,7 @@ const MultiFileUpload = () => {
       const interval = setInterval(async () => {
         if (processedFilesCount < files.length) {
           const response = await dispatch(fetchProcessedFileNames());
-          // Handle response and update states
-          const currentProcessedFiles = response.filter(
+          const currentProcessedFiles = response.payload.filter(
             (fileInfo) => fileInfo.batch_id === currentBatchID
           );
           setProcessedFilesCount(currentProcessedFiles.length);
@@ -111,43 +114,39 @@ const MultiFileUpload = () => {
     currentBatchID,
   ]);
 
-  // Function to handle file upload process
   const onProcessFile = async () => {
+    console.log("Files to be uploaded in onProcessFile:", files); // Debug log
     const newBatchID = generateUniqueBatchID();
     setCurrentBatchID(newBatchID);
     setProcessedFilesCount(0);
     try {
       const response = await dispatch(
-        generateExtractionResults(
+        generateExtractionResults({
           files,
-          seaQuestions,
+          questions: seaQuestions,
           newBatchID,
           selectedPrompt,
-          includeAboutFile
-        )
+          includeAboutFile,
+        })
       );
-      // Check response status and update state
-      if (response.status) {
+      if (response.meta.requestStatus === "fulfilled") {
         setIsUploadSuccessful(true);
-        // set extractionTaskId to response.data.task_id
         dispatch(
-          dataExtractionActions.setExtractionTaskId({
-            extractionTaskId: response.task_id,
+          setExtractionTaskId({
+            extractionTaskId: response.payload.task_id,
           })
         );
       } else {
-        // show toast
         notify("File upload failed.", "error");
       }
     } catch (error) {
-      // show toast
       notify("An error occurred during file upload.", "error");
     }
   };
 
   const onRefreshClickHandler = () => {
     dispatch(
-      dataExtractionActions.setIsRefreshing({
+      setIsRefreshing({
         isRefreshing: true,
       })
     );
@@ -156,25 +155,24 @@ const MultiFileUpload = () => {
 
   useEffect(() => {
     if (isSubmitted) {
-      // show toast
       notify(message, status ? "success" : "error");
     }
   }, [isSubmitted, status, message]);
-  // Function to clear all files
+
   const clearFiles = () => {
-    setFiles([]); // This will clear all files from the state
+    setFiles([]);
   };
 
   const onStopClickedHandler = async () => {
     dispatch(
-      dataExtractionActions.setIsStopping({
+      setIsStopping({
         isStopping: true,
       })
     );
     const response = await dispatch(stopExtraction(extractionTaskId));
-    // show toast
     notify(response.data["message"], response.data["status"]);
   };
+
   return (
     <div className="flex flex-wrap mt-4">
       <div className="w-full mb-12 px-4">
@@ -212,12 +210,9 @@ const MultiFileUpload = () => {
             maxParallelUploads={10}
           />
           <p className="mt-2"></p>
-          {/* Flex container for all buttons */}
           <div className="flex flex-col lg:flex-row justify-between items-center mt-4 lg:items-end">
-            {/* Center-aligned buttons container */}
             <div className="flex flex-col lg:flex-row justify-center flex-grow lg:mb-0 mb-4">
               <Tooltip id="action-btn-tooltip" />
-
               <button
                 className={`bg-lightBlue-500 text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
                   files.length === 0 ? "opacity-40" : ""
@@ -305,4 +300,5 @@ const MultiFileUpload = () => {
     </div>
   );
 };
+
 export default MultiFileUpload;
