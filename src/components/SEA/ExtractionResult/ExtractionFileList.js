@@ -84,33 +84,36 @@ const ExtractionFileList = () => {
   const gridWrapperRef = useRef(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const columnDefs = [
-    {
-      headerName: "ID",
-      valueGetter: "node.rowIndex + 1",
-      width: 80,
-    },
-    {
-      field: "file_name",
-      headerName: "File Name",
-      suppressSizeToFit: true,
-      flex: 3,
-      filter: true,
-      editable: false,
-    },
-    {
-      headerName: "Action",
-      cellRenderer: btnCellRenderer,
-      cellRendererParams: {
-        dispatch,
-        useState,
-        gridWrapperRef,
+  const columnDefs = useMemo(
+    () => [
+      {
+        headerName: "ID",
+        valueGetter: "node.rowIndex + 1",
+        width: 80,
       },
-      editable: false,
-      colId: "view",
-      flex: 1,
-    },
-  ];
+      {
+        field: "file_name",
+        headerName: "File Name",
+        suppressSizeToFit: true,
+        flex: 3,
+        filter: true,
+        editable: false,
+      },
+      {
+        headerName: "Action",
+        cellRenderer: btnCellRenderer,
+        cellRendererParams: {
+          dispatch,
+          useState,
+          gridWrapperRef,
+        },
+        editable: false,
+        colId: "view",
+        flex: 1,
+      },
+    ],
+    [dispatch]
+  );
 
   const defaultColDef = useMemo(
     () => ({
@@ -122,8 +125,10 @@ const ExtractionFileList = () => {
   );
 
   const fetchAllResults = async () => {
-    const projectName = localStorage.getItem("selectedProject");
-    await dispatch(fetchAllExtractionResults(projectName));
+    const response = await dispatch(fetchAllExtractionResults());
+    if (response.meta.requestStatus === "fulfilled") {
+      // Do not modify the state here as it's handled by the thunk
+    }
   };
 
   useEffect(() => {

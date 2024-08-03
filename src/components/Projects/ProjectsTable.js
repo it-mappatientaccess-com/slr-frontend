@@ -224,14 +224,20 @@ const ProjectsTable = () => {
   const onCellEditRequest = useCallback(
     (event) => {
       const data = event.data;
-      const rowIndex = event.rowIndex;
       const field = event.colDef.field;
       let newItem = { ...data };
       newItem[field] = event.newValue;
-      dispatch(setProjectsData(data.projectName, newItem.projectDescription));
-
+  
+      // Dispatch the action with the projectName and newDescription
+      dispatch(
+        setProjectsData({
+          projectName: newItem.projectName,
+          newDescription: newItem.projectDescription,
+        })
+      );
+  
+      // Update rowImmutableStore if necessary
       if (event.rowPinned === "top") {
-        newItem.id = rowIndex;
         newItem.status = "Active";
         rowImmutableStore = [newItem, ...rowImmutableStore];
         // update ids in rowImmutableStore
@@ -241,12 +247,10 @@ const ProjectsTable = () => {
           return objCopy;
         });
       } else {
-        // here we need to update the value projectStatusData in the store
-        if (rowIndex != null && field != null) {
-          rowImmutableStore = rowImmutableStore.map((oldItem, index) =>
-            index === rowIndex ? newItem : oldItem
-          );
-        }
+        // Update the value in rowImmutableStore
+        rowImmutableStore = rowImmutableStore.map((oldItem) =>
+          oldItem.projectName === newItem.projectName ? newItem : oldItem
+        );
       }
     },
     [dispatch]

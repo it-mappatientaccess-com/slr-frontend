@@ -7,6 +7,7 @@ import {
   deletePdfData,
   fetchAllExtractionResults,
   deleteAllSEAResults,
+  deletePrompt
 } from "../thunks/dataExtractionThunks";
 
 const initialState = {
@@ -64,6 +65,13 @@ const dataExtractionSlice = createSlice({
     setStatus(state, action) {
       state.status = action.payload.status;
     },
+    handlePromptDeletion(state, action) {
+      const { promptTitle } = action.payload;
+      state.prompts = state.prompts.filter(prompt => prompt.prompt_title !== promptTitle);
+      if (state.selectedPrompt === promptTitle) {
+        state.selectedPrompt = state.prompts.length > 0 ? state.prompts[0].prompt_text : null;
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -96,11 +104,7 @@ const dataExtractionSlice = createSlice({
         state.status = "succeeded";
         state.extractionResult = action.payload.results;
         state.selectedFile = action.payload.file_name;
-        try {
-          state.selectedFileQuestions = JSON.parse(action.payload.questions);
-        } catch (error) {
-          state.selectedFileQuestions = null;
-        }
+        state.selectedFileQuestions = action.payload.questions;
       })
       .addCase(fetchExtractionFileResults.rejected, (state, action) => {
         state.status = "failed";
@@ -112,10 +116,16 @@ const dataExtractionSlice = createSlice({
       .addCase(fetchPrompts.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.prompts = action.payload;
+        if (!state.selectedPrompt && state.prompts.length > 0) {
+          state.selectedPrompt = state.prompts[0].prompt_text;
+        }
       })
       .addCase(fetchPrompts.rejected, (state, action) => {
         state.status = "failed";
         state.message = action.payload;
+      })
+      .addCase(deletePrompt.fulfilled, (state, action) => {
+        dataExtractionSlice.caseReducers.handlePromptDeletion(state, action);
       })
       .addCase(deletePdfData.pending, (state) => {
         state.status = 'loading';
@@ -164,6 +174,7 @@ export const {
   setIsSubmitted,
   setMessage,
   setStatus,
+  handlePromptDeletion
 } = dataExtractionSlice.actions;
 
 export default dataExtractionSlice.reducer;

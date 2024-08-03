@@ -54,28 +54,29 @@ const DynamicInput = ({ category: rawCategory }) => {
       { question: "", error: "" },
     ]);
   }, []);
+  const saveQuestionsHandler = useCallback(
+    (updatedList = questionList) => {
+      const updatedQuestions = {
+        ...existingQuestions,
+        [category]: updatedList.map((item) => item.question),
+      };
 
+      dispatch(
+        setQuestions({ projectName, category, questions: updatedQuestions })
+      );
+    },
+    [existingQuestions, category, dispatch, projectName, questionList]
+  );
   const questionRemoveHandler = useCallback(
-    (index, item) => {
+    (index) => {
       setQuestionList((prevList) => {
         const newList = [...prevList];
         newList.splice(index, 1);
+        saveQuestionsHandler(newList); // Call saveQuestionsHandler with updated list
         return newList;
       });
-
-      const updatedExistingQuestions = { ...existingQuestions };
-      if (
-        updatedExistingQuestions[category] &&
-        updatedExistingQuestions[category].includes(item)
-      ) {
-        updatedExistingQuestions[category] = updatedExistingQuestions[
-          category
-        ].filter((question) => question !== item);
-      }
-
-      dispatch(setQuestions({ projectName, category, questions: updatedExistingQuestions }));
     },
-    [existingQuestions, category, dispatch, projectName]
+    [saveQuestionsHandler]
   );
 
   const questionChangeHandler = useCallback(
@@ -92,7 +93,7 @@ const DynamicInput = ({ category: rawCategory }) => {
     [updateRows]
   );
 
-  const saveQuestionsHandler = useCallback(
+  const saveQuestionOnBlurHandler = useCallback(
     (event, index) => {
       let currentQuestion = event.target.value;
       const wordCount = currentQuestion.split(/\s+/).length;
@@ -129,23 +130,25 @@ const DynamicInput = ({ category: rawCategory }) => {
         return;
       }
 
-      const updatedExistingQuestions = { ...existingQuestions };
-      if (!updatedExistingQuestions[category]) {
-        updatedExistingQuestions[category] = [];
-      }
+      const updatedQuestions = {
+        ...existingQuestions,
+        [category]: questionList.map((item) => item.question),
+      };
 
-      const categoryQuestionsCopy = [...updatedExistingQuestions[category]];
-      categoryQuestionsCopy[index] = currentQuestion;
-      updatedExistingQuestions[category] = categoryQuestionsCopy;
-
-      dispatch(setQuestions({ projectName, category, questions: updatedExistingQuestions }));
+      dispatch(
+        setQuestions({ projectName, category, questions: updatedQuestions })
+      );
     },
-    [existingQuestions, category, dispatch, projectName]
+    [existingQuestions, category, dispatch, projectName, questionList]
   );
 
   return (
     <div className={styles["pt-0 mt-2 flex-col max-h-60 overflow-y-auto"]}>
-      {category !== "exclusionCriteria" ? <span>Question(s)</span> :  <span>Exclusion Keyword(s)</span>}
+      {category !== "exclusionCriteria" ? (
+        <span>Question(s)</span>
+      ) : (
+        <span>Exclusion Keyword(s)</span>
+      )}
       {questionList.map((singleQuestion, idx) => (
         <React.Fragment key={idx}>
           <div className={styles.questions}>
@@ -155,49 +158,51 @@ const DynamicInput = ({ category: rawCategory }) => {
                 rows="1"
                 type="text"
                 name="question"
-                placeholder={category !== "exclusionCriteria" ? "Please enter a question": "Please enter an exclusion keywords"}
+                placeholder={
+                  category !== "exclusionCriteria"
+                    ? "Please enter a question"
+                    : "Please enter an exclusion keywords"
+                }
                 className="pl-2 pr-8 py-1 placeholder-blueGray-300 text-blueGray-600 relativebg-white rounded text-sm border border-blueGray-300 outline-none focus:outline-none focus:shadow-outline w-full resize-none"
                 required
                 value={singleQuestion.question}
                 onChange={(e) => questionChangeHandler(e, idx)}
                 onInput={updateRows}
-                onBlur={(e) => saveQuestionsHandler(e, idx)}
+                onBlur={(e) => saveQuestionOnBlurHandler(e, idx)}
               />
-            {singleQuestion.error && (
-              <p className="text-xs text-red-500 float-right bg-red-100 p-1">
-                <i className="fas fa-triangle-exclamation"></i>
-                {singleQuestion.error}
-              </p>
-            )}
-            {questionList.length > 1 && (
-              <span
-                className={
-                  "leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
-                }
-                onClick={() =>
-                  questionRemoveHandler(idx, singleQuestion.question)
-                }
-              >
-                <i className="fas fa-xmark "></i>
-              </span>
-            )}
-            {questionList.length - 1 === idx && questionList.length < 20 && (
-              <button
-                className="text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 mt-3"
-                type="button"
-                onClick={questionAddHandler}
-              >
-                <i className="fas fa-plus"></i> Add
-              </button>
-            )}
+              {singleQuestion.error && (
+                <p className="text-xs text-red-500 float-right bg-red-100 p-1">
+                  <i className="fas fa-triangle-exclamation"></i>
+                  {singleQuestion.error}
+                </p>
+              )}
+              {questionList.length > 1 && (
+                <span
+                  className={
+                    "leading-snug font-normal cursor-pointer text-center text-white bg-blueGray-500 hover:bg-red-500 absolute rounded text-base items-center justify-center w-8 right-0 py-1"
+                  }
+                  onClick={() => questionRemoveHandler(idx)}
+                >
+                  <i className="fas fa-xmark "></i>
+                </span>
+              )}
+              {questionList.length - 1 === idx && questionList.length < 20 && (
+                <button
+                  className="text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 mt-3"
+                  type="button"
+                  onClick={questionAddHandler}
+                >
+                  <i className="fas fa-plus"></i> Add
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-        {idx < questionList.length - 1 && (
-          <div className={styles["or-connector"]}>
-            <span className={styles["or-text"]}>O R</span>
-          </div>
-        )}
-      </React.Fragment>
+          {idx < questionList.length - 1 && (
+            <div className={styles["or-connector"]}>
+              <span className={styles["or-text"]}>O R</span>
+            </div>
+          )}
+        </React.Fragment>
       ))}
     </div>
   );

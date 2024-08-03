@@ -25,6 +25,7 @@ const CustomCellRenderer = (props) => {
 
   return <div>{content}</div>;
 };
+
 const ExtractionResult = (props) => {
   const [rowData, setRowData] = useState([]);
   const [columnDefs, setColumnDefs] = useState([]);
@@ -45,19 +46,30 @@ const ExtractionResult = (props) => {
   const [showQuestions, setShowQuestions] = useState(true); // By default, questions are shown
 
   useEffect(() => {
+    if (!Array.isArray(props.result) || !props.result.length) {
+      return;
+    }
+
+    let parsedQuestions = {};
+    try {
+      parsedQuestions = JSON.parse(props.selectedFileQuestions);
+    } catch (error) {
+      console.error("Failed to parse selectedFileQuestions", error);
+      return;
+    }
+
     let columnDataMap = {};
-  
     // Initialize column data map for all keys found in selectedFileQuestions
-    Object.keys(props.selectedFileQuestions).forEach((key) => {
+    Object.keys(parsedQuestions).forEach((key) => {
       columnDataMap[key] = [];
     });
-  
+
     // Populate each column with the data
     props.result.forEach((resultItem) => {
       Object.keys(resultItem).forEach((key) => {
-        if (props.selectedFileQuestions.hasOwnProperty(key)) {
+        if (parsedQuestions.hasOwnProperty(key)) {
           const answers = resultItem[key];
-          const questions = props.selectedFileQuestions[key];
+          const questions = parsedQuestions[key];
           if (answers && questions) {
             answers.forEach((answer, index) => {
               const question = questions[index] || "Question not available";
@@ -68,16 +80,18 @@ const ExtractionResult = (props) => {
         }
       });
     });
-  
+
     // Filter rowData to handle show/hide questions correctly
     let rowData = [];
-    const maxLength = Math.max(...Object.values(columnDataMap).map(col => col.length));
+    const maxLength = Math.max(
+      ...Object.values(columnDataMap).map((col) => col.length)
+    );
     for (let i = 0; i < maxLength; i++) {
       let row = {};
-      Object.keys(columnDataMap).forEach(key => {
+      Object.keys(columnDataMap).forEach((key) => {
         let cellContent = columnDataMap[key][i] || "";
         if (typeof cellContent === "string") {
-          if (showQuestions || (!showQuestions && !cellContent.startsWith('Q'))) {
+          if (showQuestions || (!showQuestions && !cellContent.startsWith("Q"))) {
             row[key] = cellContent;
           }
         } else {
@@ -87,28 +101,29 @@ const ExtractionResult = (props) => {
           }
         }
       });
-      if (Object.keys(row).length > 0) { // Ensure row is not empty
+      if (Object.keys(row).length > 0) {
+        // Ensure row is not empty
         rowData.push(row);
       }
     }
-  
+
     // Define column definitions, dynamically including 'aboutFile' if it exists
-    const columnsOrder = columnDataMap.hasOwnProperty('aboutFile') ? 
-      ['aboutFile', ...Object.keys(columnDataMap).filter(key => key !== 'aboutFile')] :
-      [...Object.keys(columnDataMap)];
-    const columns = columnsOrder.map(key => ({
-      field: key,
-      headerName: key,
-      cellStyle: { whiteSpace: "normal" },
-      autoHeight: true,
-      cellRenderer: "customCellRenderer",
-      flex: 1
-    })).filter(colDef => showQuestions || (!showQuestions && !colDef.field.toLowerCase().includes('question')));
-  
+    const columnsOrder = columnDataMap.hasOwnProperty("aboutFile")
+      ? ["aboutFile", ...Object.keys(columnDataMap).filter((key) => key !== "aboutFile")]
+      : [...Object.keys(columnDataMap)];
+    const columns = columnsOrder
+      .map((key) => ({
+        field: key,
+        headerName: key,
+        cellStyle: { whiteSpace: "normal" },
+        autoHeight: true,
+        cellRenderer: "customCellRenderer",
+        flex: 1,
+      }));
+
     setRowData(rowData);
     setColumnDefs(columns);
   }, [props.result, props.selectedFileQuestions, showQuestions]);
-  
 
   const gridOptions = {
     getRowStyle: function (params) {
@@ -156,9 +171,11 @@ const ExtractionResult = (props) => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
     XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
   };
+
   const toggleShowQuestions = () => {
     setShowQuestions(!showQuestions);
   };
+
   return (
     <div>
       <Tooltip id="export-btn-tooltip" />
@@ -229,4 +246,5 @@ const ExtractionResult = (props) => {
     </div>
   );
 };
+
 export default ExtractionResult;

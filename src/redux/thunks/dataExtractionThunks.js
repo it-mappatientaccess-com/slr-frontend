@@ -151,16 +151,22 @@ export const deletePdfData = createAsyncThunk(
 const downloadXLSX = (data, exportFileName) => {
   const workbook = XLSX.utils.book_new();
   const csvData = [];
+  const columnsSet = new Set(["file_name"]);
 
   data.forEach((item) => {
     const row = {
       file_name: item.file_name,
-      aboutFile:
-        item.results
-          .find((result) => "aboutFile" in result)
-          ?.aboutFile.join("\n")
-          .replace(/\n/g, " ") || "",
     };
+
+    const aboutFileContent = item.results
+      .find((result) => "aboutFile" in result)
+      ?.aboutFile.join("\n")
+      .replace(/\n/g, " ");
+
+    if (aboutFileContent) {
+      row.aboutFile = aboutFileContent;
+      columnsSet.add("aboutFile");
+    }
 
     item.results.forEach((result) => {
       const key = Object.keys(result)[0];
@@ -184,29 +190,20 @@ const downloadXLSX = (data, exportFileName) => {
         .join("\n");
 
       row[key] = values.replace(/\n/g, " ");
+      columnsSet.add(key);
     });
 
     csvData.push(row);
   });
 
-  // Start columns with file_name and aboutFile
-  const columns = ["file_name", "aboutFile"];
-
-  // Then add all unique keys from the data (except file_name and aboutFile)
-  data.forEach((item) => {
-    item.results.forEach((result) => {
-      const key = Object.keys(result)[0];
-      if (!columns.includes(key)) {
-        columns.push(key);
-      }
-    });
-  });
+  const columns = Array.from(columnsSet);
 
   const worksheet = XLSX.utils.json_to_sheet(csvData, { header: columns });
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
 
   XLSX.writeFile(workbook, `${exportFileName}.xlsx`);
 };
+
 // Async thunk for fetching all extraction results
 export const fetchAllExtractionResults = createAsyncThunk(
   'dataExtraction/fetchAllExtractionResults',
@@ -293,6 +290,30 @@ export const deletePrompt = createAsyncThunk(
     } catch (error) {
       dispatch(setProgress(100));
       const errorMsg = error.response?.data?.detail || "Failed to delete prompt";
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+// Async thunk for setting the selected prompt
+export const setSelectedPromptThunk = createAsyncThunk(
+  "dataExtraction/setSelectedPrompt",
+  async ({ projectName, selectedPrompt }, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setProgress(50));
+      const response = await api.put(`/selected_prompt/${projectName}`, { selectedPrompt }, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(setProgress(100));
+      toast.success("Selected prompt set successfully");
+      dispatch(setSelectedPrompt({ selectedPrompt }));
+      return response.data;
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = error.response?.data?.message || "Failed to set selected prompt";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }

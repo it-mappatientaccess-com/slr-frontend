@@ -52,6 +52,7 @@ export const setProjectsData = createAsyncThunk(
   }
 );
 
+
 // Async thunk for deleting a project
 export const deleteProjectData = createAsyncThunk(
   "projects/deleteProject",

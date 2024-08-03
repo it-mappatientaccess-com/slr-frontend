@@ -33,20 +33,14 @@ const AccordionItem = ({
   }, [isOpen, showEditPrompt]);
 
   // Use TailwindCSS for conditional styling based on active state
-  const titleClasses = actionButtonState
-    ? "text-lg font-semibold" // Active state: blue background, white text
-    : ""; // Inactive state: white background, dark text
-
-  const elevationClasses = actionButtonState
-    ? "shadow-lg" // Elevated shadow for active item
-    : ""; // Normal shadow for inactive item
+  const titleClasses = actionButtonState ? "text-lg font-semibold" : "";
+  const elevationClasses = actionButtonState ? "shadow-lg bg-indigo-50" : "";
 
   const handleEditSuccess = () => {
     setShowEditPrompt(false);
     setShowCancelButton(false);
   };
 
-  // Recalculate height whenever showEditPrompt changes
   useEffect(() => {
     if (isOpen) {
       setContentHeight(contentRef.current ? contentRef.current.scrollHeight : 0);
@@ -86,7 +80,6 @@ const AccordionItem = ({
               <i className="fas fa-xmark"></i> Cancel
             </button>
           )}
-
           {deleteButtonText && onDelete && deleteButtonState && (
             <button
               onClick={onDelete}
@@ -134,14 +127,10 @@ const Accordion = ({ accordionTitle, accordionSubTitle, items }) => {
         <h3 id="accordionTitle" className="text-lg font-medium text-gray-800">
           {accordionTitle}
         </h3>
-        <p
-          id="accordionSubTitle"
-          className="text-sm font-light text-gray-600 my-3"
-        >
+        <p id="accordionSubTitle" className="text-sm font-light text-gray-600 my-3">
           {accordionSubTitle}
         </p>
         <div className="h-1 w-full mx-auto border-b my-5"></div>
-
         {items.map((item, index) => (
           <AccordionItem
             key={index}

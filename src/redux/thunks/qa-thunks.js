@@ -56,7 +56,7 @@ export const setQuestions = createAsyncThunk(
       // Get the current state of questions
       const existingQuestions = getState().questionAbstractData.questions;
 
-      // Merge the new questions into the existing ones
+      // Update only the specified category while preserving other categories
       const updatedQuestions = {
         ...existingQuestions,
         [category]: questions[category]
@@ -67,9 +67,8 @@ export const setQuestions = createAsyncThunk(
           Authorization: localStorage.getItem("token"),
         },
       });
-
-      dispatch(setProgress(100));
       console.log(response);
+      dispatch(setProgress(100));
       localStorage.setItem("questions", JSON.stringify(updatedQuestions));
       return { questions: updatedQuestions, isQuestionsEmpty: false };
     } catch (error) {
