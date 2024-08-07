@@ -29,7 +29,7 @@ export const generateExtractionResults = createAsyncThunk(
         },
       });
       dispatch(setProgress(100));
-      toast.success("Extraction results generated successfully");
+      toast.success("Result extraction started successfully");
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
@@ -46,17 +46,17 @@ export const fetchProcessedFileNames = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     const projectName = localStorage.getItem("selectedProject");
     try {
-      dispatch(setProgress(70));
+      // dispatch(setProgress(70));
       const response = await api.get(`/get_extraction_file_names/${projectName}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
       });
-      dispatch(setProgress(100));
-      toast.success("Processed file names fetched successfully");
+      // dispatch(setProgress(100));
+      // toast.success("Processed file names fetched successfully");
       return response.data;
     } catch (error) {
-      dispatch(setProgress(100));
+      // dispatch(setProgress(100));
       const errorMsg = error.response?.data?.message || "Failed to fetch processed file names";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
@@ -105,7 +105,7 @@ export const fetchPrompts = createAsyncThunk(
         },
       });
       dispatch(setProgress(100));
-      toast.success("Prompts fetched successfully");
+      // toast.success("Prompts fetched successfully");
 
       const prompts = response.data.prompts;
       const selectedPrompt = response.data.selected_prompt;
