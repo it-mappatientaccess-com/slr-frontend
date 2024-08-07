@@ -262,7 +262,7 @@ export const stopExtraction = createAsyncThunk(
         },
       });
       dispatch(setProgress(100));
-      toast.success(response.data.message);
+      toast.success(response?.data?.message);
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));

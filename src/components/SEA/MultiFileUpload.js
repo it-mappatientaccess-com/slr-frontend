@@ -170,7 +170,7 @@ const MultiFileUpload = () => {
       })
     );
     const response = await dispatch(stopExtraction(extractionTaskId));
-    notify(response.data["message"], response.data["status"]);
+    notify(response?.message, response?.status);
   };
 
   return (
