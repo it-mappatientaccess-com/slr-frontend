@@ -2,13 +2,20 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "util/api";
 import { toast } from "react-toastify";
 import { setProgress } from "../slices/loadingSlice";
-import { setSelectedPrompt } from "../slices/dataExtractionSlice";
-import * as XLSX from "xlsx"; 
+import {
+  setSelectedPrompt,
+  setIsRefreshing,
+  setIsStopping,
+} from "../slices/dataExtractionSlice";
+import * as XLSX from "xlsx";
 
 // Async thunk for generating extraction results
 export const generateExtractionResults = createAsyncThunk(
   "dataExtraction/generateExtractionResults",
-  async ({ files, questions, newBatchID, selectedPrompt, includeAboutFile }, { dispatch, rejectWithValue }) => {
+  async (
+    { files, questions, newBatchID, selectedPrompt, includeAboutFile },
+    { dispatch, rejectWithValue }
+  ) => {
     console.log("Files to be uploaded:", files); // Debug log
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
@@ -33,7 +40,9 @@ export const generateExtractionResults = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.message || "Failed to generate extraction results";
+      const errorMsg =
+        error.response?.data?.message ||
+        "Failed to generate extraction results";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }
@@ -47,18 +56,32 @@ export const fetchProcessedFileNames = createAsyncThunk(
     const projectName = localStorage.getItem("selectedProject");
     try {
       // dispatch(setProgress(70));
-      const response = await api.get(`/get_extraction_file_names/${projectName}`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
+      const response = await api.get(
+        `/get_extraction_file_names/${projectName}`,
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
       // dispatch(setProgress(100));
       // toast.success("Processed file names fetched successfully");
+      dispatch(
+        setIsRefreshing({
+          isRefreshing: false,
+        })
+      );
       return response.data;
     } catch (error) {
       // dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.message || "Failed to fetch processed file names";
+      const errorMsg =
+        error.response?.data?.message || "Failed to fetch processed file names";
       toast.error(errorMsg);
+      dispatch(
+        setIsRefreshing({
+          isRefreshing: false,
+        })
+      );
       return rejectWithValue(errorMsg);
     }
   }
@@ -85,7 +108,9 @@ export const fetchExtractionFileResults = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.message || "Failed to fetch extraction file results";
+      const errorMsg =
+        error.response?.data?.message ||
+        "Failed to fetch extraction file results";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }
@@ -120,7 +145,8 @@ export const fetchPrompts = createAsyncThunk(
       return prompts;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.detail || "Failed to fetch prompts";
+      const errorMsg =
+        error.response?.data?.detail || "Failed to fetch prompts";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }
@@ -129,22 +155,22 @@ export const fetchPrompts = createAsyncThunk(
 
 // Async thunk for deleting PDF data
 export const deletePdfData = createAsyncThunk(
-  'dataExtraction/deletePdfData',
+  "dataExtraction/deletePdfData",
   async (fileId, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
       const response = await api.delete(`/delete_pdf_data/${fileId}`, {
         headers: {
-          Authorization: localStorage.getItem('token'),
+          Authorization: localStorage.getItem("token"),
         },
       });
       dispatch(setProgress(100));
-      toast.success('File deleted successfully');
+      toast.success("File deleted successfully");
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error('Failed to delete file');
-      return rejectWithValue(error.response?.data || 'Failed to delete file');
+      toast.error("Failed to delete file");
+      return rejectWithValue(error.response?.data || "Failed to delete file");
     }
   }
 );
@@ -206,46 +232,53 @@ const downloadXLSX = (data, exportFileName) => {
 
 // Async thunk for fetching all extraction results
 export const fetchAllExtractionResults = createAsyncThunk(
-  'dataExtraction/fetchAllExtractionResults',
+  "dataExtraction/fetchAllExtractionResults",
   async (_, { dispatch, rejectWithValue }) => {
     const projectName = localStorage.getItem("selectedProject");
     try {
       dispatch(setProgress(50));
-      const response = await api.get(`/get_all_extraction_results/${projectName}`, {
-        headers: {
-          Authorization: localStorage.getItem('token'),
-        },
-      });
+      const response = await api.get(
+        `/get_all_extraction_results/${projectName}`,
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
       dispatch(setProgress(100));
-      downloadXLSX(response.data, projectName); 
+      downloadXLSX(response.data, projectName);
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error('Failed to fetch extraction results');
-      return rejectWithValue(error.response?.data || 'Failed to fetch extraction results');
+      toast.error("Failed to fetch extraction results");
+      return rejectWithValue(
+        error.response?.data || "Failed to fetch extraction results"
+      );
     }
   }
 );
 
 // Async thunk for deleting all SEA results
 export const deleteAllSEAResults = createAsyncThunk(
-  'dataExtraction/deleteAllSEAResults',
+  "dataExtraction/deleteAllSEAResults",
   async (_, { dispatch, rejectWithValue }) => {
     const projectName = localStorage.getItem("selectedProject");
     try {
       dispatch(setProgress(50));
       const response = await api.delete(`/delete-all-results/${projectName}`, {
         headers: {
-          Authorization: localStorage.getItem('token'),
+          Authorization: localStorage.getItem("token"),
         },
       });
       dispatch(setProgress(100));
-      toast.success('All SEA results deleted successfully');
+      toast.success("All SEA results deleted successfully");
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error('Failed to delete all SEA results');
-      return rejectWithValue(error.response?.data || 'Failed to delete all SEA results');
+      toast.error("Failed to delete all SEA results");
+      return rejectWithValue(
+        error.response?.data || "Failed to delete all SEA results"
+      );
     }
   }
 );
@@ -256,18 +289,37 @@ export const stopExtraction = createAsyncThunk(
   async (taskId, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
-      const response = await api.post(`/stop_extraction/${taskId}`, {}, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
+      const response = await api.post(
+        `/stop_extraction/${taskId}`,
+        {},
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
       dispatch(setProgress(100));
-      toast.success(response?.data?.message);
+      if (response.data.status === "success") {
+        toast.success(response.data.message);
+      } else {
+        toast.error(response.data.message);
+      }
+      dispatch(
+        setIsStopping({
+          isStopping: false,
+        })
+      );
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.message || "Failed to stop extraction";
+      const errorMsg =
+        error.response?.data?.message || "Failed to stop extraction";
       toast.error(errorMsg);
+      dispatch(
+        setIsStopping({
+          isStopping: false,
+        })
+      );
       return rejectWithValue(errorMsg);
     }
   }
@@ -279,17 +331,21 @@ export const deletePrompt = createAsyncThunk(
   async ({ projectName, promptTitle }, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
-      const response = await api.delete(`/prompt/${projectName}/${promptTitle}`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
+      const response = await api.delete(
+        `/prompt/${projectName}/${promptTitle}`,
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
       dispatch(setProgress(100));
       toast.success("Prompt deleted successfully");
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.detail || "Failed to delete prompt";
+      const errorMsg =
+        error.response?.data?.detail || "Failed to delete prompt";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }
@@ -302,18 +358,23 @@ export const setSelectedPromptThunk = createAsyncThunk(
   async ({ projectName, selectedPrompt }, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
-      const response = await api.put(`/selected_prompt/${projectName}`, { selectedPrompt }, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      });
+      const response = await api.put(
+        `/selected_prompt/${projectName}`,
+        { selectedPrompt },
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
       dispatch(setProgress(100));
       toast.success("Selected prompt set successfully");
       dispatch(setSelectedPrompt({ selectedPrompt }));
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = error.response?.data?.message || "Failed to set selected prompt";
+      const errorMsg =
+        error.response?.data?.message || "Failed to set selected prompt";
       toast.error(errorMsg);
       return rejectWithValue(errorMsg);
     }
