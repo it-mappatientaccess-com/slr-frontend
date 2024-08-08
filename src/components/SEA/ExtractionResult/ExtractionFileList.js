@@ -151,7 +151,7 @@ const ExtractionFileList = () => {
 
   return (
     <>
-      {processedFiles.length !== 0 && (
+      {/* {processedFiles.length !== 0 && ( */}
         <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
           <div className="flex-auto p-4">
             <div
@@ -198,7 +198,7 @@ const ExtractionFileList = () => {
             </div>
           </div>
         </div>
-      )}
+      {/* )} */}
 
       {selectedFile && (
         <ExtractionResult
