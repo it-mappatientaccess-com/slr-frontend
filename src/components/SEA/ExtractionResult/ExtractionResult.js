@@ -3,9 +3,10 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "./ExtractionResult.css";
-import * as XLSX from "xlsx";
 import { Tooltip } from "react-tooltip";
 import { useSelector } from "react-redux";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 const CustomCellRenderer = (props) => {
   const value = props.value || "";
@@ -91,7 +92,10 @@ const ExtractionResult = (props) => {
       Object.keys(columnDataMap).forEach((key) => {
         let cellContent = columnDataMap[key][i] || "";
         if (typeof cellContent === "string") {
-          if (showQuestions || (!showQuestions && !cellContent.startsWith("Q"))) {
+          if (
+            showQuestions ||
+            (!showQuestions && !cellContent.startsWith("Q"))
+          ) {
             row[key] = cellContent;
           }
         } else {
@@ -109,17 +113,19 @@ const ExtractionResult = (props) => {
 
     // Define column definitions, dynamically including 'aboutFile' if it exists
     const columnsOrder = columnDataMap.hasOwnProperty("aboutFile")
-      ? ["aboutFile", ...Object.keys(columnDataMap).filter((key) => key !== "aboutFile")]
+      ? [
+          "aboutFile",
+          ...Object.keys(columnDataMap).filter((key) => key !== "aboutFile"),
+        ]
       : [...Object.keys(columnDataMap)];
-    const columns = columnsOrder
-      .map((key) => ({
-        field: key,
-        headerName: key,
-        cellStyle: { whiteSpace: "normal" },
-        autoHeight: true,
-        cellRenderer: "customCellRenderer",
-        flex: 1,
-      }));
+    const columns = columnsOrder.map((key) => ({
+      field: key,
+      headerName: key,
+      cellStyle: { whiteSpace: "normal" },
+      autoHeight: true,
+      cellRenderer: "customCellRenderer",
+      flex: 1,
+    }));
 
     setRowData(rowData);
     setColumnDefs(columns);
@@ -139,37 +145,65 @@ const ExtractionResult = (props) => {
     },
   };
 
-  const onBtnExport = () => {
-    const headers = columnDefs.map((colDef) => colDef.headerName); // Get column headers
-    const data = rowData.map((row) => {
-      return columnDefs.map((colDef) => {
-        let cellValue = row[colDef.field];
-        if (
-          !includeExtraInfo &&
-          typeof cellValue === "string" &&
-          cellValue.includes("Answer:")
-        ) {
-          // Only include the "Answer" part if includeExtraInfo is false
-          const sections = cellValue.split("Answer:");
-          const answers = sections
-            .slice(1)
-            .map((section) => {
-              return section.split("Direct Quote", 1)[0].trim();
-            })
-            .filter(Boolean);
-          cellValue = answers.join("\n\n");
+  // Helper function to parse markdown-like syntax and apply Excel formatting
+  const formatCellContent = (text, worksheet, row, colIndex) => {
+    const parts = [];
+    const boldRegex = /\*\*(.*?)\*\*/g;
+    let match;
+    let lastIndex = 0;
+
+    // Iterate over the markdown content and apply formatting
+    while ((match = boldRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ text: text.slice(lastIndex, match.index) });
+      }
+      parts.push({ text: match[1], font: { bold: true } });
+      lastIndex = boldRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push({ text: text.slice(lastIndex) });
+    }
+
+    // Apply rich text formatting to the appropriate cell
+    worksheet.getRow(row).getCell(colIndex + 1).value = { richText: parts };
+  };
+
+  // Enhanced Excel export function using ExcelJS
+  const onBtnExport = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Sheet 1");
+
+    // Add headers
+    const headers = columnDefs.map((colDef) => colDef.headerName);
+    worksheet.addRow(headers);
+
+    // Add data with formatting
+    rowData.forEach((row, rowIndex) => {
+      columnDefs.forEach((colDef, colIndex) => {
+        const cellValue = row[colDef.field] || "";
+        const cell = worksheet.getRow(rowIndex + 2).getCell(colIndex + 1); // Offset by 2 for the header row
+
+        if (typeof cellValue === "string" && cellValue.includes("**")) {
+          // Apply rich text formatting for markdown-like syntax
+          formatCellContent(cellValue, worksheet, rowIndex + 2, colIndex);
+        } else {
+          // If no markdown, just add plain text
+          cell.value = cellValue;
         }
-        // If includeExtraInfo is true, it will just use the original cellValue
-        return cellValue;
+
+        // Apply cell styles
+        cell.alignment = { wrapText: true };
+        worksheet.getColumn(colIndex + 1).width = 30; // Adjust column width
       });
     });
 
-    data.unshift(headers); // Add headers at the beginning of the data array
-
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet 1");
-    XLSX.writeFile(workbook, `${props.fileName}_export.xlsx`);
+    // Generate Excel file and trigger download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `${props.fileName}_export.xlsx`);
   };
 
   const toggleShowQuestions = () => {

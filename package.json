@@ -20,6 +20,7 @@
     "axios": "^1.6.8",
     "chart.js": "^4.4.2",
     "chokidar": "^3.6.0",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "filepond": "^4.30.6",
     "filepond-plugin-file-metadata": "^1.0.8",

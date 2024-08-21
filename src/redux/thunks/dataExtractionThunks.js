@@ -7,7 +7,8 @@ import {
   setIsRefreshing,
   setIsStopping,
 } from "../slices/dataExtractionSlice";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 // Async thunk for generating extraction results
 export const generateExtractionResults = createAsyncThunk(
@@ -174,60 +175,87 @@ export const deletePdfData = createAsyncThunk(
     }
   }
 );
-const downloadXLSX = (data, exportFileName) => {
-  const workbook = XLSX.utils.book_new();
-  const csvData = [];
-  const columnsSet = new Set(["file_name"]);
 
-  data.forEach((item) => {
-    const row = {
-      file_name: item.file_name,
-    };
+// Helper function to parse markdown-like syntax and apply Excel formatting
+const formatCellContent = (text) => {
+  const parts = [];
+  const boldRegex = /\*\*(.*?)\*\*/g;
+  let lastIndex = 0;
+  let match;
 
-    const aboutFileContent = item.results
-      .find((result) => "aboutFile" in result)
-      ?.aboutFile.join("\n")
-      .replace(/\n/g, " ");
-
-    if (aboutFileContent) {
-      row.aboutFile = aboutFileContent;
-      columnsSet.add("aboutFile");
+  // Iterate over the markdown content and apply formatting
+  while ((match = boldRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ text: text.slice(lastIndex, match.index) });
     }
+    parts.push({ text: match[1], font: { bold: true } });
+    lastIndex = boldRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ text: text.slice(lastIndex) });
+  }
+
+  return parts;
+};
+
+// Function to flatten and format the result content
+const flattenAndFormatResult = (result) => {
+  return result.map((content) => formatCellContent(content)).flat();
+};
+
+// Function to download Excel file using ExcelJS
+const downloadXLSX = async (data, exportFileName) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Sheet1');
+
+  const columnsSet = new Set(["file_name"]);
+  const rows = [];
+
+  // Iterate over each item in the data array
+  data.forEach((item) => {
+    const row = { file_name: item.file_name };
 
     item.results.forEach((result) => {
       const key = Object.keys(result)[0];
+      const contentArray = result[key];
 
-      // Skip aboutFile because it's already handled
-      if (key === "aboutFile") return;
-
-      const values = result[key]
-        .map((value) => {
-          if (typeof value === "string" && value.includes("Answer:")) {
-            const sections = value.split("Answer:");
-            const answers = sections
-              .slice(1)
-              .map((section) => section.split("Direct Quote", 1)[0].trim())
-              .filter(Boolean);
-            return answers.join("\n");
-          }
-          return value;
-        })
-        .filter(Boolean) // Remove empty strings
-        .join("\n");
-
-      row[key] = values.replace(/\n/g, " ");
+      const formattedContent = flattenAndFormatResult(contentArray);
+      row[key] = formattedContent;
       columnsSet.add(key);
     });
 
-    csvData.push(row);
+    rows.push(row);
   });
 
-  const columns = Array.from(columnsSet);
+  // Define the columns for the worksheet
+  worksheet.columns = Array.from(columnsSet).map(column => ({
+    header: column,
+    key: column,
+    width: 50, // Adjust the width as necessary
+  }));
 
-  const worksheet = XLSX.utils.json_to_sheet(csvData, { header: columns });
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  // Add the rows to the worksheet with rich text formatting
+  rows.forEach((row, rowIndex) => {
+    worksheet.addRow(row);
 
-  XLSX.writeFile(workbook, `${exportFileName}.xlsx`);
+    Object.keys(row).forEach((key, colIndex) => {
+      const cell = worksheet.getRow(rowIndex + 2).getCell(colIndex + 1); // Offset for header row
+      if (Array.isArray(row[key])) {
+        // If rich text formatting is applied
+        cell.value = { richText: row[key] };
+      } else {
+        // Otherwise, just use plain text
+        cell.value = row[key];
+      }
+      cell.alignment = { wrapText: true };
+    });
+  });
+
+  // Write the Excel file
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  saveAs(blob, `${exportFileName}.xlsx`);
 };
 
 // Async thunk for fetching all extraction results
@@ -246,7 +274,7 @@ export const fetchAllExtractionResults = createAsyncThunk(
         }
       );
       dispatch(setProgress(100));
-      downloadXLSX(response.data, projectName);
+      await downloadXLSX(response.data, projectName);
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
