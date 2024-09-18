@@ -16,7 +16,7 @@ export const fetchProjectsData = createAsyncThunk(
       });
       dispatch(setProgress(100));
       toast.success("Projects fetched successfully");
-      return response.data.data;
+      return response.data.data; // Ensure this includes 'id' and 'shared_with'
     } catch (error) {
       dispatch(setProgress(100));
       const errorMsg = error.response?.data?.message || "Failed to fetch projects";
@@ -76,6 +76,59 @@ export const deleteProjectData = createAsyncThunk(
   }
 );
 
+// Add new thunks for sharing and unsharing projects
+export const shareProject = createAsyncThunk(
+  "projects/shareProject",
+  async ({ projectId, sharedWith }, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setProgress(50));
+      await api.post(
+        `/project/${projectId}/share`,
+        { shared_with: sharedWith },
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
+      dispatch(setProgress(100));
+      toast.success("Project shared successfully");
+      dispatch(fetchProjectsData()); // Refresh project list
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = error.response?.data?.detail || "Failed to share project";
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+export const unshareProject = createAsyncThunk(
+  "projects/unshareProject",
+  async ({ projectId, removeUsers }, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setProgress(50));
+      await api.post(
+        `/project/${projectId}/unshare`,
+        { remove_users: removeUsers },
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
+      dispatch(setProgress(100));
+      toast.success("Users removed from shared project successfully");
+      dispatch(fetchProjectsData()); // Refresh project list
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = error.response?.data?.detail || "Failed to unshare project";
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
 const projectSlice = createSlice({
   name: "project",
   initialState: {
@@ -125,6 +178,26 @@ const projectSlice = createSlice({
         state.status = "succeeded";
       })
       .addCase(deleteProjectData.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(shareProject.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(shareProject.fulfilled, (state) => {
+        state.status = "succeeded";
+      })
+      .addCase(shareProject.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(unshareProject.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(unshareProject.fulfilled, (state) => {
+        state.status = "succeeded";
+      })
+      .addCase(unshareProject.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       });

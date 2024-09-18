@@ -16,6 +16,8 @@ import {
   fetchOldSeaQuestions,
 } from "../../redux/thunks/qa-thunks";
 import ModalSmall from "components/Modal/ModalSmall";
+import ShareProjectModal from "./ShareProjectModal";
+
 let rowImmutableStore;
 
 const actionCellRenderer = (params) => {
@@ -24,6 +26,8 @@ const actionCellRenderer = (params) => {
   let isCurrentRowEditing = editingCells.some((cell) => {
     return cell.rowIndex === params.node.rowIndex;
   });
+  const currentUser = localStorage.getItem("username");
+  const isOwner = params.data.username === currentUser;
   return (
     <>
       {isCurrentRowEditing && (
@@ -44,7 +48,7 @@ const actionCellRenderer = (params) => {
           </button>
         </div>
       )}
-      {!isCurrentRowEditing && (
+      {isOwner && !isCurrentRowEditing && (
         <div>
           <button
             className="bg-amber-500 text-white active:bg-amber-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -60,6 +64,19 @@ const actionCellRenderer = (params) => {
           >
             Delete <i className="fas fa-trash-can"></i>
           </button>
+          <button
+            className="bg-indigo-500 text-white font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+            data-action="share"
+            type="button"
+            onClick={() => params.onShareProject(params.data)}
+          >
+            Share <i className="fas fa-share-alt"></i>
+          </button>
+        </div>
+      )}
+      {!isOwner && (
+        <div>
+          <span>Shared Project</span>
         </div>
       )}
     </>
@@ -99,6 +116,20 @@ const ProjectsTable = () => {
   let projectData = useSelector((state) => state.project.listOfProjects);
   const [rowData, setRowData] = useState([]);
   const [currentParams, setCurrentParams] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [projectToShare, setProjectToShare] = useState(null);
+
+  // Function to handle share project action
+  const handleShareProject = (projectData) => {
+    setProjectToShare(projectData);
+    setShowShareModal(true);
+  };
+
+  // Pass handleShareProject to cell renderer params
+  const actionCellRendererParams = {
+    onShareProject: handleShareProject,
+    // Other params if needed
+  };
 
   const columnDefs = [
     // {
@@ -122,6 +153,13 @@ const ProjectsTable = () => {
       editable: true,
     },
     {
+      field: "username",
+      headerName: "Owner",
+      flex: 1,
+      filter: true,
+      editable: false,
+    },
+    {
       headerName: "",
       cellRenderer: btnCellRenderer,
       cellRendererParams: {
@@ -135,6 +173,7 @@ const ProjectsTable = () => {
     {
       headerName: "Action",
       cellRenderer: actionCellRenderer,
+      cellRendererParams: actionCellRendererParams,
       editable: false,
       colId: "action",
       flex: 2,
@@ -227,7 +266,7 @@ const ProjectsTable = () => {
       const field = event.colDef.field;
       let newItem = { ...data };
       newItem[field] = event.newValue;
-  
+
       // Dispatch the action with the projectName and newDescription
       dispatch(
         setProjectsData({
@@ -235,7 +274,7 @@ const ProjectsTable = () => {
           newDescription: newItem.projectDescription,
         })
       );
-  
+
       // Update rowImmutableStore if necessary
       if (event.rowPinned === "top") {
         newItem.status = "Active";
@@ -287,6 +326,13 @@ const ProjectsTable = () => {
           onClose={() => setShowDeleteModal(false)}
           onPrimaryClick={() => handleDeleteProject(projectToDelete)}
           colorClasses="bg-red-500 text-white active:bg-red-600"
+        />
+      )}
+      {showShareModal && (
+        <ShareProjectModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          project={projectToShare}
         />
       )}
     </>
