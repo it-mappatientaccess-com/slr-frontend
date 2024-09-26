@@ -33,8 +33,7 @@ const DynamicCardColumns = (props) => {
     setValidQuestions(existingQuestions.map(() => true));
   }, [existingQuestions]);
 
-  const projectName = localStorage.getItem("selectedProject");
-
+  const projectId = localStorage.getItem("currentProjectId");
   const isValidQuestion = useCallback((question) => {
     const words = question.trim().split(/\s+/);
     return words.length >= 3 && words.length <= 2000;
@@ -92,7 +91,7 @@ const DynamicCardColumns = (props) => {
       ...seaQuestions,
       [category]: updatedQuestions,
     };
-    dispatch(setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions }));
+    dispatch(setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions }));
   };
 
   const updateRows = useCallback(() => {

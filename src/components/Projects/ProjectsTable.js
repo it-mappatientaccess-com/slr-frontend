@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   deleteProjectData,
   setSelectedProject,
+  setCurrentProjectId,
   setProjectsData,
 } from "../../redux/slices/projectSlice";
 import { useNavigate } from "react-router";
@@ -85,10 +86,13 @@ const actionCellRenderer = (params) => {
 
 const btnCellRenderer = (params) => {
   const onClickHandler = async () => {
+    console.log(params);
     params.dispatchProp(setSelectedProject(params.data.projectName));
+    params.dispatchProp(setCurrentProjectId(params.data.id));
+    localStorage.setItem("currentProjectId", params.data.id);
     localStorage.setItem("selectedProject", params.data.projectName);
-    await params.dispatchProp(fetchOldQuestions(params.data.projectName));
-    await params.dispatchProp(fetchOldSeaQuestions(params.data.projectName));
+    await params.dispatchProp(fetchOldQuestions(params.data.id));
+    await params.dispatchProp(fetchOldSeaQuestions(params.data.id));
     params.navigateProp("/dashboard/abstract-reviewer");
   };
   return (
@@ -224,7 +228,7 @@ const ProjectsTable = () => {
 
       if (action === "delete") {
         console.log("Delete action triggered");
-        setProjectToDelete(params.node.data.projectName);
+        setProjectToDelete(params.node.data.id);
         setShowDeleteModal(true);
         setCurrentParams(params);
       }
@@ -270,6 +274,7 @@ const ProjectsTable = () => {
       // Dispatch the action with the projectName and newDescription
       dispatch(
         setProjectsData({
+          projectId: data.id,
           projectName: newItem.projectName,
           newDescription: newItem.projectDescription,
         })

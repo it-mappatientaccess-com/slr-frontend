@@ -125,8 +125,8 @@ const AbstractUpload = () => {
                 `${localStorage.getItem("questions")}`
               );
               formData.append(
-                "projectName",
-                `${localStorage.getItem("selectedProject")}`
+                "project_id",
+                `${localStorage.getItem("currentProjectId")}`
               );
               return formData;
             },

@@ -10,6 +10,7 @@ import {
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
+
 // Async thunk for generating extraction results
 export const generateExtractionResults = createAsyncThunk(
   "dataExtraction/generateExtractionResults",
@@ -17,13 +18,17 @@ export const generateExtractionResults = createAsyncThunk(
     { files, questions, newBatchID, selectedPrompt, includeAboutFile },
     { dispatch, rejectWithValue }
   ) => {
-    console.log("Files to be uploaded:", files); // Debug log
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
       formData.append("files", files[i].file, files[i].filename);
     }
     formData.append("questions_dict", JSON.stringify(questions));
-    formData.append("project_name", localStorage.getItem("selectedProject"));
+    formData.append("project_id", projectId);
     formData.append("batch_id", newBatchID);
     formData.append("prompt_text", selectedPrompt);
     formData.append("include_about_file", includeAboutFile);
@@ -54,19 +59,20 @@ export const generateExtractionResults = createAsyncThunk(
 export const fetchProcessedFileNames = createAsyncThunk(
   "dataExtraction/fetchProcessedFileNames",
   async (_, { dispatch, rejectWithValue }) => {
-    const projectName = localStorage.getItem("selectedProject");
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
-      // dispatch(setProgress(70));
       const response = await api.get(
-        `/get_extraction_file_names/${projectName}`,
+        `/get_extraction_file_names/${projectId}`,
         {
           headers: {
             Authorization: localStorage.getItem("token"),
           },
         }
       );
-      // dispatch(setProgress(100));
-      // toast.success("Processed file names fetched successfully");
       dispatch(
         setIsRefreshing({
           isRefreshing: false,
@@ -74,7 +80,6 @@ export const fetchProcessedFileNames = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      // dispatch(setProgress(100));
       const errorMsg =
         error.response?.data?.message || "Failed to fetch processed file names";
       toast.error(errorMsg);
@@ -91,12 +96,16 @@ export const fetchProcessedFileNames = createAsyncThunk(
 // Async thunk for fetching extraction file results
 export const fetchExtractionFileResults = createAsyncThunk(
   "dataExtraction/fetchExtractionFileResults",
-  async ({ file_id, projectName }, { dispatch, rejectWithValue }) => {
-    console.log(file_id, projectName);
+  async ({ file_id }, { dispatch, rejectWithValue }) => {
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(70));
       const response = await api.get(
-        `/get_extraction_file_results/${file_id}?projectName=${projectName}`,
+        `/get_extraction_file_results/${file_id}?project_id=${projectId}`,
         {
           headers: {
             Authorization: localStorage.getItem("token"),
@@ -105,7 +114,6 @@ export const fetchExtractionFileResults = createAsyncThunk(
       );
       dispatch(setProgress(100));
       toast.success("Extraction file results fetched successfully");
-      console.log(response.data);
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
@@ -122,21 +130,23 @@ export const fetchExtractionFileResults = createAsyncThunk(
 export const fetchPrompts = createAsyncThunk(
   "dataExtraction/fetchPrompts",
   async (_, { dispatch, rejectWithValue }) => {
-    const projectName = localStorage.getItem("selectedProject");
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(70));
-      const response = await api.get(`/prompt/${projectName}`, {
+      const response = await api.get(`/prompt/${projectId}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
       });
       dispatch(setProgress(100));
-      // toast.success("Prompts fetched successfully");
 
       const prompts = response.data.prompts;
       const selectedPrompt = response.data.selected_prompt;
 
-      // If selectedPrompt is null or empty string, set the first default prompt as selected
       if (!selectedPrompt && prompts.length > 0) {
         dispatch(setSelectedPrompt({ selectedPrompt: prompts[0].prompt_text }));
       } else {
@@ -262,11 +272,15 @@ const downloadXLSX = async (data, exportFileName) => {
 export const fetchAllExtractionResults = createAsyncThunk(
   "dataExtraction/fetchAllExtractionResults",
   async (_, { dispatch, rejectWithValue }) => {
-    const projectName = localStorage.getItem("selectedProject");
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(50));
       const response = await api.get(
-        `/get_all_extraction_results/${projectName}`,
+        `/get_all_extraction_results/${projectId}`,
         {
           headers: {
             Authorization: localStorage.getItem("token"),
@@ -274,7 +288,7 @@ export const fetchAllExtractionResults = createAsyncThunk(
         }
       );
       dispatch(setProgress(100));
-      await downloadXLSX(response.data, projectName);
+      await downloadXLSX(response.data, projectId);
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
@@ -290,10 +304,14 @@ export const fetchAllExtractionResults = createAsyncThunk(
 export const deleteAllSEAResults = createAsyncThunk(
   "dataExtraction/deleteAllSEAResults",
   async (_, { dispatch, rejectWithValue }) => {
-    const projectName = localStorage.getItem("selectedProject");
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(50));
-      const response = await api.delete(`/delete-all-results/${projectName}`, {
+      const response = await api.delete(`/delete-all-results/${projectId}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -356,11 +374,16 @@ export const stopExtraction = createAsyncThunk(
 // Async thunk for deleting a prompt
 export const deletePrompt = createAsyncThunk(
   "dataExtraction/deletePrompt",
-  async ({ projectName, promptTitle }, { dispatch, rejectWithValue }) => {
+  async ({ promptTitle }, { dispatch, rejectWithValue }) => {
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(50));
       const response = await api.delete(
-        `/prompt/${projectName}/${promptTitle}`,
+        `/prompt/${projectId}/${promptTitle}`,
         {
           headers: {
             Authorization: localStorage.getItem("token"),
@@ -383,11 +406,16 @@ export const deletePrompt = createAsyncThunk(
 // Async thunk for setting the selected prompt
 export const setSelectedPromptThunk = createAsyncThunk(
   "dataExtraction/setSelectedPrompt",
-  async ({ projectName, selectedPrompt }, { dispatch, rejectWithValue }) => {
+  async ({ selectedPrompt }, { dispatch, rejectWithValue }) => {
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
     try {
       dispatch(setProgress(50));
       const response = await api.put(
-        `/selected_prompt/${projectName}`,
+        `/selected_prompt/${projectId}`,
         { selectedPrompt },
         {
           headers: {

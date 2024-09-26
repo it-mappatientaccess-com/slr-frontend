@@ -1,3 +1,5 @@
+// redux/thunks/qa-thunks.js
+
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "util/api";
 
@@ -8,10 +10,10 @@ import { setSEAQuestionsDict, setIsRefreshing } from "../slices/questionAbstract
 // Thunk to fetch old questions
 export const fetchOldQuestions = createAsyncThunk(
   "questionAbstractData/fetchOldQuestions",
-  async (projectName, { dispatch, rejectWithValue }) => {
+  async (project_id, { dispatch, rejectWithValue }) => { // Changed parameter to project_id
     try {
       dispatch(setProgress(70));
-      const response = await api.get(`questions?projectName=${projectName}`, {
+      const response = await api.get(`questions?project_id=${project_id}`, { // Updated API call
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -24,7 +26,7 @@ export const fetchOldQuestions = createAsyncThunk(
           isEmptyFlag = true;
         }
       }
-      if (response.data.length === 0 || isEmptyFlag) {
+      if (Object.keys(response.data).length === 0 || isEmptyFlag) { // Changed condition to check keys
         const questions = {
           studyDesign: [""],
           population: [""],
@@ -49,7 +51,7 @@ export const fetchOldQuestions = createAsyncThunk(
 // Thunk to set questions
 export const setQuestions = createAsyncThunk(
   "questionAbstractData/setQuestions",
-  async ({ projectName, category, questions }, { dispatch, getState, rejectWithValue }) => {
+  async ({ project_id, category, questions }, { dispatch, getState, rejectWithValue }) => { // Changed projectName to project_id
     try {
       dispatch(setProgress(70));
 
@@ -62,7 +64,7 @@ export const setQuestions = createAsyncThunk(
         [category]: questions[category]
       };
 
-      const response = await api.post("questions", { projectName, questions: updatedQuestions }, {
+      const response = await api.post("questions", { project_id, questions: updatedQuestions }, { // Updated payload
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -79,18 +81,17 @@ export const setQuestions = createAsyncThunk(
   }
 );
 
-
 // Thunk to set SEA questions
 export const setSeaQuestions = createAsyncThunk(
   "questionAbstractData/setSeaQuestions",
-  async ({ projectName, seaQuestions }, { dispatch, getState, rejectWithValue }) => {
+  async ({ project_id, seaQuestions }, { dispatch, getState, rejectWithValue }) => { // Changed projectName to project_id
     try {
       dispatch(setProgress(60));
       dispatch(setSEAQuestionsDict({ seaQuestions }));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       const updatedSeaQuestions = getState().questionAbstractData.seaQuestions;
-      await api.post("seaQuestions", { projectName, seaQuestions: updatedSeaQuestions }, {
+      await api.post("seaQuestions", { project_id, seaQuestions: updatedSeaQuestions }, { // Updated payload
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -108,10 +109,10 @@ export const setSeaQuestions = createAsyncThunk(
 // Thunk to fetch old SEA questions
 export const fetchOldSeaQuestions = createAsyncThunk(
   "questionAbstractData/fetchOldSeaQuestions",
-  async (projectName, { dispatch, rejectWithValue }) => {
+  async (project_id, { dispatch, rejectWithValue }) => { // Changed parameter to project_id
     try {
       dispatch(setProgress(70));
-      const response = await api.get(`seaQuestions?projectName=${projectName}`, {
+      const response = await api.get(`seaQuestions?project_id=${project_id}`, { // Updated API call
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -124,7 +125,7 @@ export const fetchOldSeaQuestions = createAsyncThunk(
           isEmptyFlag = true;
         }
       }
-      if (response.data.length === 0 || isEmptyFlag) {
+      if (Object.keys(response.data).length === 0 || isEmptyFlag) { // Changed condition to check keys
         const questions = { "Question Set 1": [""] };
         return { seaQuestions: questions };
       } else {
@@ -162,11 +163,11 @@ export const getSingleQAResult = createAsyncThunk(
 // Thunk to get all results
 export const getAllResults = createAsyncThunk(
   "questionAbstractData/getAllResults",
-  async (projectName, { dispatch, rejectWithValue }) => {
+  async (project_id, { dispatch, rejectWithValue }) => { // Changed projectName to project_id
     try {
       dispatch(setIsRefreshing({ isRefreshing: true }));
       dispatch(setProgress(70));
-      const response = await api.get(`get_all_results?projectName=${projectName}`, {
+      const response = await api.get(`get_all_results?project_id=${project_id}`, { // Updated API call
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -189,14 +190,13 @@ export const getAllResults = createAsyncThunk(
   }
 );
 
-
 // Thunk to stop model execution
 export const stopModelExecution = createAsyncThunk(
   "questionAbstractData/stopModelExecution",
   async (taskId, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
-      const response = await api.post(`stop_model_execution/${taskId}`, {
+      const response = await api.post(`stop_model_execution/${taskId}`, null, { // Ensure correct payload
         headers: {
           Authorization: localStorage.getItem("token"),
         },

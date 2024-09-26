@@ -113,7 +113,7 @@ const AbstractResults = () => {
     },
   ];
   const [percentage, setPercentage] = useState(0);
-  const projectName = localStorage.getItem("selectedProject");
+  const project_id = localStorage.getItem("currentProjectId");
   const timerRef = useRef(null);
   const prevLengthRef = useRef(allAbstractResults.length);
   const noChangeCountRef = useRef(0);
@@ -159,7 +159,7 @@ const AbstractResults = () => {
       prevLengthRef.current = allAbstractResults.length; // Update the previous length
 
       try {
-        dispatch(getAllResults(projectName));
+        dispatch(getAllResults(project_id));
       } catch (error) {
         console.error("Error while fetching results: ", error);
         // Implement additional error handling logic as needed
@@ -172,7 +172,7 @@ const AbstractResults = () => {
     allAbstractResults.length,
     numOfExamples,
     isProcessing,
-    projectName,
+    project_id,
     isStopping,
   ]);
 
@@ -210,7 +210,7 @@ const AbstractResults = () => {
   }
   useEffect(() => {
     try {
-      dispatch(getAllResults(projectName));
+      dispatch(getAllResults(project_id));
     } catch (error) {
       console.error("Error while fetching results: ", error);
     }
@@ -235,7 +235,7 @@ const AbstractResults = () => {
     return () => {
       clearTimeout(timerRef.current);
     };
-  }, [getAllResultsSafely, isStopping, dispatch, projectName]);
+  }, [getAllResultsSafely, isStopping, dispatch, project_id]);
 
   useEffect(() => {
     setRowData(allAbstractResults);
@@ -342,7 +342,7 @@ const AbstractResults = () => {
   const onRefreshClickHandler = async () => {
     dispatch(setIsRefreshing({ isRefreshing: true }));
     try {
-      await dispatch(getAllResults(projectName));
+      await dispatch(getAllResults(project_id));
     } finally {
       dispatch(setIsRefreshing({ isRefreshing: false }));
     }

@@ -29,13 +29,13 @@ export const fetchProjectsData = createAsyncThunk(
 // Async thunk for updating a project
 export const setProjectsData = createAsyncThunk(
   "projects/setProjectsData",
-  async ({ projectName, newDescription }, { dispatch, rejectWithValue }) => {
+  async ({ projectId, projectName, newDescription }, { dispatch, rejectWithValue }) => {
     const data = {
       projectDescription: newDescription,
     };
     try {
       dispatch(setProgress(30));
-      await api.put(`/project/${projectName}`, data, {
+      await api.put(`/project/${projectId}`, data, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -56,10 +56,10 @@ export const setProjectsData = createAsyncThunk(
 // Async thunk for deleting a project
 export const deleteProjectData = createAsyncThunk(
   "projects/deleteProject",
-  async (projectName, { dispatch, rejectWithValue }) => {
+  async (projectId, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
-      await api.delete(`/project/${projectName}`, {
+      await api.delete(`/project/${projectId}`, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -134,12 +134,16 @@ const projectSlice = createSlice({
   initialState: {
     listOfProjects: [],
     selectedProject: "",
+    currentProjectId: null,
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
   },
   reducers: {
     setSelectedProject(state, action) {
       state.selectedProject = action.payload;
+    },
+    setCurrentProjectId(state, action) { // New reducer
+      state.currentProjectId = action.payload;
     },
     resetProjectStore(state) {
       state.listOfProjects = [];
@@ -204,6 +208,6 @@ const projectSlice = createSlice({
   },
 });
 
-export const { setSelectedProject, resetProjectStore } = projectSlice.actions;
+export const { setSelectedProject, setCurrentProjectId, resetProjectStore } = projectSlice.actions;
 
 export default projectSlice.reducer;

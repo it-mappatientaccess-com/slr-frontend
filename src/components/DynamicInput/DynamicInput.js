@@ -20,8 +20,7 @@ const DynamicInput = ({ category: rawCategory }) => {
   );
 
   const [questionList, setQuestionList] = useState([]);
-  const projectName = localStorage.getItem("selectedProject");
-
+  const projectId = localStorage.getItem("currentProjectId");
   useEffect(() => {
     const questionsFromLocalStorage =
       JSON.parse(localStorage.getItem("questions")) || {};
@@ -62,10 +61,10 @@ const DynamicInput = ({ category: rawCategory }) => {
       };
 
       dispatch(
-        setQuestions({ projectName, category, questions: updatedQuestions })
+        setQuestions({ projectId, category, questions: updatedQuestions })
       );
     },
-    [existingQuestions, category, dispatch, projectName, questionList]
+    [existingQuestions, category, dispatch, projectId, questionList]
   );
   const questionRemoveHandler = useCallback(
     (index) => {
@@ -136,10 +135,10 @@ const DynamicInput = ({ category: rawCategory }) => {
       };
 
       dispatch(
-        setQuestions({ projectName, category, questions: updatedQuestions })
+        setQuestions({ projectId, category, questions: updatedQuestions })
       );
     },
-    [existingQuestions, category, dispatch, projectName, questionList]
+    [existingQuestions, category, dispatch, projectId, questionList]
   );
 
   return (

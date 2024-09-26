@@ -8,7 +8,8 @@ import {
 
 export default function DEQuestions() {
   const dispatch = useDispatch();
-  const projectName = localStorage.getItem("selectedProject");
+  // const projectName = localStorage.getItem("selectedProject");
+  const projectId = localStorage.getItem("currentProjectId");
   const seaQuestions = useSelector(
     (state) => state.questionAbstractData.seaQuestions
   );
@@ -17,8 +18,8 @@ export default function DEQuestions() {
   const [columnOrder, setColumnOrder] = useState([]);
 
   useEffect(() => {
-    dispatch(fetchOldSeaQuestions(projectName));
-  }, [dispatch, projectName]);
+    dispatch(fetchOldSeaQuestions(projectId));
+  }, [dispatch, projectId]);
 
   useEffect(() => {
     if (seaQuestions) {
@@ -32,7 +33,7 @@ export default function DEQuestions() {
       setColumnOrder((prevColumnOrder) => [...prevColumnOrder, newColumn]);
       dispatch(
         setSeaQuestions({
-          projectName,
+          projectId,
           seaQuestions: { ...seaQuestions, [newColumn]: [""] },
         })
       );
@@ -45,7 +46,7 @@ export default function DEQuestions() {
       const updatedSeaQuestions = { ...seaQuestions };
       delete updatedSeaQuestions[columnOrder[columnOrder.length - 1]];
       dispatch(
-        setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions })
+        setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions })
       );
       setColumnOrder(updatedColumnOrder);
     }
@@ -65,7 +66,7 @@ export default function DEQuestions() {
     }
 
     dispatch(
-      setSeaQuestions({ projectName, seaQuestions: updatedSeaQuestions })
+      setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions })
     );
     setColumnOrder(updatedColumnOrder);
   };
