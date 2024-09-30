@@ -33,7 +33,7 @@ export default function DEQuestions() {
       setColumnOrder((prevColumnOrder) => [...prevColumnOrder, newColumn]);
       dispatch(
         setSeaQuestions({
-          projectId,
+          project_id: projectId,
           seaQuestions: { ...seaQuestions, [newColumn]: [""] },
         })
       );
@@ -46,7 +46,7 @@ export default function DEQuestions() {
       const updatedSeaQuestions = { ...seaQuestions };
       delete updatedSeaQuestions[columnOrder[columnOrder.length - 1]];
       dispatch(
-        setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions })
+        setSeaQuestions({ project_id: projectId, seaQuestions: updatedSeaQuestions })
       );
       setColumnOrder(updatedColumnOrder);
     }
@@ -66,7 +66,7 @@ export default function DEQuestions() {
     }
 
     dispatch(
-      setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions })
+      setSeaQuestions({ project_id: projectId, seaQuestions: updatedSeaQuestions })
     );
     setColumnOrder(updatedColumnOrder);
   };

@@ -51,7 +51,7 @@ export const fetchOldQuestions = createAsyncThunk(
 // Thunk to set questions
 export const setQuestions = createAsyncThunk(
   "questionAbstractData/setQuestions",
-  async ({ project_id, category, questions }, { dispatch, getState, rejectWithValue }) => { // Changed projectName to project_id
+  async ({ projectId, category, questions }, { dispatch, getState, rejectWithValue }) => { // Changed projectName to project_id
     try {
       dispatch(setProgress(70));
 
@@ -63,8 +63,7 @@ export const setQuestions = createAsyncThunk(
         ...existingQuestions,
         [category]: questions[category]
       };
-
-      const response = await api.post("questions", { project_id, questions: updatedQuestions }, { // Updated payload
+      const response = await api.post("questions", { project_id: projectId, questions: updatedQuestions }, { // Updated payload
         headers: {
           Authorization: localStorage.getItem("token"),
         },

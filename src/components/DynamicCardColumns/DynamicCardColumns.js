@@ -91,7 +91,7 @@ const DynamicCardColumns = (props) => {
       ...seaQuestions,
       [category]: updatedQuestions,
     };
-    dispatch(setSeaQuestions({ projectId, seaQuestions: updatedSeaQuestions }));
+    dispatch(setSeaQuestions({ project_id: projectId, seaQuestions: updatedSeaQuestions }));
   };
 
   const updateRows = useCallback(() => {

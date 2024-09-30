@@ -59,9 +59,9 @@ const DynamicInput = ({ category: rawCategory }) => {
         ...existingQuestions,
         [category]: updatedList.map((item) => item.question),
       };
-
+      console.log(projectId);
       dispatch(
-        setQuestions({ projectId, category, questions: updatedQuestions })
+        setQuestions({ projectId: projectId, category, questions: updatedQuestions })
       );
     },
     [existingQuestions, category, dispatch, projectId, questionList]
@@ -133,9 +133,9 @@ const DynamicInput = ({ category: rawCategory }) => {
         ...existingQuestions,
         [category]: questionList.map((item) => item.question),
       };
-
+      console.log(projectId)
       dispatch(
-        setQuestions({ projectId, category, questions: updatedQuestions })
+        setQuestions({ projectId: projectId, category, questions: updatedQuestions })
       );
     },
     [existingQuestions, category, dispatch, projectId, questionList]
