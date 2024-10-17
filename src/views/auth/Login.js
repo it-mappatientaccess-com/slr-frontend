@@ -1,12 +1,15 @@
-import React, { useContext, useState, useEffect } from "react";
-// import { Link } from "react-router-dom";
-import { useFormik } from "formik";
-import { signInSchema } from "../../schema/schema";
-import Alert from "components/Alerts/Alert";
-import AuthContext from "context/AuthContext";
-import { useNavigate } from "react-router";
-import { useLocation } from "react-router-dom";
-import { api } from "util/api";
+// views/auth/Login.js
+
+import React, { useContext, useState, useEffect } from 'react';
+import { useFormik } from 'formik';
+import { signInSchema } from '../../schema/schema';
+import Alert from 'components/Alerts/Alert';
+import AuthContext from 'context/AuthContext';
+import { useNavigate } from 'react-router';
+import { useLocation } from 'react-router-dom';
+import { api } from 'util/api';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest } from '../../authConfig';
 
 const initialValues = {
   username: "",
@@ -17,6 +20,7 @@ export default function Login() {
   const ctx = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
+  const { instance } = useMsal();
 
   const [loginStatus, setLoginStatus] = useState({
     submitted: false,
@@ -24,6 +28,7 @@ export default function Login() {
     message: "",
     color: "",
   });
+
   const handleInputChange = (event) => {
     setLoginStatus({
       submitted: false,
@@ -45,69 +50,75 @@ export default function Login() {
 
         await api
           .post(
-            "login",
+            'login',
             {
               username: values.username,
               password: values.password,
             },
             {
               headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+                'Content-Type': 'application/x-www-form-urlencoded',
               },
             }
           )
           .then((response) => {
-            localStorage.setItem("role", response.data.role);
-            localStorage.setItem("username", values.username);
+            localStorage.setItem('role', response.data.role);
+            localStorage.setItem('username', values.username);
 
             if (response.status === 200) {
               setLoginStatus({
                 submitted: false,
-                status: "Logged in successfully!",
+                status: 'Logged in successfully!',
                 message: response.data.message,
-                color: "bg-emerald-500",
+                color: 'bg-emerald-500',
               });
               ctx.login(
                 `Bearer ${response.data.access_token}`,
-                response.data.expiration_time
+                response.data.expiration_time,
+                'credentials'
               );
-              navigate("/dashboard/my-projects", { replace: true });
+              navigate('/dashboard/my-projects', { replace: true });
             }
           })
           .catch((error) => {
-            let errorMessage = "An error occurred. Please try again.";
+            let errorMessage = 'An error occurred. Please try again.';
 
             if (error.response) {
               switch (error.response.status) {
                 case 400:
                   errorMessage =
-                    "There seems to be an issue with your request.";
+                    'There seems to be an issue with your request.';
                   break;
                 case 401:
-                  errorMessage = "Incorrect username or password.";
+                  errorMessage = 'Incorrect username or password.';
                   break;
                 case 500:
-                  errorMessage = "Server error. Please try again later.";
+                  errorMessage = 'Server error. Please try again later.';
                   break;
                 default:
-                  errorMessage = "An unexpected error occurred.";
+                  errorMessage = 'An unexpected error occurred.';
                   break;
               }
             }
             setLoginStatus({
               submitted: false,
-              status: "Error!",
+              status: 'Error!',
               message: errorMessage,
-              color: "bg-red-500",
+              color: 'bg-red-500',
             });
           });
       },
     });
 
+  // Handle SSO Login using loginRedirect
+  const handleSSOLogin = () => {
+    instance.loginRedirect(loginRequest);
+  };
+
   useEffect(() => {
     if (ctx.isLoggedIn) {
       const { from } = location.state || {
-        from: { pathname: "/dashboard/my-projects" },
+        from: { pathname: '/dashboard/my-projects' },
       };
       navigate(from, { replace: true });
     }
@@ -122,7 +133,7 @@ export default function Login() {
               <div className="flex flex-wrap justify-center m-4">
                 <div className="w-6/12 sm:w-6/12 px-4">
                   <img
-                    src={require("assets/img/MAP Patient Access_full.png")}
+                    src={require('assets/img/MAP Patient Access_full.png')}
                     alt="..."
                     className="max-w-full h-auto align-middle border-none"
                   />
@@ -194,18 +205,7 @@ export default function Login() {
                     </p>
                   )}
                 </div>
-                {/* <div>
-                  <label className="inline-flex items-center cursor-pointer">
-                    <input
-                      id="customCheckLogin"
-                      type="checkbox"
-                      className="form-checkbox border-0 rounded text-blueGray-700 ml-1 w-5 h-5 ease-linear transition-all duration-150"
-                    />
-                    <span className="ml-2 text-sm font-semibold text-blueGray-600">
-                      Remember me
-                    </span>
-                  </label>
-                </div> */}
+
                 {loginStatus.status && (
                   <Alert
                     alertClass={loginStatus.color}
@@ -213,27 +213,30 @@ export default function Login() {
                     alertMessage={loginStatus.message}
                   />
                 )}
+
                 <div className="text-center mt-6">
                   <button
                     className={`bg-blueGray-800 text-white active:bg-blueGray-600 text-sm font-bold uppercase px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 w-full ease-linear transition-all duration-150 ${
-                      loginStatus.submitted ? "opacity-50" : ""
+                      loginStatus.submitted ? 'opacity-50' : ''
                     }`}
                     type="submit"
                     disabled={loginStatus.submitted}
                   >
-                    {loginStatus.submitted ? "Signing in..." : "Sign In"}
+                    {loginStatus.submitted ? 'Signing in...' : 'Sign In'}
+                  </button>
+
+                  {/* SSO Login Button */}
+                  <button
+                    className="text-blueGray-500 bg-white border border-solid border-blueGray-500 hover:bg-blueGray-500 hover:text-white active:bg-blueGray-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 w-full"
+                    type="button"
+                    onClick={handleSSOLogin}
+                  >
+                    <i className="fa-brands fa-microsoft"></i> Login with Microsoft 
                   </button>
                 </div>
               </form>
             </div>
           </div>
-          {/* <div className="flex flex-wrap mt-6 relative">
-            <div className="w-full text-center">
-              <Link to="/auth/register" className="text-blueGray-200">
-                Create new account
-              </Link>
-            </div>
-          </div> */}
         </div>
       </div>
     </div>

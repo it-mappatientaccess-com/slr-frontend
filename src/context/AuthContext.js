@@ -1,11 +1,14 @@
-import React, { useState, useCallback, useEffect } from "react";
-import refreshToken from "util/refreshToken";
+// context/AuthContext.js
+
+import React, { useState, useCallback, useEffect } from 'react';
+import refreshToken from 'util/refreshToken';
 let refreshTimer;
 
 const AuthContext = React.createContext({
-  token: "",
+  token: '',
   isLoggedIn: false,
-  login: (token) => {},
+  loginMethod: null,
+  login: (token, expirationTime) => {},
   logout: () => {},
   refreshToken: () => {},
 });
@@ -19,8 +22,8 @@ const calculateRemainingTime = (expirationTime) => {
 };
 
 const retrieveStoredToken = () => {
-  const storedToken = localStorage.getItem("token");
-  const storedExpirationTime = localStorage.getItem("expirationTime");
+  const storedToken = localStorage.getItem('token');
+  const storedExpirationTime = localStorage.getItem('expirationTime');
   return { token: storedToken, expirationTime: storedExpirationTime };
 };
 
@@ -38,20 +41,25 @@ export const AuthContextProvider = (props) => {
   );
 
   const userIsLoggedIn = !!token;
-
+  const [loginMethod, setLoginMethod] = useState(null);
   const logoutHandler = useCallback(() => {
     setToken(null);
+    setTokenExpirationTime(null);
+    setLoginMethod(null);
     localStorage.clear();
     if (refreshTimer) {
       clearTimeout(refreshTimer);
     }
   }, []);
 
-  const loginHandler = (token, expirationTime) => {
+  const loginHandler = (token, expirationTime, method) => {
+    console.log('Logging in with token:', token);
+    console.log('Token expires at:', expirationTime);
     setToken(token);
     setTokenExpirationTime(expirationTime);
-    localStorage.setItem("token", token);
-    localStorage.setItem("expirationTime", expirationTime);
+    setLoginMethod(method);
+    localStorage.setItem('token', token);
+    localStorage.setItem('expirationTime', expirationTime);
     const remainingTime = calculateRemainingTime(expirationTime);
     if (remainingTime > 300000) {
       refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
@@ -59,7 +67,7 @@ export const AuthContextProvider = (props) => {
       refreshTokenHandler();
     }
   };
-  
+
   const hasTokenExpired = (expirationTime) => {
     const currentTime = new Date().getTime();
     const adjExpirationTime = new Date(expirationTime).getTime();
@@ -68,38 +76,38 @@ export const AuthContextProvider = (props) => {
 
   const refreshTokenHandler = useCallback(async () => {
     if (hasTokenExpired(tokenExpirationTime)) {
-        logoutHandler();
-        return;
+      logoutHandler();
+      return;
     }
 
     try {
-        const newTokenData = await refreshToken(token);
-        if (newTokenData) {
-            const newToken = `Bearer ${newTokenData.access_token}`;
-            const newExpirationTime = newTokenData.expiration_time;
-            setToken(newToken);
-            setTokenExpirationTime(newExpirationTime);
-            localStorage.setItem("token", newToken);
-            localStorage.setItem("expirationTime", newExpirationTime);
-            const remainingTime = calculateRemainingTime(newExpirationTime);
-            if (remainingTime > 300000) {
-                refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
-            }
+      const newTokenData = await refreshToken(token);
+      if (newTokenData) {
+        const newToken = `Bearer ${newTokenData.access_token}`;
+        const newExpirationTime = newTokenData.expiration_time;
+        console.log('Refreshing token:', newToken);
+        console.log('New token expires at:', newExpirationTime);
+        setToken(newToken);
+        setTokenExpirationTime(newExpirationTime);
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('expirationTime', newExpirationTime);
+        const remainingTime = calculateRemainingTime(newExpirationTime);
+        if (remainingTime > 300000) {
+          refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
         }
+      }
     } catch (error) {
-      console.log(error);
-        if (error.response) {
-            // Handle token expiration or invalid refresh token
-            logoutHandler();
-        } else {
-            // Handle other errors (e.g., network issues, server errors)
-            // Here you can set a state to show an error notification to the user if needed.
-            console.error("Failed to refresh token:", error.message);
-        }
+      console.log('Error refreshing token:', error);
+      if (error.response) {
+        // Handle token expiration or invalid refresh token
+        logoutHandler();
+      } else {
+        // Handle other errors (e.g., network issues, server errors)
+        // Here you can set a state to show an error notification to the user if needed.
+        console.error('Failed to refresh token:', error.message);
+      }
     }
-}, [token, tokenExpirationTime, logoutHandler]);
-
-  
+  }, [token, tokenExpirationTime, logoutHandler]);
 
   useEffect(() => {
     if (tokenExpirationTime) {
@@ -110,7 +118,7 @@ export const AuthContextProvider = (props) => {
         refreshTokenHandler();
       }
     }
-  
+
     return () => {
       if (refreshTimer) {
         clearTimeout(refreshTimer);
@@ -121,6 +129,7 @@ export const AuthContextProvider = (props) => {
   const contextValue = {
     token,
     isLoggedIn: userIsLoggedIn,
+    loginMethod,
     login: loginHandler,
     logout: logoutHandler,
     refreshToken: refreshTokenHandler,

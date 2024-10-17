@@ -15,7 +15,7 @@ export const fetchProjectsData = createAsyncThunk(
         },
       });
       dispatch(setProgress(100));
-      toast.success("Projects fetched successfully");
+      // toast.success("Projects fetched successfully");
       return response.data.data; // Ensure this includes 'id' and 'shared_with'
     } catch (error) {
       dispatch(setProgress(100));

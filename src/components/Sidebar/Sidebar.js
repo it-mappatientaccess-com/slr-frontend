@@ -8,10 +8,13 @@ import AuthContext from "context/AuthContext";
 import { useDispatch } from "react-redux";
 import { resetQAStore } from "../../redux/slices/questionAbstractSlice";
 import { resetProjectStore } from "../../redux/slices/projectSlice";
-
+import { useMsal } from '@azure/msal-react';
+import { useNavigate } from 'react-router-dom';
 export default function Sidebar() {
   const ctx = useContext(AuthContext);
   const dispatch = useDispatch();
+  const { instance } = useMsal();
+  const navigate = useNavigate();
   const [collapseShow, setCollapseShow] = React.useState("hidden");
   const location = useLocation();
   const userRole = localStorage.getItem("role");
@@ -19,6 +22,20 @@ export default function Sidebar() {
     dispatch(resetProjectStore());
     dispatch(resetQAStore());
     ctx.logout();
+
+    if (ctx.loginMethod === 'sso') {
+      // Logout from MSAL and redirect to post logout URI
+      instance
+        .logoutRedirect({
+          postLogoutRedirectUri: window.location.origin,
+        })
+        .catch((error) => {
+          console.error('MSAL Logout Redirect Error:', error);
+        });
+    } else {
+      // For credential-based login, navigate directly to login page
+      navigate('/auth/login', { replace: true });
+    }
   };
   return (
     <>
