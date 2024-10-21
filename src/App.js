@@ -39,6 +39,7 @@ const App = () => {
     const handleRedirect = async () => {
       try {
         const response = await instance.handleRedirectPromise();
+        console.log('handleRedirectPromise response:', response);
 
         if (response !== null && response.account !== null) {
           instance.setActiveAccount(response.account);
@@ -49,43 +50,49 @@ const App = () => {
         }
 
         if (!ctx.isLoggedIn && instance.getActiveAccount() !== null) {
-          const tokenResponse = await instance.acquireTokenSilent({
-            ...loginRequest,
-            account: instance.getActiveAccount(),
-          });
+          try {
+            const tokenResponse = await instance.acquireTokenSilent({
+              ...loginRequest,
+              account: instance.getActiveAccount(),
+            });
+            console.log('acquireTokenSilent response:', tokenResponse);
 
-          const idToken = tokenResponse.idToken;
+            const idToken = tokenResponse.idToken;
 
-          if (!idToken) {
-            console.error('Failed to retrieve ID token.');
-            setIsAuthLoading(false);
-            return;
-          }
-
-          const res = await api.post(
-            'sso/login',
-            { token: idToken },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-              },
+            if (!idToken) {
+              console.error('Failed to retrieve ID token.');
+              setIsAuthLoading(false);
+              return;
             }
-          );
 
-          if (res.status === 200) {
-            const data = res.data;
-            localStorage.setItem('role', data.role);
-            localStorage.setItem('username', data.username);
+            const res = await api.post(
+              'sso/login',
+              { token: idToken },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
 
-            ctx.login(`Bearer ${data.access_token}`, data.expiration_time, 'sso');
-            navigate('/dashboard/my-projects', { replace: true });
+            if (res.status === 200) {
+              const data = res.data;
+              localStorage.setItem('role', data.role);
+              localStorage.setItem('username', data.username);
+
+              ctx.login(`Bearer ${data.access_token}`, data.expiration_time, 'sso');
+              navigate('/dashboard/my-projects', { replace: true });
+            }
+          } catch (tokenError) {
+            console.error('Token acquisition failed:', tokenError);
+            // Do not call logoutRedirect here
+            // Instead, you may choose to navigate to the login page or show an error
           }
         }
       } catch (error) {
-        console.error('Authentication error:', error);
-        instance.logoutRedirect({
-          postLogoutRedirectUri: window.location.origin,
-        });
+        console.error('handleRedirectPromise error:', error);
+        // Do not call logoutRedirect here
+        // Instead, you may choose to navigate to the login page or show an error
       } finally {
         setIsAuthLoading(false);
       }

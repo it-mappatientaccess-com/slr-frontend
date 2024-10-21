@@ -231,7 +231,7 @@ export default function Login() {
                     type="button"
                     onClick={handleSSOLogin}
                   >
-                    <i className="fa-brands fa-microsoft"></i> Login with Microsoft 
+                    <i className="fa-brands fa-microsoft"></i> Sign in with Microsoft 
                   </button>
                 </div>
               </form>

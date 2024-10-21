@@ -1,6 +1,8 @@
 // context/AuthContext.js
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useMsal } from '@azure/msal-react'; // Import useMsal
+import { loginRequest } from '../authConfig'; // Import loginRequest
 import refreshToken from 'util/refreshToken';
 let refreshTimer;
 
@@ -8,7 +10,7 @@ const AuthContext = React.createContext({
   token: '',
   isLoggedIn: false,
   loginMethod: null,
-  login: (token, expirationTime) => {},
+  login: (token, expirationTime, method) => {},
   logout: () => {},
   refreshToken: () => {},
 });
@@ -24,24 +26,29 @@ const calculateRemainingTime = (expirationTime) => {
 const retrieveStoredToken = () => {
   const storedToken = localStorage.getItem('token');
   const storedExpirationTime = localStorage.getItem('expirationTime');
-  return { token: storedToken, expirationTime: storedExpirationTime };
+  const storedLoginMethod = localStorage.getItem('loginMethod');
+  return {
+    token: storedToken,
+    expirationTime: storedExpirationTime,
+    loginMethod: storedLoginMethod,
+  };
 };
 
 export const AuthContextProvider = (props) => {
+  const { instance } = useMsal(); // Get MSAL instance
   let tokenData = retrieveStoredToken();
-  let initialToken;
-  let initialExpirationTime;
-  if (tokenData) {
-    initialToken = tokenData.token;
-    initialExpirationTime = tokenData.expirationTime;
-  }
+  let initialToken = tokenData.token;
+  let initialExpirationTime = tokenData.expirationTime;
+  let initialLoginMethod = tokenData.loginMethod;
+
   const [token, setToken] = useState(initialToken);
   const [tokenExpirationTime, setTokenExpirationTime] = useState(
     initialExpirationTime
   );
+  const [loginMethod, setLoginMethod] = useState(initialLoginMethod);
 
   const userIsLoggedIn = !!token;
-  const [loginMethod, setLoginMethod] = useState(null);
+
   const logoutHandler = useCallback(() => {
     setToken(null);
     setTokenExpirationTime(null);
@@ -60,6 +67,7 @@ export const AuthContextProvider = (props) => {
     setLoginMethod(method);
     localStorage.setItem('token', token);
     localStorage.setItem('expirationTime', expirationTime);
+    localStorage.setItem('loginMethod', method);
     const remainingTime = calculateRemainingTime(expirationTime);
     if (remainingTime > 300000) {
       refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
@@ -80,34 +88,67 @@ export const AuthContextProvider = (props) => {
       return;
     }
 
-    try {
-      const newTokenData = await refreshToken(token);
-      if (newTokenData) {
-        const newToken = `Bearer ${newTokenData.access_token}`;
-        const newExpirationTime = newTokenData.expiration_time;
-        console.log('Refreshing token:', newToken);
-        console.log('New token expires at:', newExpirationTime);
-        setToken(newToken);
-        setTokenExpirationTime(newExpirationTime);
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('expirationTime', newExpirationTime);
-        const remainingTime = calculateRemainingTime(newExpirationTime);
-        if (remainingTime > 300000) {
-          refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
+    if (loginMethod === 'sso') {
+      // Attempt to acquire new token via MSAL
+      try {
+        const accounts = instance.getAllAccounts();
+        if (accounts.length > 0) {
+          const tokenResponse = await instance.acquireTokenSilent({
+            ...loginRequest,
+            account: accounts[0],
+          });
+
+          const newToken = `Bearer ${tokenResponse.accessToken}`;
+          const newExpirationTime = tokenResponse.expiresOn.getTime();
+
+          console.log('Refreshing SSO token:', newToken);
+          console.log('New token expires at:', new Date(newExpirationTime));
+          setToken(newToken);
+          setTokenExpirationTime(newExpirationTime);
+          localStorage.setItem('token', newToken);
+          localStorage.setItem('expirationTime', newExpirationTime.toString());
+          const remainingTime = calculateRemainingTime(newExpirationTime);
+          if (remainingTime > 300000) {
+            refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000);
+          }
+        } else {
+          // No accounts available, logout
+          logoutHandler();
         }
-      }
-    } catch (error) {
-      console.log('Error refreshing token:', error);
-      if (error.response) {
-        // Handle token expiration or invalid refresh token
+      } catch (error) {
+        console.error('Silent token acquisition failed:', error);
         logoutHandler();
-      } else {
-        // Handle other errors (e.g., network issues, server errors)
-        // Here you can set a state to show an error notification to the user if needed.
-        console.error('Failed to refresh token:', error.message);
       }
+    } else if (loginMethod === 'credentials') {
+      // Existing logic for refreshing token via backend
+      try {
+        const newTokenData = await refreshToken(token);
+        if (newTokenData) {
+          const newToken = `Bearer ${newTokenData.access_token}`;
+          const newExpirationTime = newTokenData.expiration_time;
+          console.log('Refreshing token:', newToken);
+          console.log('New token expires at:', newExpirationTime);
+          setToken(newToken);
+          setTokenExpirationTime(newExpirationTime);
+          localStorage.setItem('token', newToken);
+          localStorage.setItem('expirationTime', newExpirationTime);
+          const remainingTime = calculateRemainingTime(newExpirationTime);
+          if (remainingTime > 300000) {
+            refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000);
+          }
+        } else {
+          // Token refresh failed, logout
+          logoutHandler();
+        }
+      } catch (error) {
+        console.log('Error refreshing token:', error);
+        logoutHandler();
+      }
+    } else {
+      // Unknown login method, logout
+      logoutHandler();
     }
-  }, [token, tokenExpirationTime, logoutHandler]);
+  }, [token, tokenExpirationTime, loginMethod, instance, logoutHandler]);
 
   useEffect(() => {
     if (tokenExpirationTime) {
