@@ -10,47 +10,64 @@ import {
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-
-// Async thunk for generating extraction results
+/**
+ * localFiles: array of { file: File, filename: string } from FilePond or similar
+ * graphFiles: array of Graph "driveItem" objects selected from OneDrive/SharePoint
+ * graphAccessToken: the user’s delegated Graph token
+ * questions, newBatchID, selectedPrompt, includeAboutFile: other existing fields
+ */
 export const generateExtractionResults = createAsyncThunk(
   "dataExtraction/generateExtractionResults",
   async (
-    { files, questions, newBatchID, selectedPrompt, includeAboutFile },
-    { dispatch, rejectWithValue }
+    {
+      localFiles,
+      graphFiles,
+      graphAccessToken,
+      questions,
+      newBatchID,
+      selectedPrompt,
+      includeAboutFile,
+    },
+    { rejectWithValue }
   ) => {
-    const projectId = localStorage.getItem("currentProjectId");
-    if (!projectId) {
-      return rejectWithValue("Project ID not found.");
-    }
-
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i].file, files[i].filename);
-    }
-    formData.append("questions_dict", JSON.stringify(questions));
-    formData.append("project_id", projectId);
-    formData.append("batch_id", newBatchID);
-    formData.append("prompt_text", selectedPrompt);
-    formData.append("include_about_file", includeAboutFile);
-
     try {
-      dispatch(setProgress(70));
+      // Build FormData
+      const formData = new FormData();
+      const projectId = localStorage.getItem("currentProjectId");
+      if (!projectId) {
+        return rejectWithValue("Project ID not found.");
+      }
+      // Append local files
+      // Each entry in localFiles might be { file: File, filename: string }
+      localFiles.forEach((fileObj) => {
+        formData.append("files", fileObj.file, fileObj.filename);
+      });
+
+      // Append the OneDrive/SharePoint references (as JSON)
+      formData.append("graph_files", JSON.stringify(graphFiles || []));
+
+      // Append the user’s Graph token
+      formData.append("graph_access_token", graphAccessToken || "");
+
+      // Other form fields
+      formData.append("questions_dict", JSON.stringify(questions || {}));
+      formData.append("batch_id", newBatchID);
+      formData.append("prompt_text", selectedPrompt);
+      formData.append("include_about_file", includeAboutFile);
+      formData.append("project_id", projectId);
+      // Send to backend
       const response = await api.post("/multi-file-extraction", formData, {
         headers: {
-          Authorization: localStorage.getItem("token"),
+          Authorization: localStorage.getItem("token"), // Bearer token for your API
           "Content-Type": "multipart/form-data",
         },
       });
-      dispatch(setProgress(100));
-      toast.success("Result extraction started successfully");
+
+      toast.success("Extraction request submitted successfully!");
       return response.data;
     } catch (error) {
-      dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.message ||
-        "Failed to generate extraction results";
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      toast.error("Failed to generate extraction results.");
+      return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
