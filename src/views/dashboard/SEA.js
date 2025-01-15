@@ -41,8 +41,8 @@ const SEA = () => {
               iconClass: "fas fa-cog",
             },
             {
-              title: "Step 3: Upload Documents",
-              content: "Upload documents (PDF, Word, text, ePub, CSV) for context.",
+              title: "Step 3: Select or Upload Documents",
+              content: "Select from OneDrive or Sharepoint or Upload your own documents (PDF, Word, text, ePub, CSV) for context.",
               component: <MultiFileUpload />,
               iconClass: "fas fa-upload",
             },

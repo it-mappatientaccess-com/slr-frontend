@@ -1,9 +1,6 @@
-import React, {
-  useState,
-  useCallback,
-  useRef,
-  useMemo
-} from "react";
+// src/components/GraphFilePicker/GraphFilePicker.js
+
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import Modal from "components/Modal/Modal";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "authConfig";
@@ -11,11 +8,10 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+// For generating truly random UUID
+import { v4 as uuidv4 } from "uuid";
 
-/*
-  Acceptable file MIME types, 
-  per your provided list
-*/
+/* Acceptable file MIME types */
 const ACCEPTED_FILE_TYPES = new Set([
   "application/pdf",
   "application/vnd.ms-xpsdocument",
@@ -33,30 +29,19 @@ const ACCEPTED_FILE_TYPES = new Set([
   "text/csv",
 ]);
 
-// Utility: format file size from bytes to KB/MB/GB
 function formatFileSize(bytes) {
   if (!bytes || isNaN(bytes)) return "";
-  const kb = 1024;
-  const mb = kb * 1024;
-  const gb = mb * 1024;
-  if (bytes < kb) {
-    return `${bytes} B`;
-  } else if (bytes < mb) {
-    return `${(bytes / kb).toFixed(2)} KB`;
-  } else if (bytes < gb) {
-    return `${(bytes / mb).toFixed(2)} MB`;
-  } else {
-    return `${(bytes / gb).toFixed(2)} GB`;
-  }
+  const kb = 1024,
+    mb = kb * 1024,
+    gb = mb * 1024;
+  if (bytes < kb) return `${bytes} B`;
+  if (bytes < mb) return `${(bytes / kb).toFixed(2)} KB`;
+  if (bytes < gb) return `${(bytes / mb).toFixed(2)} MB`;
+  return `${(bytes / gb).toFixed(2)} GB`;
 }
 
-// A small helper to pick icons for items
 function getItemIcon(kind, name) {
-  // If folder => show a folder icon
   if (kind === "folder") return <i className="fa fa-folder text-yellow-500" />;
-
-  // If it's a file, guess from extension or MIME. 
-  // We'll do a quick extension check:
   const ext = name?.split(".").pop()?.toLowerCase();
   switch (ext) {
     case "pdf":
@@ -77,47 +62,24 @@ function getItemIcon(kind, name) {
   }
 }
 
-// For SharePoint listing levels
-const LEVEL_SITES = "sites";
-const LEVEL_DRIVES = "drives";
-const LEVEL_FOLDER = "folder";
-
 export default function GraphFilePicker({ onFilesSelected }) {
   const { instance } = useMsal();
 
-  // Show/hide modal
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
-  // "onedrive" or "sharepoint"
   const [currentDriveType, setCurrentDriveType] = useState(null);
 
-  // For AG Grid
   const [rowData, setRowData] = useState([]);
   const gridApiRef = useRef(null);
 
-  // For loading spinner
   const [loading, setLoading] = useState(false);
-
-  // This stack holds objects describing the current location 
-  // (for breadcrumb path + "Back" navigation).
-  // Example entries:
-  // {
-  //   kind: "site" | "drive" | "folder",
-  //   name: "My Site" | "Documents" | "Subfolder",
-  //   siteId: "...",
-  //   driveId: "...",
-  //   itemId: "...",  // folder or file ID
-  // }
   const [navigationStack, setNavigationStack] = useState([]);
 
-  // Track the current "level" in SharePoint
-  // const [spLevel, setSpLevel] = useState(LEVEL_SITES);
-
-  // =================== Access Token ===================
+  // Acquire Graph token
   const getAccessToken = useCallback(async () => {
     const allAccounts = instance.getAllAccounts();
     if (!allAccounts.length) {
-      throw new Error("No user accounts found in MSAL. Are you logged in?");
+      throw new Error("No user accounts found in MSAL.");
     }
     const resp = await instance.acquireTokenSilent({
       scopes: loginRequest.scopes,
@@ -126,7 +88,7 @@ export default function GraphFilePicker({ onFilesSelected }) {
     return resp.accessToken;
   }, [instance]);
 
-  // =================== transformItems ===================
+  // Convert Graph items -> table rows
   const transformItems = useCallback((items, itemKind) => {
     if (!items) return [];
     return items
@@ -141,25 +103,23 @@ export default function GraphFilePicker({ onFilesSelected }) {
           };
         } else if (itemKind === "drive") {
           return {
-            id: item.id,   // e.g. "b!xxxxx"
+            id: item.id,
             name: item.name,
             kind: "drive",
             size: "",
             rawItem: item,
           };
         } else {
-          // "fileOrFolder"
+          // file or folder
           const isFolder = !!item.folder;
-          let kind = isFolder ? "folder" : "file";
-          let sizeVal = isFolder ? "" : formatFileSize(item.size);
-
+          const kind = isFolder ? "folder" : "file";
+          const sizeVal = isFolder ? "" : formatFileSize(item.size || 0);
           if (kind === "file") {
             const mime = item.file?.mimeType || "";
             if (!ACCEPTED_FILE_TYPES.has(mime)) {
-              return null; // skip unaccepted types
+              return null; // skip unaccepted
             }
           }
-
           return {
             id: item.id,
             name: item.name,
@@ -172,37 +132,38 @@ export default function GraphFilePicker({ onFilesSelected }) {
       .filter(Boolean);
   }, []);
 
-  // =================== OneDrive - Root ===================
+  // =========== Graph calls for OneDrive & SharePoint ===========
   const fetchOneDriveRoot = useCallback(async () => {
     setLoading(true);
     try {
       const token = await getAccessToken();
-      const endpoint = "https://graph.microsoft.com/v1.0/me/drive/root/children";
-      const resp = await axios.get(endpoint, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resp = await axios.get(
+        "https://graph.microsoft.com/v1.0/me/drive/root/children",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setRowData(transformItems(resp.data.value, "fileOrFolder"));
     } catch (err) {
-      console.error("Error fetching OneDrive root:", err);
+      console.error("OneDrive root fetch error:", err);
       setRowData([]);
     } finally {
       setLoading(false);
     }
   }, [getAccessToken, transformItems]);
 
-  // =================== OneDrive - Subfolders ===================
   const fetchOneDriveFolder = useCallback(
     async (folderId) => {
       setLoading(true);
       try {
         const token = await getAccessToken();
-        const endpoint = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
-        const resp = await axios.get(endpoint, {
+        const url = `https://graph.microsoft.com/v1.0/me/drive/items/${folderId}/children`;
+        const resp = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRowData(transformItems(resp.data.value, "fileOrFolder"));
       } catch (err) {
-        console.error("Error fetching OneDrive folder:", err);
+        console.error("OneDrive folder fetch error:", err);
         setRowData([]);
       } finally {
         setLoading(false);
@@ -211,42 +172,35 @@ export default function GraphFilePicker({ onFilesSelected }) {
     [getAccessToken, transformItems]
   );
 
-  // =================== SharePoint - List Sites ===================
-  // eslint-disable-next-line no-unused-vars
-  const [spLevelState, setSpLevelState] = useState(LEVEL_SITES);
-
   const fetchSharePointSites = useCallback(async () => {
     setLoading(true);
     try {
       const token = await getAccessToken();
-      const endpoint = `https://graph.microsoft.com/v1.0/sites?search=`;
-      const resp = await axios.get(endpoint, {
+      const url = `https://graph.microsoft.com/v1.0/sites?search=`;
+      const resp = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRowData(transformItems(resp.data.value, "site"));
-      setSpLevelState(LEVEL_SITES);
     } catch (err) {
-      console.error("Error fetching SharePoint sites:", err);
+      console.error("SharePoint sites fetch error:", err);
       setRowData([]);
     } finally {
       setLoading(false);
     }
   }, [getAccessToken, transformItems]);
 
-  // =================== SharePoint - List drives of a site ===================
   const fetchSiteDrives = useCallback(
     async (siteId) => {
       setLoading(true);
       try {
         const token = await getAccessToken();
-        const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`;
-        const resp = await axios.get(endpoint, {
+        const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`;
+        const resp = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRowData(transformItems(resp.data.value, "drive"));
-        setSpLevelState(LEVEL_DRIVES);
       } catch (err) {
-        console.error("Error listing site drives:", err);
+        console.error("Site drives fetch error:", err);
         setRowData([]);
       } finally {
         setLoading(false);
@@ -255,20 +209,18 @@ export default function GraphFilePicker({ onFilesSelected }) {
     [getAccessToken, transformItems]
   );
 
-  // =================== SharePoint - Drive root folder ===================
   const fetchDriveRoot = useCallback(
     async (siteId, driveId) => {
       setLoading(true);
       try {
         const token = await getAccessToken();
-        const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`;
-        const resp = await axios.get(endpoint, {
+        const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`;
+        const resp = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRowData(transformItems(resp.data.value, "fileOrFolder"));
-        setSpLevelState(LEVEL_FOLDER);
       } catch (err) {
-        console.error("Error opening drive root:", err);
+        console.error("Drive root fetch error:", err);
         setRowData([]);
       } finally {
         setLoading(false);
@@ -277,19 +229,18 @@ export default function GraphFilePicker({ onFilesSelected }) {
     [getAccessToken, transformItems]
   );
 
-  // =================== SharePoint - Folder items ===================
   const fetchFolderItems = useCallback(
     async (siteId, driveId, folderId) => {
       setLoading(true);
       try {
         const token = await getAccessToken();
-        const endpoint = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`;
-        const resp = await axios.get(endpoint, {
+        const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`;
+        const resp = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setRowData(transformItems(resp.data.value, "fileOrFolder"));
       } catch (err) {
-        console.error("Error fetching folder items:", err);
+        console.error("Folder items fetch error:", err);
         setRowData([]);
       } finally {
         setLoading(false);
@@ -298,40 +249,178 @@ export default function GraphFilePicker({ onFilesSelected }) {
     [getAccessToken, transformItems]
   );
 
-  // =================== Open Modal ===================
+  // =========== Modal logic =============
   const openModalFor = useCallback(
     (driveType) => {
       setCurrentDriveType(driveType);
       setModalTitle(
-        driveType === "onedrive" ? "OneDrive File Picker" : "SharePoint File Picker"
+        driveType === "onedrive"
+          ? "OneDrive File Picker"
+          : "SharePoint File Picker"
       );
       setShowModal(true);
       setRowData([]);
       setNavigationStack([]);
-      if (driveType === "onedrive") {
-        // fetch OneDrive root
-        fetchOneDriveRoot();
-      } else {
-        // fetch all sites
-        fetchSharePointSites();
-      }
+
+      if (driveType === "onedrive") fetchOneDriveRoot();
+      else fetchSharePointSites();
     },
     [fetchOneDriveRoot, fetchSharePointSites]
   );
 
-  // =================== Close Modal ===================
   const closeModal = useCallback(() => {
     setShowModal(false);
   }, []);
 
-  // =================== AG Grid Columns ===================
+  const onGridReady = useCallback((params) => {
+    gridApiRef.current = params.api;
+  }, []);
+
+  // Double click => navigate deeper
+  const onRowDoubleClicked = useCallback(
+    (params) => {
+      const row = params.data;
+      if (currentDriveType === "onedrive") {
+        if (row.kind === "folder") {
+          setNavigationStack((prev) => [
+            ...prev,
+            { kind: "folder", itemId: row.id, name: row.name },
+          ]);
+          fetchOneDriveFolder(row.id);
+        }
+      } else {
+        // sharepoint
+        if (row.kind === "site") {
+          setNavigationStack((prev) => [
+            ...prev,
+            { kind: "site", siteId: row.id, name: row.name },
+          ]);
+          fetchSiteDrives(row.id);
+        } else if (row.kind === "drive") {
+          const parentSiteId =
+            navigationStack.length > 0
+              ? navigationStack[navigationStack.length - 1].siteId
+              : row.rawItem.parentReference?.siteId;
+          setNavigationStack((prev) => [
+            ...prev,
+            {
+              kind: "drive",
+              driveId: row.id,
+              siteId: parentSiteId,
+              name: row.name,
+            },
+          ]);
+          fetchDriveRoot(parentSiteId, row.id);
+        } else if (row.kind === "folder") {
+          let currentSite = null,
+            currentDrive = null;
+          for (let i = navigationStack.length - 1; i >= 0; i--) {
+            if (!currentSite && navigationStack[i].siteId)
+              currentSite = navigationStack[i].siteId;
+            if (!currentDrive && navigationStack[i].driveId)
+              currentDrive = navigationStack[i].driveId;
+            if (currentSite && currentDrive) break;
+          }
+          setNavigationStack((prev) => [
+            ...prev,
+            {
+              kind: "folder",
+              siteId: currentSite,
+              driveId: currentDrive,
+              itemId: row.id,
+              name: row.name,
+            },
+          ]);
+          fetchFolderItems(currentSite, currentDrive, row.id);
+        } else {
+          console.log("Double-clicked file in SharePoint", row);
+        }
+      }
+    },
+    [
+      currentDriveType,
+      navigationStack,
+      fetchOneDriveFolder,
+      fetchSiteDrives,
+      fetchDriveRoot,
+      fetchFolderItems,
+    ]
+  );
+
+  // goBack => navigate up
+  const goBack = useCallback(() => {
+    if (!navigationStack.length) {
+      if (currentDriveType === "onedrive") fetchOneDriveRoot();
+      else fetchSharePointSites();
+      return;
+    }
+    const newStack = [...navigationStack];
+    newStack.pop();
+    setNavigationStack(newStack);
+
+    if (currentDriveType === "onedrive") {
+      if (!newStack.length) {
+        fetchOneDriveRoot();
+        return;
+      }
+      const parent = newStack[newStack.length - 1];
+      if (parent.kind === "folder") fetchOneDriveFolder(parent.itemId);
+      else fetchOneDriveRoot();
+    } else {
+      // sharepoint
+      if (!newStack.length) {
+        fetchSharePointSites();
+        return;
+      }
+      const parent = newStack[newStack.length - 1];
+      if (parent.kind === "site") fetchSiteDrives(parent.siteId);
+      else if (parent.kind === "drive")
+        fetchDriveRoot(parent.siteId, parent.driveId);
+      else if (parent.kind === "folder")
+        fetchFolderItems(parent.siteId, parent.driveId, parent.itemId);
+      else fetchSharePointSites();
+    }
+  }, [
+    currentDriveType,
+    navigationStack,
+    fetchOneDriveRoot,
+    fetchSharePointSites,
+    fetchOneDriveFolder,
+    fetchSiteDrives,
+    fetchDriveRoot,
+    fetchFolderItems,
+  ]);
+
+  // Confirm => pass newly selected items up
+  const confirmSelection = useCallback(() => {
+    if (!gridApiRef.current) return;
+    const api = gridApiRef.current;
+    const selectedNodes = api.getSelectedNodes();
+    const newlySelectedGraphItems = selectedNodes.map(
+      (node) => node.data.rawItem
+    );
+
+    // We create a truly unique 'id' for each item
+    const finalItems = newlySelectedGraphItems.map((item) => ({
+      ...item,
+      graphId: item.id, // the original Graph ID
+      id: uuidv4(), // guaranteed unique
+    }));
+
+    // Deselect in this folder so user doesn't keep re-adding them
+    api.deselectAll();
+
+    // Return them to the parent
+    onFilesSelected?.(finalItems);
+  }, [onFilesSelected]);
+
+  // AG-Grid columns
   const columnDefs = useMemo(
     () => [
       {
         headerName: "",
-        checkboxSelection: true,
         width: 50,
-        headerCheckboxSelection: true,
+        checkboxSelection: (params) => params.data.kind === "file",
       },
       {
         headerName: "Name",
@@ -352,210 +441,35 @@ export default function GraphFilePicker({ onFilesSelected }) {
     []
   );
 
-  const defaultColDef = useMemo(() => ({ sortable: true, resizable: true }), []);
-
-  const onGridReady = useCallback((params) => {
-    gridApiRef.current = params.api;
-  }, []);
-
-  // =================== Double-click => Navigate Deeper ===================
-  const onRowDoubleClicked = useCallback(
-    (params) => {
-      const row = params.data;
-      if (currentDriveType === "onedrive") {
-        // OneDrive
-        if (row.kind === "folder") {
-          // add stack entry
-          setNavigationStack((prev) => [
-            ...prev,
-            {
-              kind: "folder",
-              name: row.name,
-              itemId: row.id, // folder ID
-            },
-          ]);
-          // fetch subfolder
-          fetchOneDriveFolder(row.id);
-        }
-      } else {
-        // SharePoint
-        if (row.kind === "site") {
-          // navigate to drives
-          setNavigationStack((prev) => [
-            ...prev,
-            {
-              kind: "site",
-              siteId: row.id,
-              name: row.name,
-            },
-          ]);
-          fetchSiteDrives(row.id);
-        } else if (row.kind === "drive") {
-          // open drive root
-          const parentSiteId =
-            navigationStack.length > 0
-              ? navigationStack[navigationStack.length - 1].siteId
-              : row.rawItem.parentReference.siteId; // fallback
-          setNavigationStack((prev) => [
-            ...prev,
-            {
-              kind: "drive",
-              driveId: row.id,
-              siteId: parentSiteId,
-              name: row.name,
-            },
-          ]);
-          fetchDriveRoot(parentSiteId, row.id);
-        } else if (row.kind === "folder") {
-          // open subfolder
-          // find current site, drive from stack
-          let currentSite = null;
-          let currentDrive = null;
-          for (let i = navigationStack.length - 1; i >= 0; i--) {
-            if (!currentSite && navigationStack[i].siteId) {
-              currentSite = navigationStack[i].siteId;
-            }
-            if (!currentDrive && navigationStack[i].driveId) {
-              currentDrive = navigationStack[i].driveId;
-            }
-            if (currentSite && currentDrive) break;
-          }
-          setNavigationStack((prev) => [
-            ...prev,
-            {
-              kind: "folder",
-              siteId: currentSite,
-              driveId: currentDrive,
-              itemId: row.id,
-              name: row.name,
-            },
-          ]);
-          fetchFolderItems(currentSite, currentDrive, row.id);
-        } else {
-          // file => do nothing special
-          console.log("Double-clicked a file in SharePoint:", row);
-        }
-      }
-    },
-    [
-      currentDriveType,
-      navigationStack,
-      fetchOneDriveFolder,
-      fetchSiteDrives,
-      fetchDriveRoot,
-      fetchFolderItems,
-    ]
+  const defaultColDef = useMemo(
+    () => ({ sortable: true, resizable: true }),
+    []
   );
 
-  // =================== BACK => Navigate Up ===================
-  const goBack = useCallback(() => {
-    // If no stack, we are at the top (OneDrive root or site listing).
-    if (!navigationStack.length) {
-      if (currentDriveType === "onedrive") {
-        fetchOneDriveRoot();
-      } else {
-        fetchSharePointSites();
-      }
-      return;
-    }
-
-    // pop current level
-    const newStack = [...navigationStack];
-    newStack.pop();
-    setNavigationStack(newStack);
-
-    if (currentDriveType === "onedrive") {
-      if (!newStack.length) {
-        // no stack => fetch OneDrive root
-        fetchOneDriveRoot();
-        return;
-      }
-      // open parent's folder
-      const parent = newStack[newStack.length - 1];
-      if (parent.kind === "folder") {
-        fetchOneDriveFolder(parent.itemId);
-      } else {
-        // no other states exist in OneDrive, so we fallback to root
-        fetchOneDriveRoot();
-      }
-    } else {
-      // SharePoint
-      if (!newStack.length) {
-        // means we were at top drive/folder => list all sites again
-        fetchSharePointSites();
-        return;
-      }
-
-      // Look at new stack top
-      const parent = newStack[newStack.length - 1];
-
-      if (parent.kind === "site") {
-        // means we show site drives
-        fetchSiteDrives(parent.siteId);
-      } else if (parent.kind === "drive") {
-        // show drive's root
-        fetchDriveRoot(parent.siteId, parent.driveId);
-      } else if (parent.kind === "folder") {
-        // open folder
-        fetchFolderItems(parent.siteId, parent.driveId, parent.itemId);
-      } else {
-        // fallback => show sites
-        fetchSharePointSites();
-      }
-    }
-  }, [
-    navigationStack,
-    currentDriveType,
-    fetchOneDriveRoot,
-    fetchOneDriveFolder,
-    fetchSharePointSites,
-    fetchSiteDrives,
-    fetchDriveRoot,
-    fetchFolderItems,
-    setNavigationStack,
-  ]);
-
-  // =================== Confirm Selection ===================
-  const confirmSelection = useCallback(() => {
-    if (!gridApiRef.current) return;
-    const api = gridApiRef.current;
-    const selectedNodes = api.getSelectedNodes();
-    const selectedItems = selectedNodes.map((node) => node.data.rawItem);
-    console.log("Selected items:", selectedItems);
-
-    if (onFilesSelected) {
-      onFilesSelected(selectedItems);
-    }
-    closeModal();
-  }, [onFilesSelected, closeModal]);
-
-  // =================== Derive a path string ===================
-  // e.g.  navigationStack = [
-  //   { kind: "site", name: "My Site" },
-  //   { kind: "drive", name: "Documents" },
-  //   { kind: "folder", name: "Sub" }
-  // ]
-  // => "/My Site/Documents/Sub"
+  // Current path
   const currentPath = useMemo(() => {
     if (!navigationStack.length) return "/";
     return "/" + navigationStack.map((f) => f.name).join("/");
   }, [navigationStack]);
 
-  // =================== Render ===================
   return (
-    <div>
-      <button
-        onClick={() => openModalFor("onedrive")}
-        className="bg-lightBlue-500 text-white px-4 py-2 rounded shadow mr-2"
-      >
-        Select from OneDrive
-      </button>
-      <button
-        onClick={() => openModalFor("sharepoint")}
-        className="bg-teal-500 text-white px-4 py-2 rounded shadow"
-      >
-        Select from SharePoint
-      </button>
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex justify-center gap-4 mb-3">
+        <button
+          className="text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+          type="button"
+          onClick={() => openModalFor("onedrive")}
+        >
+          <i className="fas fa-cloud"></i> Select from OneDrive
+        </button>
+        <button
+          className="text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+          type="button"
+          onClick={() => openModalFor("sharepoint")}
+        >
+          <i className="fa-brands fa-microsoft"></i> Select from SharePoint
+        </button>
+      </div>
 
       <Modal show={showModal} title={modalTitle} onClose={closeModal}>
         <div className="flex items-center justify-between mb-2">
@@ -570,11 +484,13 @@ export default function GraphFilePicker({ onFilesSelected }) {
           <p className="text-blue-700 font-medium">{currentPath}</p>
           <div />
         </div>
-
         {loading && <p className="text-blue-500">Loading...</p>}
 
         {!loading && (
-          <div className="ag-theme-alpine" style={{ height: "50vh", width: "50vw" }}>
+          <div
+            className="ag-theme-alpine"
+            style={{ height: "50vh", width: "50vw" }}
+          >
             <AgGridReact
               rowData={rowData}
               columnDefs={columnDefs}
@@ -593,9 +509,6 @@ export default function GraphFilePicker({ onFilesSelected }) {
             className="bg-emerald-500 text-white px-4 py-2 rounded mr-2"
           >
             Confirm Selection
-          </button>
-          <button onClick={closeModal} className="bg-gray-300 px-4 py-2 rounded">
-            Close
           </button>
         </div>
       </Modal>
