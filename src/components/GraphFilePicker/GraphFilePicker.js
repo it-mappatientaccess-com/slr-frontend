@@ -1,6 +1,13 @@
 // src/components/GraphFilePicker/GraphFilePicker.js
 
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useContext,
+} from "react";
+import AuthContext from "context/AuthContext";
 import Modal from "components/Modal/Modal";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "authConfig";
@@ -8,6 +15,9 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+import { toast } from "react-toastify";
+import { Tooltip } from "react-tooltip";
+
 // For generating truly random UUID
 import { v4 as uuidv4 } from "uuid";
 
@@ -63,6 +73,7 @@ function getItemIcon(kind, name) {
 }
 
 export default function GraphFilePicker({ onFilesSelected }) {
+  const ctx = useContext(AuthContext);
   const { instance } = useMsal();
 
   const [showModal, setShowModal] = useState(false);
@@ -74,6 +85,71 @@ export default function GraphFilePicker({ onFilesSelected }) {
 
   const [loading, setLoading] = useState(false);
   const [navigationStack, setNavigationStack] = useState([]);
+  // Additional state for the login popup flow
+  const [loadingGraphLogin, setLoadingGraphLogin] = useState(false);
+  /**
+   * Step #1: ensureGraphAccess
+   * - If loginMethod === "sso", do nothing special (you already have a token or can get one silently).
+   * - If loginMethod === "credentials", prompt the user to log in with Microsoft.
+   *   - On success, store a flag so next time we know they have a Graph token.
+   */
+  const ensureGraphAccess = useCallback(async () => {
+    try {
+      // 1) If we’re in SSO mode, we assume we already have or can get a token silently
+      if (ctx.loginMethod === "sso") {
+        return true;
+      }
+
+      // 2) If we’re in credentials mode, check if user is already logged in with MSAL
+      if (ctx.loginMethod === "credentials") {
+        setLoadingGraphLogin(true);
+        const allAccounts = instance.getAllAccounts();
+        // If we have an account, try silent acquisition first
+        if (allAccounts.length > 0) {
+          try {
+            console.log(
+              "[ensureGraphAccess] Attempting silent token acquisition..."
+            );
+            const tokenResponse = await instance.acquireTokenSilent({
+              scopes: loginRequest.scopes,
+              account: allAccounts[0],
+            });
+            // If this works, user is good to go
+            console.log("Silent token acquisition succeeded:", tokenResponse);
+            localStorage.setItem("hasGraphToken", "true");
+            setLoadingGraphLogin(false);
+
+            return true;
+          } catch (error) {
+            setLoadingGraphLogin(false);
+
+            console.warn(
+              "Silent token acquisition failed, will try loginPopup():",
+              error
+            );
+          }
+        }
+
+        // 3) If no accounts or silent fails, do a popup
+        console.log(
+          "[ensureGraphAccess] Prompting Microsoft sign-in with popup..."
+        );
+        const tokenResponse = await instance.loginPopup(loginRequest);
+        console.log(
+          "User completed Microsoft login. Token response:",
+          tokenResponse
+        );
+        localStorage.setItem("hasGraphToken", "true");
+        return true;
+      }
+      // If we somehow get here, fallback
+      return false;
+    } catch (error) {
+      setLoadingGraphLogin(false);
+      console.error("MSAL popup sign-in canceled or error:", error);
+      return false;
+    }
+  }, [ctx.loginMethod, instance]);
 
   // Acquire Graph token
   const getAccessToken = useCallback(async () => {
@@ -251,7 +327,20 @@ export default function GraphFilePicker({ onFilesSelected }) {
 
   // =========== Modal logic =============
   const openModalFor = useCallback(
-    (driveType) => {
+    async (driveType) => {
+      // Attempt to ensure Graph access
+      const hasAccess = await ensureGraphAccess();
+      if (!hasAccess) {
+        console.warn(
+          "User did not grant Graph access or token acquisition failed."
+        );
+        toast.error(
+          "Microsoft sign-in canceled or failed. Could not load OneDrive/SharePoint."
+        );
+        return;
+      }
+
+      // Success => proceed with opening the modal
       setCurrentDriveType(driveType);
       setModalTitle(
         driveType === "onedrive"
@@ -262,10 +351,13 @@ export default function GraphFilePicker({ onFilesSelected }) {
       setRowData([]);
       setNavigationStack([]);
 
-      if (driveType === "onedrive") fetchOneDriveRoot();
-      else fetchSharePointSites();
+      if (driveType === "onedrive") {
+        fetchOneDriveRoot();
+      } else {
+        fetchSharePointSites();
+      }
     },
-    [fetchOneDriveRoot, fetchSharePointSites]
+    [ensureGraphAccess, fetchOneDriveRoot, fetchSharePointSites]
   );
 
   const closeModal = useCallback(() => {
@@ -455,20 +547,34 @@ export default function GraphFilePicker({ onFilesSelected }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex justify-center gap-4 mb-3">
+        {loadingGraphLogin && (
+          <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded shadow">
+              <i className="fas fa-spinner fa-spin mr-2"></i>
+              Signing in to Microsoft...
+            </div>
+          </div>
+        )}
         <button
           className="text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
           type="button"
           onClick={() => openModalFor("onedrive")}
+          data-tooltip-id="oneDrive-btn"
+          data-tooltip-content="Requires Microsoft sign-in if not already logged in."
         >
           <i className="fas fa-cloud"></i> Select from OneDrive
         </button>
+        <Tooltip id="oneDrive-btn" />
         <button
           className="text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
           type="button"
           onClick={() => openModalFor("sharepoint")}
+          data-tooltip-id="sharePoint-btn"
+          data-tooltip-content="Requires Microsoft sign-in if not already logged in."
         >
           <i className="fa-brands fa-microsoft"></i> Select from SharePoint
         </button>
+        <Tooltip id="sharePoint-btn" />
       </div>
 
       <Modal show={showModal} title={modalTitle} onClose={closeModal}>
@@ -484,9 +590,11 @@ export default function GraphFilePicker({ onFilesSelected }) {
           <p className="text-blue-700 font-medium">{currentPath}</p>
           <div />
         </div>
-        {loading && <p className="text-blue-500">Loading...</p>}
-
-        {!loading && (
+        {loading ? (
+          <div className="text-center text-blue-500 mb-2">
+            <i className="fas fa-spinner fa-spin mr-2"></i>Loading files...
+          </div>
+        ) : (
           <div
             className="ag-theme-alpine"
             style={{ height: "50vh", width: "50vw" }}
