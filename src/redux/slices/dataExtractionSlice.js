@@ -29,6 +29,9 @@ const initialState = {
   isStopping: false,
   selectedFileQuestions: null,
   error: null,
+  currentBatchID: null,
+  totalFilesInBatch: 0,
+  processedCount: 0,
 };
 
 const dataExtractionSlice = createSlice({
@@ -71,7 +74,38 @@ const dataExtractionSlice = createSlice({
       if (state.selectedPrompt === promptTitle) {
         state.selectedPrompt = state.prompts.length > 0 ? state.prompts[0].prompt_text : null;
       }
-    }
+    },
+    setCurrentBatchID: (state, action) => {
+      state.currentBatchID = action.payload;
+    },
+    setTotalFilesInBatch: (state, action) => {
+      state.totalFilesInBatch = action.payload;
+    },
+    setProcessedCount: (state, action) => {
+      state.processedCount = action.payload;
+    },
+    setProcessedFiles: (state, action) => {
+      state.processedFiles = action.payload;
+    },
+    appendProcessedFile: (state, action) => {
+      const fileId = action.payload.file_id;
+      // If we don't already have it in processedFiles, push it
+      const exists = state.processedFiles.some((f) => f.file_id === fileId);
+      if (!exists) {
+        state.processedFiles.push(action.payload);
+        // Also increment processedCount
+        state.processedCount += 1;
+      }
+    },
+    resetBatchData: (state) => {
+      // Clear batch-related fields after everything completes or user cancels
+      state.currentBatchID = null;
+      state.totalFilesInBatch = 0;
+      state.processedCount = 0;
+      state.processedFiles = [];
+      localStorage.removeItem("currentBatchID");
+      localStorage.removeItem("totalFilesInBatch");
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -174,7 +208,13 @@ export const {
   setIsSubmitted,
   setMessage,
   setStatus,
-  handlePromptDeletion
+  handlePromptDeletion,
+  setCurrentBatchID,
+  setTotalFilesInBatch,
+  setProcessedCount,
+  setProcessedFiles,
+  appendProcessedFile,
+  resetBatchData
 } = dataExtractionSlice.actions;
 
 export default dataExtractionSlice.reducer;

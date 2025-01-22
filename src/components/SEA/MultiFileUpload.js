@@ -1,6 +1,4 @@
-// src/views/DataExtraction/MultiFileUpload.js
-
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FilePond, registerPlugin } from "react-filepond";
 import "filepond/dist/filepond.min.css";
@@ -13,9 +11,15 @@ import { loginRequest } from "authConfig";
 import {
   setIncludeAboutFile,
   setExtractionTaskId,
-  setIsRefreshing,
   setIsStopping,
+  setCurrentBatchID,
+  setTotalFilesInBatch,
+  setProcessedFiles,
+  setProcessedCount,
+  // Removed resetBatchData (we won't auto-reset at the end)
+  appendProcessedFile,
 } from "../../redux/slices/dataExtractionSlice";
+
 import ProgressBar from "components/ProgressBar/ProgressBar";
 import {
   generateExtractionResults,
@@ -31,6 +35,7 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
+/** Utility to pick an icon based on file extension */
 function getFileIcon(name) {
   const ext = name?.split(".").pop()?.toLowerCase();
   switch (ext) {
@@ -52,6 +57,7 @@ function getFileIcon(name) {
   }
 }
 
+// Register FilePond plugins
 registerPlugin(
   FilePondPluginFileValidateType,
   FilePondPluginFileValidateSize,
@@ -62,42 +68,38 @@ const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const { instance, accounts } = useMsal();
 
-  // Local files (FilePond)
+  // Local states for FilePond and Graph picks
   const [files, setFiles] = useState([]);
-
-  // Remote picks from Graph
   const [graphFiles, setGraphFiles] = useState([]);
 
-  // Polling, progress, etc.
-  const [progress, setProgress] = useState(0);
-  const [processedFilesCount, setProcessedFilesCount] = useState(0);
-  const [isUploadSuccessful, setIsUploadSuccessful] = useState(false);
-  const [showProgressBar, setShowProgressBar] = useState(false);
-  const [currentBatchID, setCurrentBatchID] = useState(null);
+  // Destructure only the Redux fields we actually use here
+  const {
+    currentBatchID,
+    totalFilesInBatch,
+    processedCount,
+    isStopping,
+    message,
+    status,
+    selectedPrompt,
+    includeAboutFile,
+    extractionTaskId,
+  } = useSelector((state) => state.dataExtraction);
 
-  const isRefreshing = useSelector(
-    (state) => state.dataExtraction.isRefreshing
-  );
-  const isSubmitted = useSelector((state) => state.dataExtraction.isSubmitted);
-  const isStopping = useSelector((state) => state.dataExtraction.isStopping);
-  const message = useSelector((state) => state.dataExtraction.message);
-  const status = useSelector((state) => state.dataExtraction.status);
-  const selectedPrompt = useSelector(
-    (state) => state.dataExtraction.selectedPrompt
-  );
-  const includeAboutFile = useSelector(
-    (state) => state.dataExtraction.includeAboutFile
-  );
-  const extractionTaskId = useSelector(
-    (state) => state.dataExtraction.extractionTaskId
-  );
-  const seaQuestions = useSelector(
-    (state) => state.questionAbstractData.seaQuestions
-  );
+  const isSubmittedVal = useSelector((state) => state.dataExtraction.isSubmitted);
+  const seaQuestions = useSelector((state) => state.questionAbstractData.seaQuestions);
 
-  const fetchIntervalRef = useRef(null);
+  // Calculate progress from Redux fields
+  const showProgressBar = currentBatchID !== null && processedCount < totalFilesInBatch;
+  const progress =
+    totalFilesInBatch > 0 ? (processedCount / totalFilesInBatch) * 100 : 0;
 
-  // Acquire Graph Token
+  // SSE endpoint (base API URL from your .env or fallback)
+  const baseAPIUrl = process.env.REACT_APP_API_URL;
+  const sseUrl = `${baseAPIUrl}stream-progress`;
+
+  /**
+   * Acquire Graph Token
+   */
   const getGraphToken = useCallback(async () => {
     try {
       if (!accounts || accounts.length === 0) return "";
@@ -112,47 +114,98 @@ const MultiFileUpload = () => {
     }
   }, [instance, accounts]);
 
-  // Toggle "Include AboutFile"
+  /**
+   * On mount, restore any ongoing batch from localStorage
+   */
+  useEffect(() => {
+    const storedBatchID = localStorage.getItem("currentBatchID");
+    const storedTotal = localStorage.getItem("totalFilesInBatch");
+
+    if (storedBatchID) {
+      dispatch(setCurrentBatchID(storedBatchID));
+      dispatch(setTotalFilesInBatch(parseInt(storedTotal || "0", 10)));
+      // Sync up processed files from server
+      dispatch(fetchProcessedFileNames()).then((res) => {
+        if (res.payload) {
+          const data = res.payload.filter((f) => f.batch_id === storedBatchID);
+          dispatch(setProcessedFiles(data));
+          dispatch(setProcessedCount(data.length));
+        }
+      });
+    }
+    // eslint-disable-next-line
+  }, []);
+
+  /**
+   * SSE subscription whenever currentBatchID changes
+   */
+  useEffect(() => {
+    if (!currentBatchID) return;
+
+    console.log("Opening SSE for batch:", currentBatchID);
+    const sse = new EventSource(sseUrl);
+
+    sse.onmessage = (event) => {
+      if (!event.data) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "file_processed" && data.batch_id === currentBatchID) {
+          // New processed file => update Redux
+          dispatch(appendProcessedFile(data));
+        }
+      } catch (err) {
+        console.error("Error parsing SSE event:", err);
+      }
+    };
+
+    sse.onerror = (err) => {
+      console.error("SSE error:", err);
+      // Optionally handle reconnection
+    };
+
+    return () => {
+      console.log("Closing SSE for batch:", currentBatchID);
+      sse.close();
+    };
+  }, [currentBatchID, sseUrl, dispatch]);
+
+  /**
+   * Toggle the "Include AboutFile" checkbox
+   */
   const toggleIncludeAboutFile = () => {
-    dispatch(
-      setIncludeAboutFile({
-        includeAboutFile: !includeAboutFile,
-      })
-    );
+    dispatch(setIncludeAboutFile({ includeAboutFile: !includeAboutFile }));
   };
 
-  // Clear all
+  /**
+   * Clear local FilePond + Graph picks
+   */
   const clearFiles = () => {
     setFiles([]);
     setGraphFiles([]);
   };
 
-  // Merge newly selected items from GraphFilePicker
+  /**
+   * Merge newly selected items from GraphFilePicker
+   */
   const handleFilesSelected = useCallback((newlySelected) => {
-    console.log("GraphFilePicker returned items:", newlySelected);
     setGraphFiles((prev) => {
       const merged = [...prev];
       for (const item of newlySelected) {
-        // skip if same filename already in merged
         const alreadyExists = merged.some((m) => m.name === item.name);
         if (!alreadyExists) merged.push(item);
       }
-      console.log("Updated graphFiles:", merged);
       return merged;
     });
   }, []);
 
-  // ======== Remove a single file from graphFiles ========
+  /**
+   * Remove a single file from Graph picks
+   */
   const removeSelectedFile = useCallback((fileId) => {
-    // Use functional form to avoid stale closures
-    setGraphFiles((prevFiles) => {
-      const newList = prevFiles.filter((item) => item.id !== fileId);
-      console.log("Removing file with ID:", fileId, " => newList:", newList);
-      return newList;
-    });
+    setGraphFiles((prevFiles) => prevFiles.filter((item) => item.id !== fileId));
   }, []);
 
-  // AG-Grid for the remote picks
+  // AG-Grid definitions for the Graph picks
   const getRowId = (params) => params.data.id;
   const [graphColumnDefs] = useState(() => [
     {
@@ -171,36 +224,49 @@ const MultiFileUpload = () => {
     {
       headerName: "Actions",
       flex: 1,
-      cellRenderer: (params) => {
-        return (
-          <button
-            className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-            type="button"
-            onClick={() => removeSelectedFile(params.data.id)}
-          >
-            <i className="fas fa-trash"></i> Remove
-          </button>
-        );
-      },
+      cellRenderer: (params) => (
+        <button
+          className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+          type="button"
+          onClick={() => removeSelectedFile(params.data.id)}
+        >
+          <i className="fas fa-trash"></i> Remove
+        </button>
+      ),
     },
   ]);
 
-  // Main "Upload" => send both local and remote
+  /**
+   * onProcessFile: user clicks "Generate Results"
+   *  1) Create new batch
+   *  2) Set Redux + localStorage
+   *  3) Dispatch generateExtractionResults
+   */
   const onProcessFile = async () => {
-    console.log("Local files:", files);
-    console.log("Graph files:", graphFiles);
-
-    const newBatchID = generateUniqueBatchID();
-    setCurrentBatchID(newBatchID);
-    setProcessedFilesCount(0);
-
     try {
+      const newBatchID = generateUniqueBatchID();
+      const totalFiles = files.length + graphFiles.length;
+      if (totalFiles === 0) {
+        return notify("No files selected!", "warning");
+      }
+
+      // Prepare Redux + localStorage
+      dispatch(setCurrentBatchID(newBatchID));
+      dispatch(setTotalFilesInBatch(totalFiles));
+      dispatch(setProcessedFiles([]));
+      dispatch(setProcessedCount(0));
+
+      localStorage.setItem("currentBatchID", newBatchID);
+      localStorage.setItem("totalFilesInBatch", totalFiles.toString());
+
+      // Acquire Graph token
       const graphToken = await getGraphToken();
       const localFiles = files.map((f) => ({
         file: f.file,
         filename: f.file.name,
       }));
 
+      // Start extraction
       const response = await dispatch(
         generateExtractionResults({
           localFiles,
@@ -213,13 +279,11 @@ const MultiFileUpload = () => {
         })
       );
 
+      // If successful, store the backend's extractionTaskId
       if (response.meta.requestStatus === "fulfilled") {
-        setIsUploadSuccessful(true);
-        dispatch(
-          setExtractionTaskId({
-            extractionTaskId: response.payload.task_id,
-          })
-        );
+        if (response.payload?.task_id) {
+          dispatch(setExtractionTaskId({ extractionTaskId: response.payload.task_id }));
+        }
       } else {
         notify("File upload failed.", "error");
       }
@@ -229,74 +293,43 @@ const MultiFileUpload = () => {
     }
   };
 
-  // Polling for local file progress
-  const exponentialBackoff = (min, max, attempt) =>
-    Math.min(max, Math.pow(2, attempt) * min);
-
-  useEffect(() => {
-    let attempt = 1;
-    const maxDelay = 120000;
-    const minDelay = 5000;
-
-    if (isUploadSuccessful) {
-      setShowProgressBar(true);
-      const interval = setInterval(async () => {
-        const totalCount = files.length;
-        if (processedFilesCount < totalCount) {
-          const response = await dispatch(fetchProcessedFileNames());
-          const currentProcessedFiles = response.payload.filter(
-            (fileInfo) => fileInfo.batch_id === currentBatchID
-          );
-          setProcessedFilesCount(currentProcessedFiles.length);
-          setProgress((currentProcessedFiles.length / totalCount) * 100);
-
-          if (currentProcessedFiles.length === totalCount) {
-            clearInterval(interval);
-            setIsUploadSuccessful(false);
-            setProgress(0);
-            setShowProgressBar(false);
-          }
-          attempt++;
-        } else {
-          clearInterval(interval);
-          setIsUploadSuccessful(false);
-        }
-      }, exponentialBackoff(minDelay, maxDelay, attempt));
-
-      fetchIntervalRef.current = interval;
-      return () => clearInterval(fetchIntervalRef.current);
-    } else {
-      setShowProgressBar(false);
-    }
-  }, [
-    isUploadSuccessful,
-    processedFilesCount,
-    files.length,
-    dispatch,
-    currentBatchID,
-  ]);
-
-  // Refresh & Stop
-  const onRefreshClickHandler = () => {
-    dispatch(setIsRefreshing({ isRefreshing: true }));
-    dispatch(fetchProcessedFileNames());
-  };
-
+  /**
+   * onStopClickedHandler: user clicks "Stop" to halt background processing
+   */
   const onStopClickedHandler = async () => {
     dispatch(setIsStopping({ isStopping: true }));
     const response = await dispatch(stopExtraction(extractionTaskId));
     notify(response?.message, response?.status);
   };
 
-  // Toast if submitted
-  const isSubmittedVal = useSelector(
-    (state) => state.dataExtraction.isSubmitted
-  );
+  /**
+   * Show toast if isSubmittedVal changes
+   */
   useEffect(() => {
     if (isSubmittedVal) {
       notify(message, status ? "success" : "error");
     }
   }, [isSubmittedVal, status, message]);
+
+  /**
+   * If all files are processed (processedCount >= totalFilesInBatch),
+   * we just show a success toast, but DO NOT reset the batch data.
+   * That way, the table remains populated.
+   */
+  useEffect(() => {
+    if (
+      processedCount > 0 &&
+      processedCount >= totalFilesInBatch &&
+      currentBatchID
+    ) {
+      notify("All files processed successfully!", "success");
+      // If you want the progress bar to disappear now:
+      // No resetBatchData => The table stays
+      // If you want to remove the batch from localStorage so next reload doesn't still show SSE:
+      // localStorage.removeItem("currentBatchID");
+      // localStorage.removeItem("totalFilesInBatch");
+    }
+  }, [processedCount, totalFilesInBatch, currentBatchID]);
 
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
@@ -318,19 +351,22 @@ const MultiFileUpload = () => {
                   animateRows={true}
                   pagination={true}
                   paginationAutoPageSize={true}
-                suppressClickEdit={true}
+                  suppressClickEdit={true}
                 />
               </div>
             )}
           </div>
-          {/* divider with "OR" written in the middle */}
+
+          {/* Divider with "OR" text */}
           <div className="flex items-center py-4">
             <hr className="flex-grow border-t border-gray-300" />
-            <span className="px-3 text-gray-500">OR Upload your own files</span>
+            <span className="px-3 text-gray-500">
+              OR Upload your own files
+            </span>
             <hr className="flex-grow border-t border-gray-300" />
           </div>
 
-          {/* FilePond for local */}
+          {/* FilePond for local files */}
           <div className="relative">
             <FilePond
               files={files}
@@ -339,8 +375,8 @@ const MultiFileUpload = () => {
               maxFiles={100}
               name="file"
               labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> 
-                       <br/> (MAX FILES: 100, MAX FILESIZE: 25MB) 
-                       <br/>Allowed file types: PDF, XPS, EPUB, MOBI, FB2, CBZ, SVG, TXT, PPT, DOC, DOCX, XLS, XLSX, CSV'
+                  <br/> (MAX FILES: 100, MAX FILESIZE: 25MB) 
+                  <br/>Allowed file types: PDF, XPS, EPUB, MOBI, FB2, CBZ, SVG, TXT, PPT, DOC, DOCX, XLS, XLSX, CSV'
               allowFileTypeValidation={true}
               acceptedFileTypes={[
                 "application/pdf",
@@ -359,7 +395,7 @@ const MultiFileUpload = () => {
                 "text/csv",
               ]}
               allowFileSizeValidation={true}
-              maxFileSize={"30MB"}
+              maxFileSize="30MB"
               credits={false}
               instantUpload={false}
               chunkUploads={true}
@@ -367,46 +403,30 @@ const MultiFileUpload = () => {
               maxParallelUploads={10}
             />
 
-            {/* Upload / Refresh / Stop / Clear / AboutFile Buttons */}
+            {/* Action Buttons */}
             <div className="flex flex-col lg:flex-row justify-between items-center mt-4 lg:items-end">
               <div className="flex flex-col lg:flex-row justify-center flex-grow lg:mb-0 mb-4">
                 <Tooltip id="action-btn-tooltip" />
+
                 {/* Upload */}
                 <button
                   className={`bg-lightBlue-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 
-                  ${
-                    files.length === 0 && graphFiles.length === 0
-                      ? "opacity-40"
-                      : ""
-                  }`}
+                    ${
+                      files.length === 0 && graphFiles.length === 0
+                        ? "opacity-40"
+                        : ""
+                    }`}
                   onClick={onProcessFile}
                   disabled={files.length === 0 && graphFiles.length === 0}
                 >
                   <i className="fas fa-play"></i> Generate Results
                 </button>
 
-                {/* Refresh */}
-                <button
-                  className={`bg-blueGray-500 text-white font-bold uppercase text-sm px-8 py-3 rounded shadow-md hover:shadow-lg mr-1 mb-1 
-                  ${isRefreshing && isSubmitted ? "opacity-50" : ""}`}
-                  onClick={onRefreshClickHandler}
-                  disabled={isRefreshing}
-                  data-tooltip-id="action-btn-tooltip"
-                  data-tooltip-content="Refresh to view new processed files."
-                >
-                  <i
-                    className={`fas fa-arrow-rotate-right ${
-                      isRefreshing ? "fa-spin" : ""
-                    }`}
-                  ></i>{" "}
-                  {isRefreshing ? "Refreshing..." : "Refresh"}
-                </button>
-
-                {/* Stop */}
+                {/* Stop (if progress bar is showing) */}
                 {showProgressBar && (
                   <button
                     className={`bg-red-500 text-white font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg mr-1 mb-1 
-                    ${isStopping ? "opacity-50" : ""}`}
+                      ${isStopping ? "opacity-50" : ""}`}
                     onClick={onStopClickedHandler}
                     disabled={isStopping}
                     data-tooltip-id="action-btn-tooltip"
@@ -454,7 +474,7 @@ const MultiFileUpload = () => {
             {/* ProgressBar */}
             {showProgressBar && progress < 100 && (
               <ProgressBar
-                taskInProgress={`Progress: ${processedFilesCount}/${files.length}`}
+                taskInProgress={`Progress: ${processedCount}/${totalFilesInBatch}`}
                 percentage={progress}
               />
             )}

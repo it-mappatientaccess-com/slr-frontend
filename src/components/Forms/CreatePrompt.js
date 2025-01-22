@@ -16,7 +16,6 @@ const initialValues = {
 
 export default function CreatePrompt({ onPromptSubmitSuccess }) {
   const dispatch = useDispatch();
-
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -26,7 +25,7 @@ export default function CreatePrompt({ onPromptSubmitSuccess }) {
           .post(
             "prompt",
             {
-              projectName: localStorage.getItem("selectedProject"),
+              project_id: localStorage.getItem("currentProjectId"),
               prompt_title: values.promptTitle.trim(),
               prompt_text: values.promptText,
               is_default: false,
