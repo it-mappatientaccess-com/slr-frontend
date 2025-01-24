@@ -8,23 +8,66 @@ import { useSelector } from "react-redux";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
+// For full Markdown support:
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+
+/**
+ * A custom cell renderer that:
+ * 1. Minimizes excessive blank lines.
+ * 2. Renders multiline Markdown, supporting GFM, raw HTML, etc.
+ */
 const CustomCellRenderer = (props) => {
   const value = props.value || "";
-  const content =
-    typeof value === "string"
-      ? value.split("\n").map((item, index) => {
-          return (
-            <div
-              key={index}
-              style={{ borderBottom: "1px solid #ccc", padding: "5px 0" }}
-            >
-              {item}
-            </div>
-          );
-        })
-      : value; // if value is not a string, just use it as is
+  if (typeof value !== "string") {
+    return <div>{value}</div>;
+  }
 
-  return <div>{content}</div>;
+  /**
+   * 1) Collapse any 3+ consecutive newlines to exactly 2
+   * 2) Trim leading/trailing blank lines
+   */
+  const collapsedValue = value
+    // Remove leading blank lines
+    .replace(/^\s*\n+/, "")
+    // Remove trailing blank lines
+    .replace(/\n+\s*$/, "")
+    // Collapse 3+ consecutive newlines into exactly 2
+    .replace(/\n{3,}/g, "\n\n");
+
+  /**
+   * Split into lines by single `\n`, trim the end of each line, 
+   * and filter out any completely empty lines.
+   */
+  const lines = collapsedValue
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line !== "");
+
+  return (
+    <div style={{ wordWrap: "break-word", whiteSpace: "pre-wrap" }}>
+      {lines.map((line, idx) => (
+        <ReactMarkdown
+          key={idx}
+          // GitHub-Flavored Markdown
+          remarkPlugins={[remarkGfm]}
+          // Allow raw HTML (only if you trust the source!)
+          rehypePlugins={[rehypeRaw]}
+          // Provide actual text content to <a> for accessibility
+          components={{
+            a: ({ children, ...rest }) => (
+              <a target="_blank" rel="noopener noreferrer" {...rest}>
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {line}
+        </ReactMarkdown>
+      ))}
+    </div>
+  );
 };
 
 const ExtractionResult = (props) => {
@@ -32,10 +75,13 @@ const ExtractionResult = (props) => {
   const [columnDefs, setColumnDefs] = useState([]);
   const gridRef = useRef(null);
   const [includeExtraInfo, setIncludeExtraInfo] = useState(false);
-  const selectedPrompt = useSelector(
-    (state) => state.dataExtraction.selectedPrompt
-  );
+
+  // Toggling questions
+  const [showQuestions, setShowQuestions] = useState(true);
+
+  const selectedPrompt = useSelector((state) => state.dataExtraction.selectedPrompt);
   const prompts = useSelector((state) => state.dataExtraction.prompts);
+
   const defaultColDef = useMemo(
     () => ({
       sortable: true,
@@ -44,12 +90,9 @@ const ExtractionResult = (props) => {
     }),
     []
   );
-  const [showQuestions, setShowQuestions] = useState(true); // By default, questions are shown
 
   useEffect(() => {
-    if (!Array.isArray(props.result) || !props.result.length) {
-      return;
-    }
+    if (!Array.isArray(props.result) || !props.result.length) return;
 
     let parsedQuestions = {};
     try {
@@ -59,13 +102,13 @@ const ExtractionResult = (props) => {
       return;
     }
 
-    let columnDataMap = {};
-    // Initialize column data map for all keys found in selectedFileQuestions
+    // Prepare an object mapping each column key => array of text lines
+    const columnDataMap = {};
     Object.keys(parsedQuestions).forEach((key) => {
       columnDataMap[key] = [];
     });
 
-    // Populate each column with the data
+    // Populate Q/A data for each relevant column
     props.result.forEach((resultItem) => {
       Object.keys(resultItem).forEach((key) => {
         if (parsedQuestions.hasOwnProperty(key)) {
@@ -74,6 +117,7 @@ const ExtractionResult = (props) => {
           if (answers && questions) {
             answers.forEach((answer, index) => {
               const question = questions[index] || "Question not available";
+              // We store question + answer pairs
               columnDataMap[key].push(`Q${index + 1}: ${question}`);
               columnDataMap[key].push(answer);
             });
@@ -82,58 +126,59 @@ const ExtractionResult = (props) => {
       });
     });
 
-    // Filter rowData to handle show/hide questions correctly
-    let rowData = [];
+    // Convert columnDataMap into rowData for AG Grid
+    const newRowData = [];
     const maxLength = Math.max(
       ...Object.values(columnDataMap).map((col) => col.length)
     );
+
     for (let i = 0; i < maxLength; i++) {
-      let row = {};
+      const row = {};
       Object.keys(columnDataMap).forEach((key) => {
-        let cellContent = columnDataMap[key][i] || "";
+        const cellContent = columnDataMap[key][i] || "";
         if (typeof cellContent === "string") {
-          if (
-            showQuestions ||
-            (!showQuestions && !cellContent.startsWith("Q"))
-          ) {
+          // Show questions if toggled on; else hide lines that start with 'Q'
+          if (showQuestions || (!showQuestions && !cellContent.startsWith("Q"))) {
             row[key] = cellContent;
           }
         } else {
-          // Handle non-string cell content
+          // Non-string data, always show if showQuestions is on
           if (showQuestions) {
             row[key] = cellContent;
           }
         }
       });
+
+      // Only add row if it has visible content
       if (Object.keys(row).length > 0) {
-        // Ensure row is not empty
-        rowData.push(row);
+        newRowData.push(row);
       }
     }
 
-    // Define column definitions, dynamically including 'aboutFile' if it exists
+    // If 'aboutFile' column exists, place it first
     const columnsOrder = columnDataMap.hasOwnProperty("aboutFile")
       ? [
           "aboutFile",
           ...Object.keys(columnDataMap).filter((key) => key !== "aboutFile"),
         ]
       : [...Object.keys(columnDataMap)];
+
     const columns = columnsOrder.map((key) => ({
       field: key,
       headerName: key,
       cellStyle: { whiteSpace: "normal" },
       autoHeight: true,
-      cellRenderer: "customCellRenderer",
+      cellRenderer: "customCellRenderer", // Our Markdown renderer
       flex: 1,
     }));
 
-    setRowData(rowData);
+    setRowData(newRowData);
     setColumnDefs(columns);
   }, [props.result, props.selectedFileQuestions, showQuestions]);
 
+  // Row styling (lightblue background if a cell starts with "Q")
   const gridOptions = {
-    getRowStyle: function (params) {
-      // Check each field in the row to see if it contains a question
+    getRowStyle: (params) => {
       for (const key of Object.keys(params.data)) {
         if (
           typeof params.data[key] === "string" &&
@@ -145,14 +190,17 @@ const ExtractionResult = (props) => {
     },
   };
 
-  // Helper function to parse markdown-like syntax and apply Excel formatting
-  const formatCellContent = (text, worksheet, row, colIndex) => {
+  /**
+   * Minimal bold detection for Excel exports. 
+   * If you want more comprehensive Markdown->Excel, 
+   * you'd need a richer parser.
+   */
+  const formatCellContent = (text, worksheet, rowNumber, colIndex) => {
     const parts = [];
     const boldRegex = /\*\*(.*?)\*\*/g;
     let match;
     let lastIndex = 0;
 
-    // Iterate over the markdown content and apply formatting
     while ((match = boldRegex.exec(text)) !== null) {
       if (match.index > lastIndex) {
         parts.push({ text: text.slice(lastIndex, match.index) });
@@ -165,40 +213,36 @@ const ExtractionResult = (props) => {
       parts.push({ text: text.slice(lastIndex) });
     }
 
-    // Apply rich text formatting to the appropriate cell
-    worksheet.getRow(row).getCell(colIndex + 1).value = { richText: parts };
+    worksheet.getRow(rowNumber).getCell(colIndex + 1).value = { richText: parts };
   };
 
-  // Enhanced Excel export function using ExcelJS
+  // Export to Excel via ExcelJS
   const onBtnExport = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Sheet 1");
 
-    // Add headers
+    // Add column headers
     const headers = columnDefs.map((colDef) => colDef.headerName);
     worksheet.addRow(headers);
 
-    // Add data with formatting
+    // Add data
     rowData.forEach((row, rowIndex) => {
       columnDefs.forEach((colDef, colIndex) => {
         const cellValue = row[colDef.field] || "";
-        const cell = worksheet.getRow(rowIndex + 2).getCell(colIndex + 1); // Offset by 2 for the header row
+        const cell = worksheet.getRow(rowIndex + 2).getCell(colIndex + 1);
 
         if (typeof cellValue === "string" && cellValue.includes("**")) {
-          // Apply rich text formatting for markdown-like syntax
           formatCellContent(cellValue, worksheet, rowIndex + 2, colIndex);
         } else {
-          // If no markdown, just add plain text
           cell.value = cellValue;
         }
 
-        // Apply cell styles
         cell.alignment = { wrapText: true };
         worksheet.getColumn(colIndex + 1).width = 30; // Adjust column width
       });
     });
 
-    // Generate Excel file and trigger download
+    // Download file
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -206,13 +250,12 @@ const ExtractionResult = (props) => {
     saveAs(blob, `${props.fileName}_export.xlsx`);
   };
 
-  const toggleShowQuestions = () => {
-    setShowQuestions(!showQuestions);
-  };
+  const toggleShowQuestions = () => setShowQuestions((prev) => !prev);
 
   return (
     <div>
       <Tooltip id="export-btn-tooltip" />
+
       <div className="flex justify-between">
         <div>
           <h5 className="text-2xl font-normal leading-normal mt-0 mb-2 text-lightBlue-800">
@@ -223,7 +266,7 @@ const ExtractionResult = (props) => {
         <div>
           <span>
             <button
-              className={`text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+              className="text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
               type="button"
               onClick={toggleShowQuestions}
             >
@@ -236,7 +279,8 @@ const ExtractionResult = (props) => {
               {showQuestions ? "Hide Questions" : "Show Questions"}
             </button>
           </span>
-          {selectedPrompt === prompts[1].prompt_text && (
+
+          {selectedPrompt === prompts[1]?.prompt_text && (
             <span className="mx-2">
               <input
                 type="checkbox"
@@ -248,6 +292,7 @@ const ExtractionResult = (props) => {
               <label htmlFor="includeExtraInfo mx-2">Include Details</label>
             </span>
           )}
+
           <button
             className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
             type="button"
@@ -260,9 +305,9 @@ const ExtractionResult = (props) => {
         </div>
       </div>
 
-      <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg ">
+      <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
         <div className="flex-auto p-4">
-          <div className={`ag-theme-alpine`} style={{ height: "80vh" }}>
+          <div className="ag-theme-alpine" style={{ height: "80vh" }}>
             <AgGridReact
               ref={gridRef}
               rowData={rowData}
@@ -272,7 +317,9 @@ const ExtractionResult = (props) => {
               readOnlyEdit={true}
               suppressClickEdit={true}
               gridOptions={gridOptions}
-              components={{ customCellRenderer: CustomCellRenderer }}
+              components={{
+                customCellRenderer: CustomCellRenderer,
+              }}
             />
           </div>
         </div>

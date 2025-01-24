@@ -16,7 +16,7 @@ import {
   setTotalFilesInBatch,
   setProcessedFiles,
   setProcessedCount,
-  // Removed resetBatchData (we won't auto-reset at the end)
+  // Note: we intentionally do NOT reset processed files for new batches
   appendProcessedFile,
 } from "../../redux/slices/dataExtractionSlice";
 
@@ -85,11 +85,16 @@ const MultiFileUpload = () => {
     extractionTaskId,
   } = useSelector((state) => state.dataExtraction);
 
-  const isSubmittedVal = useSelector((state) => state.dataExtraction.isSubmitted);
-  const seaQuestions = useSelector((state) => state.questionAbstractData.seaQuestions);
+  const isSubmittedVal = useSelector(
+    (state) => state.dataExtraction.isSubmitted
+  );
+  const seaQuestions = useSelector(
+    (state) => state.questionAbstractData.seaQuestions
+  );
 
   // Calculate progress from Redux fields
-  const showProgressBar = currentBatchID !== null && processedCount < totalFilesInBatch;
+  const showProgressBar =
+    currentBatchID !== null && processedCount < totalFilesInBatch;
   const progress =
     totalFilesInBatch > 0 ? (processedCount / totalFilesInBatch) * 100 : 0;
 
@@ -116,6 +121,7 @@ const MultiFileUpload = () => {
 
   /**
    * On mount, restore any ongoing batch from localStorage
+   * AND always fetch all processed files so the table is never empty.
    */
   useEffect(() => {
     const storedBatchID = localStorage.getItem("currentBatchID");
@@ -124,12 +130,26 @@ const MultiFileUpload = () => {
     if (storedBatchID) {
       dispatch(setCurrentBatchID(storedBatchID));
       dispatch(setTotalFilesInBatch(parseInt(storedTotal || "0", 10)));
-      // Sync up processed files from server
+
+      // Sync up *all* processed files from server
       dispatch(fetchProcessedFileNames()).then((res) => {
         if (res.payload) {
-          const data = res.payload.filter((f) => f.batch_id === storedBatchID);
-          dispatch(setProcessedFiles(data));
-          dispatch(setProcessedCount(data.length));
+          // Keep them all in Redux for the table
+          dispatch(setProcessedFiles(res.payload));
+
+          // Also set the progress count for the *currently stored* batch
+          const currentBatchFiles = res.payload.filter(
+            (f) => f.batch_id === storedBatchID
+          );
+          dispatch(setProcessedCount(currentBatchFiles.length));
+        }
+      });
+    } else {
+      // Even if there's no stored batch, we still fetch
+      // all processed files so the table shows them.
+      dispatch(fetchProcessedFileNames()).then((res) => {
+        if (res.payload) {
+          dispatch(setProcessedFiles(res.payload));
         }
       });
     }
@@ -253,7 +273,9 @@ const MultiFileUpload = () => {
       // Prepare Redux + localStorage
       dispatch(setCurrentBatchID(newBatchID));
       dispatch(setTotalFilesInBatch(totalFiles));
-      dispatch(setProcessedFiles([]));
+      // We DO NOT clear out processedFiles from Redux:
+      // That way we keep the old files in the table.
+      // But for the new batch's progress bar, we reset the processedCount to 0:
       dispatch(setProcessedCount(0));
 
       localStorage.setItem("currentBatchID", newBatchID);
@@ -282,7 +304,9 @@ const MultiFileUpload = () => {
       // If successful, store the backend's extractionTaskId
       if (response.meta.requestStatus === "fulfilled") {
         if (response.payload?.task_id) {
-          dispatch(setExtractionTaskId({ extractionTaskId: response.payload.task_id }));
+          dispatch(
+            setExtractionTaskId({ extractionTaskId: response.payload.task_id })
+          );
         }
       } else {
         notify("File upload failed.", "error");
@@ -313,19 +337,13 @@ const MultiFileUpload = () => {
 
   /**
    * If all files are processed (processedCount >= totalFilesInBatch),
-   * we just show a success toast, but DO NOT reset the batch data.
-   * That way, the table remains populated.
+   * show a success toast, but DO NOT reset the batch data or remove old files
    */
   useEffect(() => {
-    if (
-      processedCount > 0 &&
-      processedCount >= totalFilesInBatch &&
-      currentBatchID
-    ) {
+    if (processedCount > 0 && processedCount >= totalFilesInBatch && currentBatchID) {
       notify("All files processed successfully!", "success");
-      // If you want the progress bar to disappear now:
-      // No resetBatchData => The table stays
-      // If you want to remove the batch from localStorage so next reload doesn't still show SSE:
+      // We do NOT reset the store so the table continues to show everything
+      // If you'd like to remove from localStorage to stop SSE reconnection, do it here:
       // localStorage.removeItem("currentBatchID");
       // localStorage.removeItem("totalFilesInBatch");
     }
@@ -408,7 +426,7 @@ const MultiFileUpload = () => {
               <div className="flex flex-col lg:flex-row justify-center flex-grow lg:mb-0 mb-4">
                 <Tooltip id="action-btn-tooltip" />
 
-                {/* Upload */}
+                {/* Upload / Generate Results */}
                 <button
                   className={`bg-lightBlue-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 
                     ${
@@ -471,7 +489,7 @@ const MultiFileUpload = () => {
               )}
             </div>
 
-            {/* ProgressBar */}
+            {/* ProgressBar (only visible if the batch is in progress) */}
             {showProgressBar && progress < 100 && (
               <ProgressBar
                 taskInProgress={`Progress: ${processedCount}/${totalFilesInBatch}`}
