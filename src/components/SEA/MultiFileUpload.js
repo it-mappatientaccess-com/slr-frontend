@@ -322,9 +322,13 @@ const MultiFileUpload = () => {
    */
   const onStopClickedHandler = async () => {
     dispatch(setIsStopping({ isStopping: true }));
-    const response = await dispatch(stopExtraction(extractionTaskId));
+    // Pass both extractionTaskId and currentBatchID
+    const response = await dispatch(
+      stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID })
+    );
     notify(response?.message, response?.status);
   };
+  
 
   /**
    * Show toast if isSubmittedVal changes
@@ -393,7 +397,7 @@ const MultiFileUpload = () => {
               maxFiles={100}
               name="file"
               labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> 
-                  <br/> (MAX FILES: 100, MAX FILESIZE: 25MB) 
+                  <br/> (MAX FILES: 100, MAX FILESIZE: 30MB) 
                   <br/>Allowed file types: PDF, XPS, EPUB, MOBI, FB2, CBZ, SVG, TXT, PPT, DOC, DOCX, XLS, XLSX, CSV'
               allowFileTypeValidation={true}
               acceptedFileTypes={[

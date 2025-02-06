@@ -130,7 +130,7 @@ export const fetchExtractionFileResults = createAsyncThunk(
         }
       );
       dispatch(setProgress(100));
-      toast.success("Extraction file results fetched successfully");
+      // toast.success("Extraction file results fetched successfully");
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
@@ -347,14 +347,18 @@ export const deleteAllSEAResults = createAsyncThunk(
 );
 
 // Async thunk for stopping extraction
+// Updated async thunk for stopping extraction
 export const stopExtraction = createAsyncThunk(
   "dataExtraction/stopExtraction",
-  async (taskId, { dispatch, rejectWithValue }) => {
+  async ({ taskId, batchId }, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(50));
+      // Prepare form data to include the batch ID
+      const formData = new FormData();
+      formData.append("batch_id", batchId);
       const response = await api.post(
         `/stop_extraction/${taskId}`,
-        {},
+        formData,
         {
           headers: {
             Authorization: localStorage.getItem("token"),
@@ -367,26 +371,19 @@ export const stopExtraction = createAsyncThunk(
       } else {
         toast.error(response.data.message);
       }
-      dispatch(
-        setIsStopping({
-          isStopping: false,
-        })
-      );
+      dispatch(setIsStopping({ isStopping: false }));
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
       const errorMsg =
         error.response?.data?.message || "Failed to stop extraction";
       toast.error(errorMsg);
-      dispatch(
-        setIsStopping({
-          isStopping: false,
-        })
-      );
+      dispatch(setIsStopping({ isStopping: false }));
       return rejectWithValue(errorMsg);
     }
   }
 );
+
 
 // Async thunk for deleting a prompt
 export const deletePrompt = createAsyncThunk(
