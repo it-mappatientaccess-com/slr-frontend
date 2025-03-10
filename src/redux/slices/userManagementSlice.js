@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "util/api";
 import { toast } from "react-toastify";
 import { setProgress } from "./loadingSlice";
-import axios from "axios";
 // Async thunk for fetching users
 export const fetchUsersData = createAsyncThunk(
   "userManagement/fetchUsers",
@@ -80,20 +79,14 @@ export const deleteUserData = createAsyncThunk(
     }
   }
 );
-const adminApi = axios.create({
-  baseURL: "https://slrtoolbe.mappatientaccess.net",
-  headers: {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "*",
-  },
-});
+
 // New async thunk for migrating emails
 export const migrateEmailsData = createAsyncThunk(
   "userManagement/migrateEmailsData",
   async (_, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(30));
-      const response = await adminApi.post("/admin/migrate-all-emails", {}, {
+      const response = await api.post("/admin/migrate-all-emails", {}, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -116,7 +109,7 @@ export const revertEmailsData = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(30));
-      const response = await adminApi.post("/admin/revert-all-emails", {}, {
+      const response = await api.post("/admin/revert-all-emails", {}, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
