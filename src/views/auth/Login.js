@@ -133,7 +133,7 @@ export default function Login() {
               <div className="flex flex-wrap justify-center m-4">
                 <div className="w-6/12 sm:w-6/12 px-4">
                   <img
-                    src={require('assets/img/MAP Patient Access_full.png')}
+                    src={require('assets/img/Kintiga-Logo-Wide-Colour-RGB.png')}
                     alt="..."
                     className="max-w-full h-auto align-middle border-none"
                   />

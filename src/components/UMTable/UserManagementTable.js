@@ -1,23 +1,20 @@
-import React from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css"; // Optional theme CSS
-import { deleteUserData, setUsersData } from "../../redux/slices/userManagementSlice";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import { deleteUserData, setUsersData, migrateEmailsData, revertEmailsData, fetchUsersData } from "../../redux/slices/userManagementSlice";
 import { useDispatch, useSelector } from "react-redux";
 import ModalSmall from "components/Modal/ModalSmall";
 import Alert from "components/Alerts/Alert";
+
 let rowImmutableStore;
 
 const actionCellRenderer = (params) => {
   let editingCells = params.api.getEditingCells();
-  // checks if the rowIndex matches in at least one of the editing cells
-  let isCurrentRowEditing = editingCells.some((cell) => {
-    return cell.rowIndex === params.node.rowIndex;
-  });
+  let isCurrentRowEditing = editingCells.some((cell) => cell.rowIndex === params.node.rowIndex);
   return (
     <>
-      {isCurrentRowEditing && (
+      {isCurrentRowEditing ? (
         <div>
           <button
             className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -34,8 +31,7 @@ const actionCellRenderer = (params) => {
             Cancel <i className="fas fa-xmark"></i>
           </button>
         </div>
-      )}
-      {!isCurrentRowEditing && (
+      ) : (
         <div>
           <button
             className="bg-amber-500 text-white active:bg-amber-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -59,83 +55,58 @@ const actionCellRenderer = (params) => {
 
 const UserManagementTable = () => {
   const dispatch = useDispatch();
-
   const gridRef = useRef(null);
-
   let usersData = useSelector((state) => state.userManagement.listOfUsers);
   const [rowData, setRowData] = useState([]);
   const [currentParams, setCurrentParams] = useState(null);
   const [response, setResponse] = useState(null);
-  const [updateResponse, setUpdateResponse] = useState({
-    type: "",
-    message: "",
-  });
-  // New state to manage the visibility of the alert
+  const [updateResponse, setUpdateResponseState] = useState({ type: "", message: "" });
   const [showAlert, setShowAlert] = useState(false);
   const [isEditCanceled, setIsEditCanceled] = useState(false);
-  const columnDefs = [
-    {
-      headerName: "ID",
-      valueGetter: "node.rowIndex + 1",
-      width: 80,
-    },
-    {
-      field: "name",
-      suppressSizeToFit: true,
-      flex: 1,
-      minWidth: 100,
-      filter: true,
-      editable: true,
-    },
-    {
-      field: "username",
-      flex: 2,
-      filter: true,
-      editable: true,
-    },
-    {
-      headerName: "Set New Password",
-      field: "newPassword",
-      editable: true,
-      flex: 1,
-    },
-    {
-      headerName: "Action",
-      cellRenderer: actionCellRenderer,
-      editable: false,
-      colId: "action",
-      flex: 2,
-    },
-  ];
-  // State to manage modal visibility
+  
+  // New state for delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const currentRowChangesRef = useRef({});
 
-  const handleDeleteUser = async (username) => {
-    // Function to handle user deletion logic
+  // New handlers for email migration and reversion
+  const handleMigrateEmails = async () => {
+    const result = await dispatch(migrateEmailsData());
+    console.log("Migrate result:", result);
+    // Optionally refetch users if email change affects display data
+    dispatch(fetchUsersData());
+  };
 
-    // Apply the transaction to remove the data from the grid
-    const usersData = rowImmutableStore.find((e) => e.username === username);
+  const handleRevertEmails = async () => {
+    const result = await dispatch(revertEmailsData());
+    console.log("Revert result:", result);
+    dispatch(fetchUsersData());
+  };
+
+  const handleDeleteUser = async (username) => {
+    const userRow = rowImmutableStore.find((e) => e.username === username);
     currentParams.api.applyTransaction({
-      remove: [usersData],
+      remove: [userRow],
     });
     setResponse(await dispatch(deleteUserData(username)));
-    // Close the modal after deletion
     setShowDeleteModal(false);
   };
 
-  const defaultColDef = useMemo(
-    () => ({
-      sortable: true,
-      resizable: true,
-      enableCellChangeFlash:true
-    }),
-    []
-  );
+  const columnDefs = [
+    { headerName: "ID", valueGetter: "node.rowIndex + 1", width: 80 },
+    { field: "name", suppressSizeToFit: true, flex: 1, minWidth: 100, filter: true, editable: true },
+    { field: "username", flex: 2, filter: true, editable: true },
+    { headerName: "Set New Password", field: "newPassword", editable: true, flex: 1 },
+    { headerName: "Action", cellRenderer: actionCellRenderer, editable: false, colId: "action", flex: 2 },
+  ];
+
+  const defaultColDef = useMemo(() => ({
+    sortable: true,
+    resizable: true,
+    enableCellChangeFlash: true,
+  }), []);
 
   const cellClickedListener = useCallback((params) => {
-    // Handle click event for action cells
     if (params.column.colId === "action" && params.event.target.dataset.action) {
       let action = params.event.target.dataset.action;
       if (action === "edit") {
@@ -145,10 +116,10 @@ const UserManagementTable = () => {
         });
       } else if (action === "update") {
         setIsEditCanceled(false);
-        params.api.stopEditing(false);  // Ends editing and triggers onRowEditingStopped
+        params.api.stopEditing(false);
       } else if (action === "cancel") {
         setIsEditCanceled(true);
-        params.api.stopEditing(true);  // Ends editing and will not trigger onRowEditingStopped due to cancel flag
+        params.api.stopEditing(true);
       } else if (action === "delete") {
         setUserToDelete(params.node.data.username);
         setShowDeleteModal(true);
@@ -156,60 +127,42 @@ const UserManagementTable = () => {
       }
     }
   }, []);
-  
 
   const onRowEditingStarted = (params) => {
-    // setCurrentRowChanges({});
-    params.api.refreshCells({
-      columns: ["action"],
-      rowNodes: [params.node],
-      force: true,
-    });
+    params.api.refreshCells({ columns: ["action"], rowNodes: [params.node], force: true });
   };
 
-  const onRowEditingStopped = useCallback(
-    (params) => {
-      if (isEditCanceled) {
-        setIsEditCanceled(false); // Reset the flag
-        return; // Exit early if edit was canceled
-      }
-      const currentRowChanges = currentRowChangesRef.current;
-      const updatedData = { ...params.data, ...currentRowChanges };
-  
-      dispatch(setUsersData(params.data.username, updatedData))
-        .then((response) => {
-          if (response?.status === 200) {
-            setUpdateResponse({
-              type: "success",
-              message: `User updated successfully: ${response?.data?.data?.username}`,
-            });
-          } else {
-            setUpdateResponse({
-              type: "error",
-              message: response?.response?.data?.detail ?? "Failed to update user.",
-            });
-          }
-        })
-        .catch((error) => {
-          setUpdateResponse({
-            type: "error",
-            message: "Failed to update user.",
+  const onRowEditingStopped = useCallback((params) => {
+    if (isEditCanceled) {
+      setIsEditCanceled(false);
+      return;
+    }
+    const currentRowChanges = currentRowChangesRef.current;
+    const updatedData = { ...params.data, ...currentRowChanges };
+    dispatch(setUsersData({ username: params.data.username, newDetails: updatedData }))
+      .then((response) => {
+        if (response?.status === 200) {
+          setUpdateResponseState({
+            type: "success",
+            message: `User updated successfully: ${response?.data?.data?.username}`,
           });
-        });
-  
-      // Update the row data state to reflect changes
-      setRowData((prevRowData) =>
-        prevRowData.map((item, index) =>
-          index === params.node.rowIndex ? updatedData : item
-        )
-      );
-  
-      // Reset the current row changes
-      currentRowChangesRef.current = {};
-    },
-    [dispatch, isEditCanceled]
-  );
-  
+        } else {
+          setUpdateResponseState({
+            type: "error",
+            message: response?.response?.data?.detail ?? "Failed to update user.",
+          });
+        }
+      })
+      .catch(() => {
+        setUpdateResponseState({ type: "error", message: "Failed to update user." });
+      });
+    setRowData((prevRowData) =>
+      prevRowData.map((item, index) =>
+        index === params.node.rowIndex ? updatedData : item
+      )
+    );
+    currentRowChangesRef.current = {};
+  }, [dispatch, isEditCanceled]);
 
   useEffect(() => {
     setRowData(usersData);
@@ -226,31 +179,37 @@ const UserManagementTable = () => {
   useEffect(() => {
     if (response) {
       console.log(response);
-      setShowAlert(true); // Show the alert when there's a response
-      const timer = setTimeout(() => {
-        setShowAlert(false); // Hide the alert after 3 seconds
-      }, 5000);
-
-      // Clean up the timer when the component is unmounted or the response changes
+      setShowAlert(true);
+      const timer = setTimeout(() => setShowAlert(false), 5000);
       return () => clearTimeout(timer);
     }
   }, [response]);
 
-  // Function to clear update response message
-  const clearUpdateResponse = () => {
-    setUpdateResponse({ type: "", message: "" });
-  };
-
-  // Clear the update response after a specified duration (e.g., 5000 milliseconds)
   useEffect(() => {
     let timer;
     if (updateResponse.message) {
-      timer = setTimeout(clearUpdateResponse, 5000);
+      timer = setTimeout(() => setUpdateResponseState({ type: "", message: "" }), 5000);
     }
     return () => clearTimeout(timer);
   }, [updateResponse]);
+
   return (
     <>
+      <div className="mb-4 flex gap-4 mt-4">
+        <button
+          onClick={handleMigrateEmails}
+          className="bg-emerald-500 text-white active:bg-emerald-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150" type="button"
+        >
+          Migrate Emails
+        </button>
+        <button
+          onClick={handleRevertEmails}
+          className="bg-orange-500 text-white active:bg-orange-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150" type="button"
+        >
+          Revert Emails
+        </button>
+      </div>
+
       <div className="ag-theme-alpine" style={{ height: "80vh" }}>
         {showAlert && response && (
           <Alert
@@ -261,14 +220,8 @@ const UserManagementTable = () => {
         )}
         {updateResponse.message && (
           <Alert
-            alertClass={
-              updateResponse.type === "success"
-                ? "bg-emerald-500"
-                : "bg-red-500"
-            }
-            alertTitle={
-              updateResponse.type === "success" ? "Success:" : "Error:"
-            }
+            alertClass={updateResponse.type === "success" ? "bg-emerald-500" : "bg-red-500"}
+            alertTitle={updateResponse.type === "success" ? "Success:" : "Error:"}
             alertMessage={updateResponse.message}
           />
         )}
@@ -294,7 +247,7 @@ const UserManagementTable = () => {
       {showDeleteModal && (
         <ModalSmall
           title="Confirm Deletion"
-          content="This will delete the user and all the user specific data. Are you sure you want to delete the user?"
+          content="This will delete the user and all user-specific data. Are you sure you want to delete the user?"
           secondaryButtonText="No, Close"
           primaryButtonText="Yes, Delete"
           isOpen={showDeleteModal}

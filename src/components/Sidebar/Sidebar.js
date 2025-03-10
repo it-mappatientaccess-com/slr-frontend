@@ -245,10 +245,10 @@ export default function Sidebar() {
             </ul>
           </div>
           <div className="px-4">
-          <a href="https://www.mappatientaccess.com/" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.kintiga.com/" target="_blank" rel="noopener noreferrer">
             <img
-              src={require("assets/img/MAP Patient Access_full.png")}
-              alt="Map Patient Access"
+              src={require("assets/img/Kintiga-Logo-Wide-Colour-RGB.png")}
+              alt="Kintiga Logo"
               className="max-w-full h-auto align-middle border-none"
             />
             </a>

@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "util/api";
 import { toast } from "react-toastify";
 import { setProgress } from "./loadingSlice";
-
+import axios from "axios";
 // Async thunk for fetching users
 export const fetchUsersData = createAsyncThunk(
   "userManagement/fetchUsers",
@@ -80,6 +80,58 @@ export const deleteUserData = createAsyncThunk(
     }
   }
 );
+const adminApi = axios.create({
+  baseURL: "https://slrtoolbe.mappatientaccess.net",
+  headers: {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+  },
+});
+// New async thunk for migrating emails
+export const migrateEmailsData = createAsyncThunk(
+  "userManagement/migrateEmailsData",
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setProgress(30));
+      const response = await adminApi.post("/admin/migrate-all-emails", {}, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(setProgress(100));
+      toast.success("Emails migrated successfully");
+      return response.data;
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = error.response?.data?.message || "Failed to migrate emails";
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+// New async thunk for reverting emails
+export const revertEmailsData = createAsyncThunk(
+  "userManagement/revertEmailsData",
+  async (_, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setProgress(30));
+      const response = await adminApi.post("/admin/revert-all-emails", {}, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+      dispatch(setProgress(100));
+      toast.success("Emails reverted successfully");
+      return response.data;
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = error.response?.data?.message || "Failed to revert emails";
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
 
 const userManagementSlice = createSlice({
   name: "userManagement",
@@ -131,6 +183,27 @@ const userManagementSlice = createSlice({
         state.status = "succeeded";
       })
       .addCase(deleteUserData.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      // Optionally handle migrateEmailsData and revertEmailsData extra reducers if you need to update state
+      .addCase(migrateEmailsData.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(migrateEmailsData.fulfilled, (state) => {
+        state.status = "succeeded";
+      })
+      .addCase(migrateEmailsData.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload;
+      })
+      .addCase(revertEmailsData.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(revertEmailsData.fulfilled, (state) => {
+        state.status = "succeeded";
+      })
+      .addCase(revertEmailsData.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload;
       });

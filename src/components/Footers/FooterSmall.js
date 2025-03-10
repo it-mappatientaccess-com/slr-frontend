@@ -17,12 +17,12 @@ export default function FooterSmall(props) {
               <div className="text-sm text-blueGray-500 font-semibold py-1 text-center md:text-left">
                 Copyright © {new Date().getFullYear()}{" "}
                 <a
-                  href="https://www.mappatientaccess.com/"
+                  href="https://kintiga.com/"
                   className="text-white hover:text-blueGray-300 text-sm font-semibold py-1"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  MAP Patient Access Limited
+                  Kintiga
                 </a>
               </div>
             </div>
@@ -30,17 +30,17 @@ export default function FooterSmall(props) {
               <ul className="flex flex-wrap list-none md:justify-end  justify-center">
                 <li>
                   <a
-                    href="https://www.mappatientaccess.com/"
+                    href="https://kintiga.com/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    MAP Patient Access
+                    Kintiga
                   </a>
                 </li>
                 <li>
                   <a
-                    href="https://www.mappatientaccess.com/contactus/"
+                    href="https://kintiga.com/contact/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
                     target="_blank"
                     rel="noreferrer"
@@ -50,12 +50,12 @@ export default function FooterSmall(props) {
                 </li>
                 <li>
                   <a
-                    href="https://www.mappatientaccess.com/blog/"
+                    href="https://kintiga.com/insights/"
                     className="text-white hover:text-blueGray-300 text-sm font-semibold block py-1 px-3"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Blog
+                    Insights
                   </a>
                 </li>
 
