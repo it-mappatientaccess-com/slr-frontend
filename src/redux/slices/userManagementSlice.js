@@ -86,7 +86,7 @@ export const migrateEmailsData = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(30));
-      const response = await api.post("/admin/migrate-all-emails", {}, {
+      const response = await api.post("/migrate-all-emails", {}, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
@@ -109,7 +109,7 @@ export const revertEmailsData = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setProgress(30));
-      const response = await api.post("/admin/revert-all-emails", {}, {
+      const response = await api.post("/revert-all-emails", {}, {
         headers: {
           Authorization: localStorage.getItem("token"),
         },
