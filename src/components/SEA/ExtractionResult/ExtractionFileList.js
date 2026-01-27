@@ -65,6 +65,64 @@ const btnCellRenderer = (props) => {
   );
 };
 
+const dateKeys = [
+  "processed_at",
+  "processedAt",
+  "created_at",
+  "createdAt",
+  "updated_at",
+  "updatedAt",
+  "timestamp",
+  "processed_on",
+  "processedOn",
+  "uploaded_at",
+  "uploadedAt",
+  "upload_time",
+  "uploadTime",
+];
+
+const getSortTimestamp = (file) => {
+  for (const key of dateKeys) {
+    const value = file?.[key];
+    if (value == null) continue;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+  }
+  return null;
+};
+
+const sortProcessedFiles = (files) => {
+  const withMeta = files.map((file, index) => {
+    const timestamp = getSortTimestamp(file);
+    const idNum = Number(file?.file_id);
+    return {
+      file,
+      index,
+      timestamp,
+      idNum: Number.isFinite(idNum) ? idNum : null,
+    };
+  });
+
+  return withMeta
+    .sort((a, b) => {
+      if (a.timestamp !== null && b.timestamp !== null) {
+        return b.timestamp - a.timestamp;
+      }
+      if (a.timestamp !== null) return -1;
+      if (b.timestamp !== null) return 1;
+      if (a.idNum !== null && b.idNum !== null) {
+        return b.idNum - a.idNum;
+      }
+      return b.index - a.index;
+    })
+    .map((entry) => entry.file);
+};
+
 const ExtractionFileList = () => {
   const dispatch = useDispatch();
   const processedFiles = useSelector(
@@ -136,7 +194,7 @@ const ExtractionFileList = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    setRowData(processedFiles);
+    setRowData(sortProcessedFiles(processedFiles));
   }, [processedFiles]);
 
   const handleClearAllResults = async () => {

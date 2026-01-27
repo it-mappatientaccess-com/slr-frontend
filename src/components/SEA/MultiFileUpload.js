@@ -100,7 +100,10 @@ const MultiFileUpload = () => {
 
   // SSE endpoint (base API URL from your .env or fallback)
   const baseAPIUrl = process.env.REACT_APP_API_URL;
-  const sseUrl = `${baseAPIUrl}stream-progress`;
+  const normalizedBaseUrl = baseAPIUrl ? baseAPIUrl.replace(/\/$/, "") : "";
+  const sseUrl = normalizedBaseUrl
+    ? `${normalizedBaseUrl}/stream-progress`
+    : "";
 
   /**
    * Acquire Graph Token
@@ -160,23 +163,39 @@ const MultiFileUpload = () => {
    * SSE subscription whenever currentBatchID changes
    */
   useEffect(() => {
-    if (!currentBatchID) return;
+    if (!currentBatchID || !sseUrl) return;
 
     console.log("Opening SSE for batch:", currentBatchID);
     const sse = new EventSource(sseUrl);
+
+    const handlePayload = (payload) => {
+      if (!payload) return;
+      const eventType = payload.event || "file_processed";
+      if (eventType !== "file_processed") return;
+      if (payload.batch_id !== currentBatchID) return;
+      // New processed file => update Redux
+      dispatch(appendProcessedFile(payload));
+    };
 
     sse.onmessage = (event) => {
       if (!event.data) return;
       try {
         const data = JSON.parse(event.data);
-        if (data.event === "file_processed" && data.batch_id === currentBatchID) {
-          // New processed file => update Redux
-          dispatch(appendProcessedFile(data));
-        }
+        handlePayload(data);
       } catch (err) {
         console.error("Error parsing SSE event:", err);
       }
     };
+
+    sse.addEventListener("file_processed", (event) => {
+      if (!event.data) return;
+      try {
+        const data = JSON.parse(event.data);
+        handlePayload(data);
+      } catch (err) {
+        console.error("Error parsing SSE event:", err);
+      }
+    });
 
     sse.onerror = (err) => {
       console.error("SSE error:", err);
@@ -188,6 +207,32 @@ const MultiFileUpload = () => {
       sse.close();
     };
   }, [currentBatchID, sseUrl, dispatch]);
+
+  /**
+   * Polling fallback to keep progress + table in sync (in case SSE is blocked).
+   */
+  useEffect(() => {
+    if (!currentBatchID || totalFilesInBatch === 0) return;
+    if (processedCount >= totalFilesInBatch) return;
+
+    let isActive = true;
+    const poll = async () => {
+      const res = await dispatch(fetchProcessedFileNames());
+      if (!isActive || !Array.isArray(res.payload)) return;
+      const currentBatchFiles = res.payload.filter(
+        (f) => f.batch_id === currentBatchID
+      );
+      dispatch(setProcessedCount(currentBatchFiles.length));
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+    };
+  }, [dispatch, currentBatchID, totalFilesInBatch, processedCount]);
 
   /**
    * Toggle the "Include AboutFile" checkbox
