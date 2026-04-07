@@ -15,7 +15,7 @@ const initialState = {
     population: [""],
     intervention: [""],
     outcomes: [""],
-    exclusionCriteria: [""],
+    exclusion_criteria: [""],
   },
   seaQuestions: {},
   abstract: "",

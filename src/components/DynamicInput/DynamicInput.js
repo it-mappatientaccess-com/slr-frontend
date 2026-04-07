@@ -99,7 +99,7 @@ const DynamicInput = ({ category: rawCategory }) => {
       const charCount = currentQuestion.length;
       let errorMessage = "";
 
-      if (category !== "exclusionCriteria") {
+      if (category !== "exclusion_criteria") {
         if (wordCount < 3 || wordCount > 50) {
           errorMessage = "Question should have between 3 and 50 words.";
         } else if (charCount > 300) {
@@ -107,7 +107,7 @@ const DynamicInput = ({ category: rawCategory }) => {
         }
       }
 
-      if (category === "exclusionCriteria") {
+      if (category === "exclusion_criteria") {
         if (charCount > 300) {
           errorMessage = "Exclusion keyword should not exceed 300 characters.";
         } else {
@@ -143,7 +143,7 @@ const DynamicInput = ({ category: rawCategory }) => {
 
   return (
     <div className={styles["pt-0 mt-2 flex-col max-h-60 overflow-y-auto"]}>
-      {category !== "exclusionCriteria" ? (
+      {category !== "exclusion_criteria" ? (
         <span>Question(s)</span>
       ) : (
         <span>Exclusion Keyword(s)</span>
@@ -158,7 +158,7 @@ const DynamicInput = ({ category: rawCategory }) => {
                 type="text"
                 name="question"
                 placeholder={
-                  category !== "exclusionCriteria"
+                  category !== "exclusion_criteria"
                     ? "Please enter a question"
                     : "Please enter an exclusion keywords"
                 }
