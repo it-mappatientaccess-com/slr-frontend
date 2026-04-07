@@ -32,7 +32,7 @@ export const fetchOldQuestions = createAsyncThunk(
           population: [""],
           intervention: [""],
           outcomes: [""],
-          exclusionCriteria: [""],
+          exclusion_criteria: [""],
         };
         localStorage.setItem("questions", JSON.stringify(questions));
         return { questions, isQuestionsEmpty: true };
