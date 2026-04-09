@@ -1,15 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 const ProgressBar = (props) => {
   const [taskInProgress, setTaskInProgress] = useState("");
   const [percentage, setPercentage] = useState("0");
+  const ref = useRef(null);
 
   useEffect(() => {
     setTaskInProgress(props.taskInProgress);
     setPercentage(props.percentage);
   }, [props]);
 
+  useEffect(() => {
+    if (props.scrollIntoViewOnMount && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      setTimeout(() => window.scrollBy({ top: 80, behavior: "smooth" }), 300);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="relative pt-1">
+    <div ref={ref} className="relative pt-1">
       <div className="flex mb-2 items-center justify-between">
         <div>
           <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-lightBlue-600 bg-lightBlue-200">

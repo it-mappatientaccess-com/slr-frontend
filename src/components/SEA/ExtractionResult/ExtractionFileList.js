@@ -21,7 +21,7 @@ const btnCellRenderer = (props) => {
       fetchExtractionFileResults({
         file_id: props.data["file_id"],
         projectName: localStorage.getItem("selectedProject"),
-      })
+      }),
     );
 
     const topPosition =
@@ -126,18 +126,19 @@ const sortProcessedFiles = (files) => {
 const ExtractionFileList = () => {
   const dispatch = useDispatch();
   const processedFiles = useSelector(
-    (state) => state.dataExtraction.processedFiles
+    (state) => state.dataExtraction.processedFiles,
   );
   const [rowData, setRowData] = useState([]);
+  const prevFileIdsRef = useRef("");
   const gridRef = useRef(null);
   const selectedFileResult = useSelector(
-    (state) => state.dataExtraction.extractionResult
+    (state) => state.dataExtraction.extractionResult,
   );
   const selectedFile = useSelector(
-    (state) => state.dataExtraction.selectedFile
+    (state) => state.dataExtraction.selectedFile,
   );
-  const selectedFileQuestions = useSelector((state) =>
-    state.dataExtraction.selectedFileQuestions
+  const selectedFileQuestions = useSelector(
+    (state) => state.dataExtraction.selectedFileQuestions,
   );
   const gridWrapperRef = useRef(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -170,7 +171,7 @@ const ExtractionFileList = () => {
         flex: 1,
       },
     ],
-    [dispatch]
+    [dispatch],
   );
 
   const defaultColDef = useMemo(
@@ -179,7 +180,7 @@ const ExtractionFileList = () => {
       resizable: true,
       enableCellChangeFlash: true,
     }),
-    []
+    [],
   );
 
   const fetchAllResults = async () => {
@@ -194,6 +195,12 @@ const ExtractionFileList = () => {
   }, [dispatch]);
 
   useEffect(() => {
+    const currentIds = processedFiles
+      .map((f) => f.file_id)
+      .sort()
+      .join(",");
+    if (currentIds === prevFileIdsRef.current) return;
+    prevFileIdsRef.current = currentIds;
     setRowData(sortProcessedFiles(processedFiles));
   }, [processedFiles]);
 
@@ -210,52 +217,53 @@ const ExtractionFileList = () => {
   return (
     <>
       {/* {processedFiles.length !== 0 && ( */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
-          <div className="flex-auto p-4">
-            <div
-              ref={gridWrapperRef}
-              className={`ag-theme-alpine h-screen`}
-              style={{ height: 320 }}
+      <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
+        <div className="flex-auto p-4">
+          <div
+            ref={gridWrapperRef}
+            className={`ag-theme-alpine h-screen`}
+            style={{ height: 320 }}
+          >
+            <AgGridReact
+              ref={gridRef}
+              rowData={rowData}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              animateRows={true}
+              readOnlyEdit={true}
+              suppressClickEdit={true}
+              paginationAutoPageSize={true}
+              pagination={true}
+              suppressScrollOnNewData={true}
+            />
+          </div>
+          <div className="text-center mt-4">
+            <Tooltip id="export-all-btn-tooltip" />
+            <button
+              className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              type="button"
+              onClick={fetchAllResults}
+              data-tooltip-id="export-all-btn-tooltip"
+              data-tooltip-html="Export results of all processed files in Excel format. <br /> <small> Note: If different prompts were used for various files,</br> the structure of the exported Excel file may vary.</small>"
+              data-tooltip-place="bottom"
+              data-tooltip-delay-show="2000"
             >
-              <AgGridReact
-                ref={gridRef}
-                rowData={rowData}
-                columnDefs={columnDefs}
-                defaultColDef={defaultColDef}
-                animateRows={true}
-                readOnlyEdit={true}
-                suppressClickEdit={true}
-                paginationAutoPageSize={true}
-                pagination={true}
-              />
-            </div>
-            <div className="text-center mt-4">
-              <Tooltip id="export-all-btn-tooltip" />
+              <i className="fas fa-file-export"></i> Export All
+            </button>
+            {rowData.length > 2 && (
               <button
-                className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                 type="button"
-                onClick={fetchAllResults}
-                data-tooltip-id="export-all-btn-tooltip"
-                data-tooltip-html="Export results of all processed files in Excel format. <br /> <small> Note: If different prompts were used for various files,</br> the structure of the exported Excel file may vary.</small>"
-                data-tooltip-place="bottom"
-                data-tooltip-delay-show="2000"
+                onClick={() => setShowDeleteModal(true)}
+                data-tooltip-id="action-btn-tooltip"
+                data-tooltip-content="Click to clear all generated results"
               >
-                <i className="fas fa-file-export"></i> Export All
+                <i className="fas fa-eraser"></i> Clear All Results
               </button>
-              {rowData.length > 2 && (
-                <button
-                  className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-                  type="button"
-                  onClick={() => setShowDeleteModal(true)}
-                  data-tooltip-id="action-btn-tooltip"
-                  data-tooltip-content="Click to clear all generated results"
-                >
-                  <i className="fas fa-eraser"></i> Clear All Results
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
+      </div>
       {/* )} */}
 
       {selectedFile && (
