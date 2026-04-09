@@ -61,7 +61,7 @@ function getFileIcon(name) {
 registerPlugin(
   FilePondPluginFileValidateType,
   FilePondPluginFileValidateSize,
-  FilePondPluginFileMetadata
+  FilePondPluginFileMetadata,
 );
 
 const MultiFileUpload = () => {
@@ -86,10 +86,10 @@ const MultiFileUpload = () => {
   } = useSelector((state) => state.dataExtraction);
 
   const isSubmittedVal = useSelector(
-    (state) => state.dataExtraction.isSubmitted
+    (state) => state.dataExtraction.isSubmitted,
   );
   const seaQuestions = useSelector(
-    (state) => state.questionAbstractData.seaQuestions
+    (state) => state.questionAbstractData.seaQuestions,
   );
 
   // Calculate progress from Redux fields
@@ -142,7 +142,7 @@ const MultiFileUpload = () => {
 
           // Also set the progress count for the *currently stored* batch
           const currentBatchFiles = res.payload.filter(
-            (f) => f.batch_id === storedBatchID
+            (f) => f.batch_id === storedBatchID,
           );
           dispatch(setProcessedCount(currentBatchFiles.length));
         }
@@ -211,16 +211,23 @@ const MultiFileUpload = () => {
   /**
    * Polling fallback to keep progress + table in sync (in case SSE is blocked).
    */
+  const processedCountRef = React.useRef(processedCount);
+  useEffect(() => {
+    processedCountRef.current = processedCount;
+  }, [processedCount]);
+
   useEffect(() => {
     if (!currentBatchID || totalFilesInBatch === 0) return;
-    if (processedCount >= totalFilesInBatch) return;
+    if (processedCountRef.current >= totalFilesInBatch) return;
 
     let isActive = true;
     const poll = async () => {
+      if (!isActive) return;
+      if (processedCountRef.current >= totalFilesInBatch) return;
       const res = await dispatch(fetchProcessedFileNames());
       if (!isActive || !Array.isArray(res.payload)) return;
       const currentBatchFiles = res.payload.filter(
-        (f) => f.batch_id === currentBatchID
+        (f) => f.batch_id === currentBatchID,
       );
       dispatch(setProcessedCount(currentBatchFiles.length));
     };
@@ -232,7 +239,8 @@ const MultiFileUpload = () => {
       isActive = false;
       clearInterval(interval);
     };
-  }, [dispatch, currentBatchID, totalFilesInBatch, processedCount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, currentBatchID, totalFilesInBatch]);
 
   /**
    * Toggle the "Include AboutFile" checkbox
@@ -267,7 +275,9 @@ const MultiFileUpload = () => {
    * Remove a single file from Graph picks
    */
   const removeSelectedFile = useCallback((fileId) => {
-    setGraphFiles((prevFiles) => prevFiles.filter((item) => item.id !== fileId));
+    setGraphFiles((prevFiles) =>
+      prevFiles.filter((item) => item.id !== fileId),
+    );
   }, []);
 
   // AG-Grid definitions for the Graph picks
@@ -343,14 +353,14 @@ const MultiFileUpload = () => {
           newBatchID,
           selectedPrompt,
           includeAboutFile,
-        })
+        }),
       );
 
       // If successful, store the backend's extractionTaskId
       if (response.meta.requestStatus === "fulfilled") {
         if (response.payload?.task_id) {
           dispatch(
-            setExtractionTaskId({ extractionTaskId: response.payload.task_id })
+            setExtractionTaskId({ extractionTaskId: response.payload.task_id }),
           );
         }
       } else {
@@ -369,11 +379,10 @@ const MultiFileUpload = () => {
     dispatch(setIsStopping({ isStopping: true }));
     // Pass both extractionTaskId and currentBatchID
     const response = await dispatch(
-      stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID })
+      stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID }),
     );
     notify(response?.message, response?.status);
   };
-  
 
   /**
    * Show toast if isSubmittedVal changes
@@ -389,7 +398,11 @@ const MultiFileUpload = () => {
    * show a success toast, but DO NOT reset the batch data or remove old files
    */
   useEffect(() => {
-    if (processedCount > 0 && processedCount >= totalFilesInBatch && currentBatchID) {
+    if (
+      processedCount > 0 &&
+      processedCount >= totalFilesInBatch &&
+      currentBatchID
+    ) {
       notify("All files processed successfully!", "success");
       // We do NOT reset the store so the table continues to show everything
       // If you'd like to remove from localStorage to stop SSE reconnection, do it here:
@@ -427,9 +440,7 @@ const MultiFileUpload = () => {
           {/* Divider with "OR" text */}
           <div className="flex items-center py-4">
             <hr className="flex-grow border-t border-gray-300" />
-            <span className="px-3 text-gray-500">
-              OR Upload your own files
-            </span>
+            <span className="px-3 text-gray-500">OR Upload your own files</span>
             <hr className="flex-grow border-t border-gray-300" />
           </div>
 
@@ -543,6 +554,7 @@ const MultiFileUpload = () => {
               <ProgressBar
                 taskInProgress={`Progress: ${processedCount}/${totalFilesInBatch}`}
                 percentage={progress}
+                scrollIntoViewOnMount
               />
             )}
           </div>

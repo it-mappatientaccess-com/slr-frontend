@@ -4,7 +4,7 @@ import CreatePrompt from "components/Forms/CreatePrompt";
 import {
   fetchPrompts,
   deletePrompt,
-  setSelectedPromptThunk,  // Update this line
+  setSelectedPromptThunk, // Update this line
 } from "../../redux/thunks/dataExtractionThunks";
 import { setSelectedPrompt } from "../../redux/slices/dataExtractionSlice";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,23 +15,28 @@ const PromptSelection = () => {
 
   const prompts = useSelector((state) => state.dataExtraction.prompts);
   const selectedPrompt = useSelector(
-    (state) => state.dataExtraction.selectedPrompt
+    (state) => state.dataExtraction.selectedPrompt,
   );
-  const status = useSelector((state) => state.dataExtraction.status);
+  const [promptsLoading, setPromptsLoading] = useState(true);
 
   useEffect(() => {
-    dispatch(fetchPrompts());
+    dispatch(fetchPrompts()).finally(() => setPromptsLoading(false));
   }, [dispatch]);
 
   useEffect(() => {
-    if (status === "succeeded" && !selectedPrompt && prompts.length > 0) {
+    if (!promptsLoading && !selectedPrompt && prompts.length > 0) {
       dispatch(setSelectedPrompt({ selectedPrompt: prompts[0].prompt_text }));
     }
-  }, [status, selectedPrompt, prompts, dispatch]);
+  }, [promptsLoading, selectedPrompt, prompts, dispatch]);
 
   const handleSelectPrompt = (prompt) => {
     dispatch(setSelectedPrompt({ selectedPrompt: prompt.prompt_text }));
-    dispatch(setSelectedPromptThunk({ projectName: localStorage.getItem("selectedProject"), selectedPrompt: prompt.prompt_text }));
+    dispatch(
+      setSelectedPromptThunk({
+        projectName: localStorage.getItem("selectedProject"),
+        selectedPrompt: prompt.prompt_text,
+      }),
+    );
   };
 
   const handlePromptSubmitSuccess = () => {
@@ -39,11 +44,16 @@ const PromptSelection = () => {
   };
 
   const handleDeletePrompt = (prompt) => {
-    dispatch(deletePrompt({ projectName: localStorage.getItem("selectedProject"), promptTitle: prompt.prompt_title }));
+    dispatch(
+      deletePrompt({
+        projectName: localStorage.getItem("selectedProject"),
+        promptTitle: prompt.prompt_title,
+      }),
+    );
   };
 
   // Only render the accordion if the status is succeeded and prompts are available
-  if (status !== "succeeded") {
+  if (promptsLoading) {
     return <div>Loading...</div>;
   }
 
@@ -71,11 +81,16 @@ const PromptSelection = () => {
   return (
     <div className="flex flex-wrap">
       <div className="w-full">
-        <ul className="flex mb-0 list-none flex-wrap pt-3 pb-4 flex-row" role="tablist">
+        <ul
+          className="flex mb-0 list-none flex-wrap pt-3 pb-4 flex-row"
+          role="tablist"
+        >
           <li className="-mb-px mr-2 last:mr-0 flex-auto text-center">
             <a
               className={`text-xs font-bold uppercase px-5 py-3 shadow-lg rounded block leading-normal ${
-                openTab === 1 ? "text-white bg-lightBlue-600" : "text-lightBlue-600 bg-white"
+                openTab === 1
+                  ? "text-white bg-lightBlue-600"
+                  : "text-lightBlue-600 bg-white"
               }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -85,13 +100,16 @@ const PromptSelection = () => {
               href="#link2"
               role="tablist"
             >
-              <i className="fas fa-book-open text-base mr-1"></i>Explore default answer formats
+              <i className="fas fa-book-open text-base mr-1"></i>Explore default
+              answer formats
             </a>
           </li>
           <li className="-mb-px mr-2 last:mr-0 flex-auto text-center">
             <a
               className={`text-xs font-bold uppercase px-5 py-3 shadow-lg rounded block leading-normal ${
-                openTab === 2 ? "text-white bg-lightBlue-600" : "text-lightBlue-600 bg-white"
+                openTab === 2
+                  ? "text-white bg-lightBlue-600"
+                  : "text-lightBlue-600 bg-white"
               }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -101,7 +119,8 @@ const PromptSelection = () => {
               href="#link1"
               role="tablist"
             >
-              <i className="fas fa-pen-to-square text-base mr-1"></i> Write your own instructions
+              <i className="fas fa-pen-to-square text-base mr-1"></i> Write your
+              own instructions
             </a>
           </li>
         </ul>
@@ -111,12 +130,16 @@ const PromptSelection = () => {
               <div className={openTab === 1 ? "block" : "hidden"} id="link2">
                 <Accordion
                   accordionTitle={"Get Started"}
-                  accordionSubTitle={"Explore default answer formats or craft your own for tailored responses."}
+                  accordionSubTitle={
+                    "Explore default answer formats or craft your own for tailored responses."
+                  }
                   items={accordionItems}
                 />
               </div>
               <div className={openTab === 2 ? "block" : "hidden"} id="link1">
-                <CreatePrompt onPromptSubmitSuccess={handlePromptSubmitSuccess} />
+                <CreatePrompt
+                  onPromptSubmitSuccess={handlePromptSubmitSuccess}
+                />
               </div>
             </div>
           </div>
