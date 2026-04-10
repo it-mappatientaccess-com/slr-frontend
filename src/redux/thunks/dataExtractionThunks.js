@@ -285,11 +285,79 @@ const downloadXLSX = async (data, exportFileName) => {
   saveAs(blob, `${exportFileName}.xlsx`);
 };
 
+const getSafeExportFileName = (name, fallbackName) => {
+  const trimmedName = name?.trim();
+  if (!trimmedName) return fallbackName;
+
+  return trimmedName.replace(/[\\/:*?"<>|]/g, "_");
+};
+
+const getDownloadFileName = (contentDisposition, fallbackFileName) => {
+  if (!contentDisposition) return fallbackFileName;
+
+  const encodedFileNameMatch = contentDisposition.match(
+    /filename\*=UTF-8''([^;]+)/i,
+  );
+  if (encodedFileNameMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedFileNameMatch[1]);
+    } catch {
+      return encodedFileNameMatch[1];
+    }
+  }
+
+  const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+  return fileNameMatch?.[1] || fallbackFileName;
+};
+
+const triggerBlobDownload = (blobData, fileName) => {
+  const blob = blobData instanceof Blob ? blobData : new Blob([blobData]);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+};
+
+const getBlobErrorMessage = async (error, fallbackMessage) => {
+  let errorMsg =
+    error.response?.data?.detail ||
+    error.response?.data?.message ||
+    fallbackMessage;
+
+  const errorBlob = error.response?.data;
+  if (errorBlob instanceof Blob) {
+    try {
+      const text = (await errorBlob.text()).trim();
+      if (!text) return errorMsg;
+
+      try {
+        const json = JSON.parse(text);
+        errorMsg =
+          json.detail || json.message || json.error || json.title || errorMsg;
+      } catch {
+        if (!text.startsWith("<")) {
+          errorMsg = text;
+        }
+      }
+    } catch {
+      return errorMsg;
+    }
+  }
+
+  return errorMsg;
+};
+
 // Async thunk for fetching all extraction results
 export const fetchAllExtractionResults = createAsyncThunk(
   "dataExtraction/fetchAllExtractionResults",
   async (_, { dispatch, rejectWithValue }) => {
     const projectId = localStorage.getItem("currentProjectId");
+    const projectName = localStorage.getItem("selectedProject");
     if (!projectId) {
       return rejectWithValue("Project ID not found.");
     }
@@ -305,7 +373,10 @@ export const fetchAllExtractionResults = createAsyncThunk(
         }
       );
       dispatch(setProgress(100));
-      await downloadXLSX(response.data, projectId);
+      await downloadXLSX(
+        response.data,
+        getSafeExportFileName(projectName, projectId),
+      );
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
@@ -315,6 +386,85 @@ export const fetchAllExtractionResults = createAsyncThunk(
       );
     }
   }
+);
+
+export const exportFileResultsDocx = createAsyncThunk(
+  "dataExtraction/exportFileResultsDocx",
+  async ({ fileId }, { dispatch, rejectWithValue }) => {
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
+    try {
+      dispatch(setProgress(50));
+      const response = await api.get(
+        `/export_extraction_file_results_docx/${fileId}`,
+        {
+          params: { project_id: projectId },
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+          responseType: "blob",
+        },
+      );
+      dispatch(setProgress(100));
+
+      const fileName = getDownloadFileName(
+        response.headers["content-disposition"],
+        `${fileId}_export.docx`,
+      );
+      triggerBlobDownload(response.data, fileName);
+      return fileName;
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = await getBlobErrorMessage(
+        error,
+        "Failed to export file results to Word",
+      );
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  },
+);
+
+export const exportAllResultsDocx = createAsyncThunk(
+  "dataExtraction/exportAllResultsDocx",
+  async (_, { dispatch, rejectWithValue }) => {
+    const projectId = localStorage.getItem("currentProjectId");
+    if (!projectId) {
+      return rejectWithValue("Project ID not found.");
+    }
+
+    try {
+      dispatch(setProgress(50));
+      const response = await api.get(
+        `/export_all_extraction_results_docx/${projectId}`,
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+          responseType: "blob",
+        },
+      );
+      dispatch(setProgress(100));
+
+      const fileName = getDownloadFileName(
+        response.headers["content-disposition"],
+        `${projectId}_extraction_results.docx`,
+      );
+      triggerBlobDownload(response.data, fileName);
+      return fileName;
+    } catch (error) {
+      dispatch(setProgress(100));
+      const errorMsg = await getBlobErrorMessage(
+        error,
+        "Failed to export all results to Word",
+      );
+      toast.error(errorMsg);
+      return rejectWithValue(errorMsg);
+    }
+  },
 );
 
 // Async thunk for deleting all SEA results

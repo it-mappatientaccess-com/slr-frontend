@@ -15,6 +15,7 @@ const initialState = {
   extractionResult: [],
   singleExtractionResult: [],
   selectedFile: '',
+  selectedFileId: null,
   processedFiles: [],
   isRefreshing: false,
   isSubmitted: false,
@@ -126,6 +127,16 @@ const dataExtractionSlice = createSlice({
       .addCase(fetchProcessedFileNames.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.processedFiles = action.payload;
+
+        if (
+          state.selectedFileId &&
+          !action.payload.some((file) => file.file_id === state.selectedFileId)
+        ) {
+          state.extractionResult = [];
+          state.selectedFile = "";
+          state.selectedFileId = null;
+          state.selectedFileQuestions = null;
+        }
       })
       .addCase(fetchProcessedFileNames.rejected, (state, action) => {
         state.status = "failed";
@@ -138,6 +149,7 @@ const dataExtractionSlice = createSlice({
         state.status = "succeeded";
         state.extractionResult = action.payload.results;
         state.selectedFile = action.payload.file_name;
+        state.selectedFileId = action.meta.arg.file_id;
         state.selectedFileQuestions = action.payload.questions;
       })
       .addCase(fetchExtractionFileResults.rejected, (state, action) => {
@@ -175,9 +187,8 @@ const dataExtractionSlice = createSlice({
       .addCase(fetchAllExtractionResults.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchAllExtractionResults.fulfilled, (state, action) => {
+      .addCase(fetchAllExtractionResults.fulfilled, (state) => {
         state.status = 'succeeded';
-        state.extractionResult = action.payload;
       })
       .addCase(fetchAllExtractionResults.rejected, (state, action) => {
         state.status = 'failed';
@@ -189,6 +200,9 @@ const dataExtractionSlice = createSlice({
       .addCase(deleteAllSEAResults.fulfilled, (state) => {
         state.status = 'succeeded';
         state.extractionResult = [];
+        state.selectedFile = "";
+        state.selectedFileId = null;
+        state.selectedFileQuestions = null;
       })
       .addCase(deleteAllSEAResults.rejected, (state, action) => {
         state.status = 'failed';

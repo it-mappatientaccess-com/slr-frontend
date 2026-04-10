@@ -7,6 +7,7 @@ import {
   deletePdfData,
   fetchAllExtractionResults,
   deleteAllSEAResults,
+  exportAllResultsDocx,
   fetchExtractionFileResults,
   fetchProcessedFileNames,
 } from "../../../redux/thunks/dataExtractionThunks";
@@ -17,12 +18,14 @@ import ModalSmall from "components/Modal/ModalSmall";
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
   const onViewResultsClickHandler = async () => {
-    await props.dispatch(
+    const response = await props.dispatch(
       fetchExtractionFileResults({
         file_id: props.data["file_id"],
         projectName: localStorage.getItem("selectedProject"),
       }),
     );
+
+    if (response.meta.requestStatus !== "fulfilled") return;
 
     const topPosition =
       props.gridWrapperRef.current.getBoundingClientRect().top + window.scrollY;
@@ -36,11 +39,14 @@ const btnCellRenderer = (props) => {
   const onDeleteHandler = async () => {
     setDeleteClicked(true);
     try {
-      await props.dispatch(deletePdfData(props.data["file_id"]));
-      setDeleteClicked(false);
-      props.dispatch(fetchProcessedFileNames());
+      const response = await props.dispatch(deletePdfData(props.data["file_id"]));
+      if (response.meta.requestStatus === "fulfilled") {
+        props.dispatch(fetchProcessedFileNames());
+      }
     } catch (error) {
       // Handle error
+    } finally {
+      setDeleteClicked(false);
     }
   };
 
@@ -142,6 +148,7 @@ const ExtractionFileList = () => {
   );
   const gridWrapperRef = useRef(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isExportingAllDocx, setIsExportingAllDocx] = useState(false);
 
   const columnDefs = useMemo(
     () => [
@@ -184,9 +191,17 @@ const ExtractionFileList = () => {
   );
 
   const fetchAllResults = async () => {
-    const response = await dispatch(fetchAllExtractionResults());
-    if (response.meta.requestStatus === "fulfilled") {
-      // Do not modify the state here as it's handled by the thunk
+    await dispatch(fetchAllExtractionResults());
+  };
+
+  const onExportAllDocx = async () => {
+    if (isExportingAllDocx) return;
+
+    setIsExportingAllDocx(true);
+    try {
+      await dispatch(exportAllResultsDocx());
+    } finally {
+      setIsExportingAllDocx(false);
     }
   };
 
@@ -205,11 +220,10 @@ const ExtractionFileList = () => {
   }, [processedFiles]);
 
   const handleClearAllResults = async () => {
-    const projectName = localStorage.getItem("selectedProject");
-    const response = await dispatch(deleteAllSEAResults(projectName));
+    const response = await dispatch(deleteAllSEAResults());
     setShowDeleteModal(false);
-    dispatch(fetchProcessedFileNames());
-    if (response.status === 200) {
+    if (response.meta.requestStatus === "fulfilled") {
+      dispatch(fetchProcessedFileNames());
       setRowData([]);
     }
   };
@@ -239,17 +253,38 @@ const ExtractionFileList = () => {
           </div>
           <div className="text-center mt-4">
             <Tooltip id="export-all-btn-tooltip" />
-            <button
-              className="bg-pink-500 text-white active:bg-pink-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-              type="button"
-              onClick={fetchAllResults}
-              data-tooltip-id="export-all-btn-tooltip"
-              data-tooltip-html="Export results of all processed files in Excel format. <br /> <small> Note: If different prompts were used for various files,</br> the structure of the exported Excel file may vary.</small>"
-              data-tooltip-place="bottom"
-              data-tooltip-delay-show="2000"
-            >
-              <i className="fas fa-file-export"></i> Export All
-            </button>
+            <span className="inline-flex flex-wrap justify-center gap-2">
+              <button
+                className="text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                style={{ backgroundColor: "#185C37" }}
+                type="button"
+                onClick={fetchAllResults}
+                data-tooltip-id="export-all-btn-tooltip"
+                data-tooltip-html="Export results of all processed files in Excel format. <br /> <small>Note: If different prompts were used for various files, the structure of the exported Excel file may vary.</small>"
+                data-tooltip-place="bottom"
+                data-tooltip-delay-show="2000"
+              >
+                <i className="fas fa-file-export"></i> Export All to xlsx
+              </button>
+              <button
+                className="text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#1A5CBD" }}
+                type="button"
+                onClick={onExportAllDocx}
+                disabled={isExportingAllDocx}
+                data-tooltip-id="export-all-btn-tooltip"
+                data-tooltip-content="Download results of all processed files in Word format"
+                data-tooltip-place="bottom"
+                data-tooltip-delay-show="2000"
+              >
+                <i
+                  className={`fas ${
+                    isExportingAllDocx ? "fa-spinner fa-spin" : "fa-file-export"
+                  }`}
+                ></i>{" "}
+                Export All to docx
+              </button>
+            </span>
             {rowData.length > 2 && (
               <button
                 className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
