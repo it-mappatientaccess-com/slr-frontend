@@ -4,9 +4,10 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import "./ExtractionResult.css";
 import { Tooltip } from "react-tooltip";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { exportFileResultsDocx } from "../../../redux/thunks/dataExtractionThunks";
 
 // For full Markdown support:
 import ReactMarkdown from "react-markdown";
@@ -71,16 +72,19 @@ const CustomCellRenderer = (props) => {
 };
 
 const ExtractionResult = (props) => {
+  const dispatch = useDispatch();
   const [rowData, setRowData] = useState([]);
   const [columnDefs, setColumnDefs] = useState([]);
   const gridRef = useRef(null);
   const [includeExtraInfo, setIncludeExtraInfo] = useState(false);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
 
   // Toggling questions
   const [showQuestions, setShowQuestions] = useState(true);
 
   const selectedPrompt = useSelector((state) => state.dataExtraction.selectedPrompt);
   const prompts = useSelector((state) => state.dataExtraction.prompts);
+  const selectedFileId = useSelector((state) => state.dataExtraction.selectedFileId);
 
   const defaultColDef = useMemo(
     () => ({
@@ -92,13 +96,25 @@ const ExtractionResult = (props) => {
   );
 
   useEffect(() => {
-    if (!Array.isArray(props.result) || !props.result.length) return;
+    if (!Array.isArray(props.result) || !props.result.length) {
+      setRowData([]);
+      setColumnDefs([]);
+      return;
+    }
+
+    if (!props.selectedFileQuestions) {
+      setRowData([]);
+      setColumnDefs([]);
+      return;
+    }
 
     let parsedQuestions = {};
     try {
       parsedQuestions = JSON.parse(props.selectedFileQuestions);
     } catch (error) {
       console.error("Failed to parse selectedFileQuestions", error);
+      setRowData([]);
+      setColumnDefs([]);
       return;
     }
 
@@ -252,6 +268,17 @@ const ExtractionResult = (props) => {
 
   const toggleShowQuestions = () => setShowQuestions((prev) => !prev);
 
+  const onExportDocx = async () => {
+    if (!selectedFileId || isExportingDocx) return;
+
+    setIsExportingDocx(true);
+    try {
+      await dispatch(exportFileResultsDocx({ fileId: selectedFileId }));
+    } finally {
+      setIsExportingDocx(false);
+    }
+  };
+
   return (
     <div>
       <Tooltip id="export-btn-tooltip" />
@@ -293,15 +320,34 @@ const ExtractionResult = (props) => {
             </span>
           )}
 
-          <button
-            className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
-            type="button"
-            onClick={onBtnExport}
-            data-tooltip-id="export-btn-tooltip"
-            data-tooltip-content="Download results of the selected file in Excel format."
-          >
-            <i className="fas fa-file-export"></i> Export
-          </button>
+          <span className="inline-flex flex-wrap gap-2">
+            <button
+              className="text-white font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              style={{ backgroundColor: "#185C37" }}
+              type="button"
+              onClick={onBtnExport}
+              data-tooltip-id="export-btn-tooltip"
+              data-tooltip-content="Download results of the selected file in Excel format"
+            >
+              <i className="fas fa-file-export"></i> Export xlsx
+            </button>
+            <button
+              className="text-white font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#1A5CBD" }}
+              type="button"
+              onClick={onExportDocx}
+              disabled={!selectedFileId || isExportingDocx}
+              data-tooltip-id="export-btn-tooltip"
+              data-tooltip-content="Download results of the selected file in Word format"
+            >
+              <i
+                className={`fas ${
+                  isExportingDocx ? "fa-spinner fa-spin" : "fa-file-export"
+                }`}
+              ></i>{" "}
+              Export docx
+            </button>
+          </span>
         </div>
       </div>
 
