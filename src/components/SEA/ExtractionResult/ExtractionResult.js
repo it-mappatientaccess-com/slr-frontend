@@ -38,7 +38,7 @@ const CustomCellRenderer = (props) => {
     .replace(/\n{3,}/g, "\n\n");
 
   /**
-   * Split into lines by single `\n`, trim the end of each line, 
+   * Split into lines by single `\n`, trim the end of each line,
    * and filter out any completely empty lines.
    */
   const lines = collapsedValue
@@ -82,9 +82,13 @@ const ExtractionResult = (props) => {
   // Toggling questions
   const [showQuestions, setShowQuestions] = useState(true);
 
-  const selectedPrompt = useSelector((state) => state.dataExtraction.selectedPrompt);
+  const selectedPrompt = useSelector(
+    (state) => state.dataExtraction.selectedPrompt,
+  );
   const prompts = useSelector((state) => state.dataExtraction.prompts);
-  const selectedFileId = useSelector((state) => state.dataExtraction.selectedFileId);
+  const selectedFileId = useSelector(
+    (state) => state.dataExtraction.selectedFileId,
+  );
 
   const defaultColDef = useMemo(
     () => ({
@@ -92,7 +96,7 @@ const ExtractionResult = (props) => {
       resizable: true,
       enableCellChangeFlash: true,
     }),
-    []
+    [],
   );
 
   useEffect(() => {
@@ -145,7 +149,7 @@ const ExtractionResult = (props) => {
     // Convert columnDataMap into rowData for AG Grid
     const newRowData = [];
     const maxLength = Math.max(
-      ...Object.values(columnDataMap).map((col) => col.length)
+      ...Object.values(columnDataMap).map((col) => col.length),
     );
 
     for (let i = 0; i < maxLength; i++) {
@@ -154,7 +158,10 @@ const ExtractionResult = (props) => {
         const cellContent = columnDataMap[key][i] || "";
         if (typeof cellContent === "string") {
           // Show questions if toggled on; else hide lines that start with 'Q'
-          if (showQuestions || (!showQuestions && !cellContent.startsWith("Q"))) {
+          if (
+            showQuestions ||
+            (!showQuestions && !cellContent.startsWith("Q"))
+          ) {
             row[key] = cellContent;
           }
         } else {
@@ -207,8 +214,8 @@ const ExtractionResult = (props) => {
   };
 
   /**
-   * Minimal bold detection for Excel exports. 
-   * If you want more comprehensive Markdown->Excel, 
+   * Minimal bold detection for Excel exports.
+   * If you want more comprehensive Markdown->Excel,
    * you'd need a richer parser.
    */
   const formatCellContent = (text, worksheet, rowNumber, colIndex) => {
@@ -229,7 +236,9 @@ const ExtractionResult = (props) => {
       parts.push({ text: text.slice(lastIndex) });
     }
 
-    worksheet.getRow(rowNumber).getCell(colIndex + 1).value = { richText: parts };
+    worksheet.getRow(rowNumber).getCell(colIndex + 1).value = {
+      richText: parts,
+    };
   };
 
   // Export to Excel via ExcelJS
@@ -293,7 +302,7 @@ const ExtractionResult = (props) => {
         <div>
           <span>
             <button
-              className="text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold uppercase text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              className="text-indigo-500 bg-transparent border border-solid border-indigo-500 hover:bg-indigo-500 hover:text-white active:bg-indigo-600 font-bold text-xs px-4 py-2 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
               type="button"
               onClick={toggleShowQuestions}
             >
@@ -322,7 +331,7 @@ const ExtractionResult = (props) => {
 
           <span className="inline-flex flex-wrap gap-2">
             <button
-              className="text-white font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+              className="text-white font-bold text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
               style={{ backgroundColor: "#185C37" }}
               type="button"
               onClick={onBtnExport}
@@ -332,7 +341,7 @@ const ExtractionResult = (props) => {
               <i className="fas fa-file-export"></i> Export xlsx
             </button>
             <button
-              className="text-white font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="text-white font-bold text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ backgroundColor: "#1A5CBD" }}
               type="button"
               onClick={onExportDocx}
