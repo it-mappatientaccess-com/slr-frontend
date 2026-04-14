@@ -39,7 +39,9 @@ const btnCellRenderer = (props) => {
   const onDeleteHandler = async () => {
     setDeleteClicked(true);
     try {
-      const response = await props.dispatch(deletePdfData(props.data["file_id"]));
+      const response = await props.dispatch(
+        deletePdfData(props.data["file_id"]),
+      );
       if (response.meta.requestStatus === "fulfilled") {
         props.dispatch(fetchProcessedFileNames());
       }
@@ -255,7 +257,7 @@ const ExtractionFileList = () => {
             <Tooltip id="export-all-btn-tooltip" />
             <span className="inline-flex flex-wrap justify-center gap-2">
               <button
-                className="text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                className="text-white font-bold text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                 style={{ backgroundColor: "#185C37" }}
                 type="button"
                 onClick={fetchAllResults}
@@ -267,7 +269,7 @@ const ExtractionFileList = () => {
                 <i className="fas fa-file-export"></i> Export All to xlsx
               </button>
               <button
-                className="text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="text-white font-bold text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ backgroundColor: "#1A5CBD" }}
                 type="button"
                 onClick={onExportAllDocx}
@@ -287,7 +289,7 @@ const ExtractionFileList = () => {
             </span>
             {rowData.length > 2 && (
               <button
-                className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                className="bg-red-500 text-white font-bold text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
                 data-tooltip-id="action-btn-tooltip"
