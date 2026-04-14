@@ -10,6 +10,56 @@ import {
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
+const getRequestReference = (requestId) => {
+  const normalizedRequestId = requestId != null ? String(requestId).trim() : "";
+  return normalizedRequestId ? normalizedRequestId.slice(0, 8) : null;
+};
+
+const appendRequestReference = (message, requestId) => {
+  const reference = getRequestReference(requestId);
+  return reference ? `${message} (Reference: ${reference})` : message;
+};
+
+const getErrorRequestId = (error, payloadOverride) => {
+  const payload = payloadOverride ?? error.response?.data;
+  return (
+    payload?.request_id ||
+    error.response?.headers?.["x-request-id"] ||
+    error.response?.headers?.["X-Request-ID"] ||
+    null
+  );
+};
+
+const getApiErrorDetails = (error, fallbackMessage) => {
+  const payload = error.response?.data;
+  const requestId = getErrorRequestId(error, payload);
+  const baseMessage =
+    payload?.message ||
+    payload?.detail ||
+    error.message ||
+    fallbackMessage;
+
+  return {
+    requestId,
+    baseMessage,
+    message: appendRequestReference(baseMessage, requestId),
+  };
+};
+
+const rejectWithApiError = (
+  error,
+  fallbackMessage,
+  rejectWithValue,
+  showToast = true,
+) => {
+  const { message } = getApiErrorDetails(error, fallbackMessage);
+  if (showToast) {
+    toast.error(message);
+  }
+
+  return rejectWithValue(message);
+};
+
 /**
  * localFiles: array of { file: File, filename: string } from FilePond or similar
  * graphFiles: array of Graph "driveItem" objects selected from OneDrive/SharePoint
@@ -66,10 +116,39 @@ export const generateExtractionResults = createAsyncThunk(
       toast.success("Extraction request submitted successfully!");
       return response.data;
     } catch (error) {
-      toast.error("Failed to generate extraction results.");
-      return rejectWithValue(error.response?.data || error.message);
+      return rejectWithApiError(
+        error,
+        "Failed to generate extraction results.",
+        rejectWithValue,
+      );
     }
   }
+);
+
+export const fetchBatchStatus = createAsyncThunk(
+  "dataExtraction/fetchBatchStatus",
+  async ({ batchId, showToast = false }, { rejectWithValue }) => {
+    if (!batchId) {
+      return rejectWithValue("Batch ID not found.");
+    }
+
+    try {
+      const response = await api.get(`/batch-status/${batchId}`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      return rejectWithApiError(
+        error,
+        "Failed to fetch batch status",
+        rejectWithValue,
+        showToast,
+      );
+    }
+  },
 );
 
 // Async thunk for fetching processed file names
@@ -97,15 +176,16 @@ export const fetchProcessedFileNames = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message || "Failed to fetch processed file names";
-      toast.error(errorMsg);
       dispatch(
         setIsRefreshing({
           isRefreshing: false,
         })
       );
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to fetch processed file names",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -134,11 +214,11 @@ export const fetchExtractionFileResults = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.message ||
-        "Failed to fetch extraction file results";
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to fetch extraction file results",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -173,10 +253,11 @@ export const fetchPrompts = createAsyncThunk(
       return prompts;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.detail || "Failed to fetch prompts";
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to fetch prompts",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -197,8 +278,11 @@ export const deletePdfData = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error("Failed to delete file");
-      return rejectWithValue(error.response?.data || "Failed to delete file");
+      return rejectWithApiError(
+        error,
+        "Failed to delete file",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -323,33 +407,46 @@ const triggerBlobDownload = (blobData, fileName) => {
   window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
 };
 
-const getBlobErrorMessage = async (error, fallbackMessage) => {
+const getBlobErrorDetails = async (error, fallbackMessage) => {
   let errorMsg =
-    error.response?.data?.detail ||
     error.response?.data?.message ||
+    error.response?.data?.detail ||
     fallbackMessage;
+  let requestId = getErrorRequestId(error);
 
   const errorBlob = error.response?.data;
   if (errorBlob instanceof Blob) {
     try {
       const text = (await errorBlob.text()).trim();
-      if (!text) return errorMsg;
+      if (!text) {
+        return {
+          requestId,
+          message: appendRequestReference(errorMsg, requestId),
+        };
+      }
 
       try {
         const json = JSON.parse(text);
         errorMsg =
-          json.detail || json.message || json.error || json.title || errorMsg;
+          json.message || json.detail || json.error || json.title || errorMsg;
+        requestId = requestId || json.request_id || null;
       } catch {
         if (!text.startsWith("<")) {
           errorMsg = text;
         }
       }
     } catch {
-      return errorMsg;
+      return {
+        requestId,
+        message: appendRequestReference(errorMsg, requestId),
+      };
     }
   }
 
-  return errorMsg;
+  return {
+    requestId,
+    message: appendRequestReference(errorMsg, requestId),
+  };
 };
 
 // Async thunk for fetching all extraction results
@@ -380,9 +477,10 @@ export const fetchAllExtractionResults = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error("Failed to fetch extraction results");
-      return rejectWithValue(
-        error.response?.data || "Failed to fetch extraction results"
+      return rejectWithApiError(
+        error,
+        "Failed to fetch extraction results",
+        rejectWithValue,
       );
     }
   }
@@ -418,12 +516,12 @@ export const exportFileResultsDocx = createAsyncThunk(
       return fileName;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = await getBlobErrorMessage(
+      const { message } = await getBlobErrorDetails(
         error,
         "Failed to export file results to Word",
       );
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      toast.error(message);
+      return rejectWithValue(message);
     }
   },
 );
@@ -457,12 +555,12 @@ export const exportAllResultsDocx = createAsyncThunk(
       return fileName;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg = await getBlobErrorMessage(
+      const { message } = await getBlobErrorDetails(
         error,
         "Failed to export all results to Word",
       );
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      toast.error(message);
+      return rejectWithValue(message);
     }
   },
 );
@@ -488,9 +586,10 @@ export const deleteAllSEAResults = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      toast.error("Failed to delete all SEA results");
-      return rejectWithValue(
-        error.response?.data || "Failed to delete all SEA results"
+      return rejectWithApiError(
+        error,
+        "Failed to delete all SEA results",
+        rejectWithValue,
       );
     }
   }
@@ -525,11 +624,12 @@ export const stopExtraction = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.message || "Failed to stop extraction";
-      toast.error(errorMsg);
       dispatch(setIsStopping({ isStopping: false }));
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to stop extraction",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -559,10 +659,11 @@ export const deletePrompt = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.detail || "Failed to delete prompt";
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to delete prompt",
+        rejectWithValue,
+      );
     }
   }
 );
@@ -593,10 +694,11 @@ export const setSelectedPromptThunk = createAsyncThunk(
       return response.data;
     } catch (error) {
       dispatch(setProgress(100));
-      const errorMsg =
-        error.response?.data?.message || "Failed to set selected prompt";
-      toast.error(errorMsg);
-      return rejectWithValue(errorMsg);
+      return rejectWithApiError(
+        error,
+        "Failed to set selected prompt",
+        rejectWithValue,
+      );
     }
   }
 );

@@ -72,7 +72,7 @@ function getItemIcon(kind, name) {
   }
 }
 
-export default function GraphFilePicker({ onFilesSelected }) {
+export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
   const ctx = useContext(AuthContext);
   const { instance } = useMsal();
 
@@ -556,9 +556,12 @@ export default function GraphFilePicker({ onFilesSelected }) {
           </div>
         )}
         <button
-          className="text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+          className={`text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
           type="button"
           onClick={() => openModalFor("onedrive")}
+          disabled={disabled}
           data-tooltip-id="oneDrive-btn"
           data-tooltip-content="Requires Microsoft sign-in if not already logged in."
         >
@@ -566,9 +569,12 @@ export default function GraphFilePicker({ onFilesSelected }) {
         </button>
         <Tooltip id="oneDrive-btn" />
         <button
-          className="text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+          className={`text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
           type="button"
           onClick={() => openModalFor("sharepoint")}
+          disabled={disabled}
           data-tooltip-id="sharePoint-btn"
           data-tooltip-content="Requires Microsoft sign-in if not already logged in."
         >
