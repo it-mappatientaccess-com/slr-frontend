@@ -42,23 +42,64 @@ const initialState = {
   fileStatuses: {},
 };
 
+const areShallowEqualObjects = (currentValue = {}, nextValue = {}) => {
+  const currentObject = currentValue || {};
+  const nextObject = nextValue || {};
+
+  if (currentObject === nextObject) return true;
+
+  const currentKeys = Object.keys(currentObject);
+  const nextKeys = Object.keys(nextObject);
+
+  if (currentKeys.length !== nextKeys.length) return false;
+
+  return currentKeys.every((key) => currentObject[key] === nextObject[key]);
+};
+
+const buildFileStatus = (existingStatus = {}, source = {}) => ({
+  extraction_status:
+    source.extraction_status ?? existingStatus.extraction_status ?? null,
+  failure_code: source.failure_code ?? existingStatus.failure_code ?? null,
+  failure_reason: source.failure_reason ?? existingStatus.failure_reason ?? null,
+  extraction_engine:
+    source.extraction_engine ?? existingStatus.extraction_engine ?? null,
+});
+
 const mergeProcessedFiles = (existingFiles, incomingFiles = [], batchId) => {
+  if (!incomingFiles.length) {
+    return existingFiles;
+  }
+
   const processedFileMap = new Map(
-    existingFiles.map((file) => [file.file_id, file]),
+    existingFiles.map((file, index) => [file.file_id, { file, index }]),
   );
+  const nextFiles = [...existingFiles];
+  let hasChanges = false;
 
   incomingFiles.forEach((file) => {
     if (!file?.file_id) return;
 
-    const existingFile = processedFileMap.get(file.file_id) || {};
-    processedFileMap.set(file.file_id, {
+    const existingEntry = processedFileMap.get(file.file_id);
+    const existingFile = existingEntry?.file || {};
+    const nextFile = {
       ...existingFile,
       ...file,
       batch_id: file.batch_id || existingFile.batch_id || batchId || null,
-    });
+    };
+
+    if (!existingEntry) {
+      nextFiles.push(nextFile);
+      hasChanges = true;
+      return;
+    }
+
+    if (!areShallowEqualObjects(existingEntry.file, nextFile)) {
+      nextFiles[existingEntry.index] = nextFile;
+      hasChanges = true;
+    }
   });
 
-  return Array.from(processedFileMap.values());
+  return hasChanges ? nextFiles : existingFiles;
 };
 
 const syncFileStatuses = (state, files = []) => {
@@ -73,25 +114,12 @@ const syncFileStatuses = (state, files = []) => {
 
     if (!hasStatusData) return;
 
-    state.fileStatuses[file.file_id] = {
-      ...(state.fileStatuses[file.file_id] || {}),
-      extraction_status:
-        file.extraction_status ||
-        state.fileStatuses[file.file_id]?.extraction_status ||
-        null,
-      failure_code:
-        file.failure_code ??
-        state.fileStatuses[file.file_id]?.failure_code ??
-        null,
-      failure_reason:
-        file.failure_reason ??
-        state.fileStatuses[file.file_id]?.failure_reason ??
-        null,
-      extraction_engine:
-        file.extraction_engine ??
-        state.fileStatuses[file.file_id]?.extraction_engine ??
-        null,
-    };
+    const existingStatus = state.fileStatuses[file.file_id] || {};
+    const nextStatus = buildFileStatus(existingStatus, file);
+
+    if (!areShallowEqualObjects(existingStatus, nextStatus)) {
+      state.fileStatuses[file.file_id] = nextStatus;
+    }
   });
 };
 
@@ -135,11 +163,14 @@ const applyBatchStatusPayload = (state, payload) => {
     state.batchStatus === "in_progress" ? state.currentStageLabel : "";
 
   if (Array.isArray(payload.files) && payload.files.length > 0) {
-    state.processedFiles = mergeProcessedFiles(
+    const mergedProcessedFiles = mergeProcessedFiles(
       state.processedFiles,
       payload.files,
       payload.batch_id,
     );
+    if (mergedProcessedFiles !== state.processedFiles) {
+      state.processedFiles = mergedProcessedFiles;
+    }
     syncFileStatuses(state, payload.files);
   }
 };
@@ -204,14 +235,19 @@ const dataExtractionSlice = createSlice({
         (file) => file.file_id === processedFile.file_id,
       );
       const isNewFile = fileIndex < 0;
+      const existingFile =
+        fileIndex >= 0 ? state.processedFiles[fileIndex] : null;
+      const nextProcessedFile = {
+        ...(existingFile || {}),
+        ...processedFile,
+      };
 
       if (fileIndex >= 0) {
-        state.processedFiles[fileIndex] = {
-          ...state.processedFiles[fileIndex],
-          ...processedFile,
-        };
+        if (!areShallowEqualObjects(existingFile, nextProcessedFile)) {
+          state.processedFiles[fileIndex] = nextProcessedFile;
+        }
       } else {
-        state.processedFiles.push(processedFile);
+        state.processedFiles.push(nextProcessedFile);
       }
 
       dataExtractionSlice.caseReducers.updateFileStatus(state, {
@@ -253,25 +289,12 @@ const dataExtractionSlice = createSlice({
       const fileId = action.payload.file_id || action.payload.fileId;
       if (!fileId) return;
 
-      state.fileStatuses[fileId] = {
-        ...(state.fileStatuses[fileId] || {}),
-        extraction_status:
-          action.payload.extraction_status ??
-          state.fileStatuses[fileId]?.extraction_status ??
-          null,
-        failure_code:
-          action.payload.failure_code ??
-          state.fileStatuses[fileId]?.failure_code ??
-          null,
-        failure_reason:
-          action.payload.failure_reason ??
-          state.fileStatuses[fileId]?.failure_reason ??
-          null,
-        extraction_engine:
-          action.payload.extraction_engine ??
-          state.fileStatuses[fileId]?.extraction_engine ??
-          null,
-      };
+      const existingStatus = state.fileStatuses[fileId] || {};
+      const nextStatus = buildFileStatus(existingStatus, action.payload);
+
+      if (!areShallowEqualObjects(existingStatus, nextStatus)) {
+        state.fileStatuses[fileId] = nextStatus;
+      }
     },
     resetBatchData: (state) => {
       state.currentBatchID = null;
@@ -321,16 +344,17 @@ const dataExtractionSlice = createSlice({
         state.status = "failed";
         state.message = action.payload;
       })
-      .addCase(fetchBatchStatus.pending, (state) => {
-        state.status = "loading";
+      .addCase(fetchBatchStatus.pending, () => {
+        // Background batch-status polling should not toggle the generic loading flag.
       })
       .addCase(fetchBatchStatus.fulfilled, (state, action) => {
-        state.status = "succeeded";
         applyBatchStatusPayload(state, action.payload);
       })
       .addCase(fetchBatchStatus.rejected, (state, action) => {
-        state.status = "failed";
-        state.message = action.payload;
+        if (action.meta.arg?.showToast) {
+          state.status = "failed";
+          state.message = action.payload;
+        }
       })
       .addCase(fetchExtractionFileResults.pending, (state) => {
         state.status = "loading";

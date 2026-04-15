@@ -373,18 +373,6 @@ const MultiFileUpload = () => {
           return;
         case "file_processed":
           dispatch(appendProcessedFile(payload));
-          {
-            const totalFiles = getResolvedTotalFiles(
-              payload.total_files,
-              totalFilesRef.current,
-            );
-            if (totalFiles > 0) {
-              dispatch(setTotalFilesInBatch(totalFiles));
-            }
-          }
-          if (Number.isFinite(Number(payload.processed_count))) {
-            dispatch(setProcessedCount(Number(payload.processed_count)));
-          }
           return;
         case "batch_completed": {
           const succeeded = Number(payload.succeeded ?? 0);
@@ -657,19 +645,25 @@ const MultiFileUpload = () => {
       stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID }),
     );
 
-    if (response.meta.requestStatus === "fulfilled") {
-      dispatch(setBatchStatus("cancelled"));
-      dispatch(setCurrentStageLabel(""));
-      const batchStatusResponse = await dispatch(
-        fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
-      );
+    const stopSucceeded =
+      response.meta.requestStatus === "fulfilled" &&
+      response.payload?.status === "success";
 
-      if (
-        fetchBatchStatus.fulfilled.match(batchStatusResponse) &&
-        batchStatusResponse.payload?.batch_status === "in_progress"
-      ) {
-        dispatch(setBatchStatus("cancelled"));
-      }
+    if (!stopSucceeded) {
+      return;
+    }
+
+    dispatch(setBatchStatus("cancelled"));
+    dispatch(setCurrentStageLabel(""));
+    const batchStatusResponse = await dispatch(
+      fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
+    );
+
+    if (
+      fetchBatchStatus.fulfilled.match(batchStatusResponse) &&
+      batchStatusResponse.payload?.batch_status === "in_progress"
+    ) {
+      dispatch(setBatchStatus("cancelled"));
     }
   };
 

@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { useDispatch, useSelector } from "react-redux";
+import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import {
   deletePdfData,
   fetchAllExtractionResults,
@@ -251,7 +251,10 @@ const ExtractionFileList = () => {
     (state) => state.dataExtraction.currentBatchID,
   );
   const batchStatus = useSelector((state) => state.dataExtraction.batchStatus);
-  const fileStatuses = useSelector((state) => state.dataExtraction.fileStatuses);
+  const fileStatuses = useSelector(
+    (state) => state.dataExtraction.fileStatuses,
+    shallowEqual,
+  );
   const gridRef = useRef(null);
   const getRowId = useMemo(() => (params) => params.data.file_id, []);
   const selectedFileResult = useSelector(
