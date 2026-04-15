@@ -1,13 +1,14 @@
 // context/AuthContext.js
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { useMsal } from '@azure/msal-react'; // Import useMsal
-import { loginRequest } from '../authConfig'; // Import loginRequest
-import refreshToken from 'util/refreshToken';
+import React, { useState, useCallback, useEffect } from "react";
+import { useMsal } from "@azure/msal-react"; // Import useMsal
+import { loginRequest } from "../authConfig"; // Import loginRequest
+import refreshToken from "util/refreshToken";
+import { clearAuthStorage, redirectToLoginFromExpiry } from "util/authSession";
 let refreshTimer;
 
 const AuthContext = React.createContext({
-  token: '',
+  token: "",
   isLoggedIn: false,
   loginMethod: null,
   login: (token, expirationTime, method) => {},
@@ -24,9 +25,9 @@ const calculateRemainingTime = (expirationTime) => {
 };
 
 const retrieveStoredToken = () => {
-  const storedToken = localStorage.getItem('token');
-  const storedExpirationTime = localStorage.getItem('expirationTime');
-  const storedLoginMethod = localStorage.getItem('loginMethod');
+  const storedToken = localStorage.getItem("token");
+  const storedExpirationTime = localStorage.getItem("expirationTime");
+  const storedLoginMethod = localStorage.getItem("loginMethod");
   return {
     token: storedToken,
     expirationTime: storedExpirationTime,
@@ -43,7 +44,7 @@ export const AuthContextProvider = (props) => {
 
   const [token, setToken] = useState(initialToken);
   const [tokenExpirationTime, setTokenExpirationTime] = useState(
-    initialExpirationTime
+    initialExpirationTime,
   );
   const [loginMethod, setLoginMethod] = useState(initialLoginMethod);
 
@@ -53,21 +54,21 @@ export const AuthContextProvider = (props) => {
     setToken(null);
     setTokenExpirationTime(null);
     setLoginMethod(null);
-    localStorage.clear();
+    clearAuthStorage();
     if (refreshTimer) {
       clearTimeout(refreshTimer);
     }
   }, []);
 
   const loginHandler = (token, expirationTime, method) => {
-    console.log('Logging in with token:', token);
-    console.log('Token expires at:', expirationTime);
+    console.log("Logging in with token:", token);
+    console.log("Token expires at:", expirationTime);
     setToken(token);
     setTokenExpirationTime(expirationTime);
     setLoginMethod(method);
-    localStorage.setItem('token', token);
-    localStorage.setItem('expirationTime', expirationTime);
-    localStorage.setItem('loginMethod', method);
+    localStorage.setItem("token", token);
+    localStorage.setItem("expirationTime", expirationTime);
+    localStorage.setItem("loginMethod", method);
     const remainingTime = calculateRemainingTime(expirationTime);
     if (remainingTime > 300000) {
       refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
@@ -85,10 +86,11 @@ export const AuthContextProvider = (props) => {
   const refreshTokenHandler = useCallback(async () => {
     if (hasTokenExpired(tokenExpirationTime)) {
       logoutHandler();
+      redirectToLoginFromExpiry();
       return;
     }
 
-    if (loginMethod === 'sso') {
+    if (loginMethod === "sso") {
       // Attempt to acquire new token via MSAL
       try {
         const accounts = instance.getAllAccounts();
@@ -101,52 +103,63 @@ export const AuthContextProvider = (props) => {
           const newToken = `Bearer ${tokenResponse.accessToken}`;
           const newExpirationTime = tokenResponse.expiresOn.getTime();
 
-          console.log('Refreshing SSO token:', newToken);
-          console.log('New token expires at:', new Date(newExpirationTime));
+          console.log("Refreshing SSO token:", newToken);
+          console.log("New token expires at:", new Date(newExpirationTime));
           setToken(newToken);
           setTokenExpirationTime(newExpirationTime);
-          localStorage.setItem('token', newToken);
-          localStorage.setItem('expirationTime', newExpirationTime.toString());
+          localStorage.setItem("token", newToken);
+          localStorage.setItem("expirationTime", newExpirationTime.toString());
           const remainingTime = calculateRemainingTime(newExpirationTime);
           if (remainingTime > 300000) {
-            refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000);
+            refreshTimer = setTimeout(
+              refreshTokenHandler,
+              remainingTime - 300000,
+            );
           }
         } else {
           // No accounts available, logout
           logoutHandler();
+          redirectToLoginFromExpiry();
         }
       } catch (error) {
-        console.error('Silent token acquisition failed:', error);
+        console.error("Silent token acquisition failed:", error);
         logoutHandler();
+        redirectToLoginFromExpiry();
       }
-    } else if (loginMethod === 'credentials') {
+    } else if (loginMethod === "credentials") {
       // Existing logic for refreshing token via backend
       try {
         const newTokenData = await refreshToken(token);
         if (newTokenData) {
           const newToken = `Bearer ${newTokenData.access_token}`;
           const newExpirationTime = newTokenData.expiration_time;
-          console.log('Refreshing token:', newToken);
-          console.log('New token expires at:', newExpirationTime);
+          console.log("Refreshing token:", newToken);
+          console.log("New token expires at:", newExpirationTime);
           setToken(newToken);
           setTokenExpirationTime(newExpirationTime);
-          localStorage.setItem('token', newToken);
-          localStorage.setItem('expirationTime', newExpirationTime);
+          localStorage.setItem("token", newToken);
+          localStorage.setItem("expirationTime", newExpirationTime);
           const remainingTime = calculateRemainingTime(newExpirationTime);
           if (remainingTime > 300000) {
-            refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000);
+            refreshTimer = setTimeout(
+              refreshTokenHandler,
+              remainingTime - 300000,
+            );
           }
         } else {
           // Token refresh failed, logout
           logoutHandler();
+          redirectToLoginFromExpiry();
         }
       } catch (error) {
-        console.log('Error refreshing token:', error);
+        console.log("Error refreshing token:", error);
         logoutHandler();
+        redirectToLoginFromExpiry();
       }
     } else {
       // Unknown login method, logout
       logoutHandler();
+      redirectToLoginFromExpiry();
     }
   }, [token, tokenExpirationTime, loginMethod, instance, logoutHandler]);
 
