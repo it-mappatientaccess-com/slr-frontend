@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import {
   generateExtractionResults,
+  fetchBatchStatus,
   fetchProcessedFileNames,
   fetchExtractionFileResults,
   fetchPrompts,
@@ -33,6 +34,145 @@ const initialState = {
   currentBatchID: null,
   totalFilesInBatch: 0,
   processedCount: 0,
+  batchStatus: null,
+  succeededCount: 0,
+  failedCount: 0,
+  pendingCount: 0,
+  currentStageLabel: "",
+  fileStatuses: {},
+};
+
+const areShallowEqualObjects = (currentValue = {}, nextValue = {}) => {
+  const currentObject = currentValue || {};
+  const nextObject = nextValue || {};
+
+  if (currentObject === nextObject) return true;
+
+  const currentKeys = Object.keys(currentObject);
+  const nextKeys = Object.keys(nextObject);
+
+  if (currentKeys.length !== nextKeys.length) return false;
+
+  return currentKeys.every((key) => currentObject[key] === nextObject[key]);
+};
+
+const buildFileStatus = (existingStatus = {}, source = {}) => ({
+  extraction_status:
+    source.extraction_status ?? existingStatus.extraction_status ?? null,
+  failure_code: source.failure_code ?? existingStatus.failure_code ?? null,
+  failure_reason: source.failure_reason ?? existingStatus.failure_reason ?? null,
+  extraction_engine:
+    source.extraction_engine ?? existingStatus.extraction_engine ?? null,
+});
+
+const mergeProcessedFiles = (existingFiles, incomingFiles = [], batchId) => {
+  if (!incomingFiles.length) {
+    return existingFiles;
+  }
+
+  const processedFileMap = new Map(
+    existingFiles.map((file, index) => [file.file_id, { file, index }]),
+  );
+  const nextFiles = [...existingFiles];
+  let hasChanges = false;
+
+  incomingFiles.forEach((file) => {
+    if (!file?.file_id) return;
+
+    const existingEntry = processedFileMap.get(file.file_id);
+    const existingFile = existingEntry?.file || {};
+    const nextFile = {
+      ...existingFile,
+      ...file,
+      batch_id: file.batch_id || existingFile.batch_id || batchId || null,
+    };
+
+    if (!existingEntry) {
+      nextFiles.push(nextFile);
+      hasChanges = true;
+      return;
+    }
+
+    if (!areShallowEqualObjects(existingEntry.file, nextFile)) {
+      nextFiles[existingEntry.index] = nextFile;
+      hasChanges = true;
+    }
+  });
+
+  return hasChanges ? nextFiles : existingFiles;
+};
+
+const syncFileStatuses = (state, files = []) => {
+  files.forEach((file) => {
+    if (!file?.file_id) return;
+
+    const hasStatusData =
+      file.extraction_status ||
+      file.failure_code ||
+      file.failure_reason ||
+      file.extraction_engine;
+
+    if (!hasStatusData) return;
+
+    const existingStatus = state.fileStatuses[file.file_id] || {};
+    const nextStatus = buildFileStatus(existingStatus, file);
+
+    if (!areShallowEqualObjects(existingStatus, nextStatus)) {
+      state.fileStatuses[file.file_id] = nextStatus;
+    }
+  });
+};
+
+const getBatchCountValue = (incomingValue, existingValue = 0) => {
+  if (incomingValue == null) return Number(existingValue ?? 0);
+
+  const numericValue = Number(incomingValue);
+  return Number.isFinite(numericValue) ? numericValue : Number(existingValue ?? 0);
+};
+
+const applyBatchStatusPayload = (state, payload) => {
+  if (!payload) return;
+
+  const incomingTotalFiles = payload.total_files == null
+    ? null
+    : Number(payload.total_files);
+  const totalFiles =
+    Number.isFinite(incomingTotalFiles) && incomingTotalFiles > 0
+      ? incomingTotalFiles
+      : Number(state.totalFilesInBatch ?? 0);
+  const succeededCount = getBatchCountValue(
+    payload.succeeded,
+    state.succeededCount,
+  );
+  const failedCount = getBatchCountValue(payload.failed, state.failedCount);
+  const inProgressCount = getBatchCountValue(payload.in_progress, 0);
+  const processedCount = succeededCount + failedCount;
+  const pendingCount = Math.max(
+    totalFiles - processedCount - Math.max(inProgressCount, 0),
+    0,
+  );
+
+  state.currentBatchID = payload.batch_id || state.currentBatchID;
+  state.batchStatus = payload.batch_status || state.batchStatus;
+  state.totalFilesInBatch = totalFiles;
+  state.succeededCount = succeededCount;
+  state.failedCount = failedCount;
+  state.processedCount = processedCount;
+  state.pendingCount = pendingCount;
+  state.currentStageLabel =
+    state.batchStatus === "in_progress" ? state.currentStageLabel : "";
+
+  if (Array.isArray(payload.files) && payload.files.length > 0) {
+    const mergedProcessedFiles = mergeProcessedFiles(
+      state.processedFiles,
+      payload.files,
+      payload.batch_id,
+    );
+    if (mergedProcessedFiles !== state.processedFiles) {
+      state.processedFiles = mergedProcessedFiles;
+    }
+    syncFileStatuses(state, payload.files);
+  }
 };
 
 const dataExtractionSlice = createSlice({
@@ -87,23 +227,84 @@ const dataExtractionSlice = createSlice({
     },
     setProcessedFiles: (state, action) => {
       state.processedFiles = action.payload;
+      syncFileStatuses(state, action.payload);
     },
     appendProcessedFile: (state, action) => {
-      const fileId = action.payload.file_id;
-      // If we don't already have it in processedFiles, push it
-      const exists = state.processedFiles.some((f) => f.file_id === fileId);
-      if (!exists) {
-        state.processedFiles.push(action.payload);
-        // Also increment processedCount
+      const processedFile = action.payload;
+      const fileIndex = state.processedFiles.findIndex(
+        (file) => file.file_id === processedFile.file_id,
+      );
+      const isNewFile = fileIndex < 0;
+      const existingFile =
+        fileIndex >= 0 ? state.processedFiles[fileIndex] : null;
+      const nextProcessedFile = {
+        ...(existingFile || {}),
+        ...processedFile,
+      };
+
+      if (fileIndex >= 0) {
+        if (!areShallowEqualObjects(existingFile, nextProcessedFile)) {
+          state.processedFiles[fileIndex] = nextProcessedFile;
+        }
+      } else {
+        state.processedFiles.push(nextProcessedFile);
+      }
+
+      dataExtractionSlice.caseReducers.updateFileStatus(state, {
+        payload: processedFile,
+      });
+
+      if (processedFile.processed_count != null) {
+        state.processedCount = Number(processedFile.processed_count);
+      } else if (isNewFile) {
         state.processedCount += 1;
+      }
+
+      if (processedFile.total_files != null) {
+        const incomingTotalFiles = Number(processedFile.total_files);
+        if (Number.isFinite(incomingTotalFiles) && incomingTotalFiles > 0) {
+          state.totalFilesInBatch = incomingTotalFiles;
+        }
+      }
+    },
+    setBatchStatus: (state, action) => {
+      state.batchStatus = action.payload;
+      if (action.payload !== "in_progress") {
+        state.currentStageLabel = "";
+      }
+    },
+    setSucceededCount: (state, action) => {
+      state.succeededCount = action.payload;
+    },
+    setFailedCount: (state, action) => {
+      state.failedCount = action.payload;
+    },
+    setPendingCount: (state, action) => {
+      state.pendingCount = action.payload;
+    },
+    setCurrentStageLabel: (state, action) => {
+      state.currentStageLabel = action.payload;
+    },
+    updateFileStatus: (state, action) => {
+      const fileId = action.payload.file_id || action.payload.fileId;
+      if (!fileId) return;
+
+      const existingStatus = state.fileStatuses[fileId] || {};
+      const nextStatus = buildFileStatus(existingStatus, action.payload);
+
+      if (!areShallowEqualObjects(existingStatus, nextStatus)) {
+        state.fileStatuses[fileId] = nextStatus;
       }
     },
     resetBatchData: (state) => {
-      // Clear batch-related fields after everything completes or user cancels
       state.currentBatchID = null;
       state.totalFilesInBatch = 0;
       state.processedCount = 0;
-      state.processedFiles = [];
+      state.batchStatus = null;
+      state.succeededCount = 0;
+      state.failedCount = 0;
+      state.pendingCount = 0;
+      state.currentStageLabel = "";
       localStorage.removeItem("currentBatchID");
       localStorage.removeItem("totalFilesInBatch");
     },
@@ -127,6 +328,7 @@ const dataExtractionSlice = createSlice({
       .addCase(fetchProcessedFileNames.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.processedFiles = action.payload;
+        syncFileStatuses(state, action.payload);
 
         if (
           state.selectedFileId &&
@@ -141,6 +343,18 @@ const dataExtractionSlice = createSlice({
       .addCase(fetchProcessedFileNames.rejected, (state, action) => {
         state.status = "failed";
         state.message = action.payload;
+      })
+      .addCase(fetchBatchStatus.pending, () => {
+        // Background batch-status polling should not toggle the generic loading flag.
+      })
+      .addCase(fetchBatchStatus.fulfilled, (state, action) => {
+        applyBatchStatusPayload(state, action.payload);
+      })
+      .addCase(fetchBatchStatus.rejected, (state, action) => {
+        if (action.meta.arg?.showToast) {
+          state.status = "failed";
+          state.message = action.payload;
+        }
       })
       .addCase(fetchExtractionFileResults.pending, (state) => {
         state.status = "loading";
@@ -228,6 +442,12 @@ export const {
   setProcessedCount,
   setProcessedFiles,
   appendProcessedFile,
+  setBatchStatus,
+  setSucceededCount,
+  setFailedCount,
+  setPendingCount,
+  setCurrentStageLabel,
+  updateFileStatus,
   resetBatchData
 } = dataExtractionSlice.actions;
 

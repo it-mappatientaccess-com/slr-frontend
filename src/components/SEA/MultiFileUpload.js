@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FilePond, registerPlugin } from "react-filepond";
 import "filepond/dist/filepond.min.css";
@@ -9,23 +9,28 @@ import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "authConfig";
 
 import {
-  setIncludeAboutFile,
-  setExtractionTaskId,
-  setIsStopping,
-  setCurrentBatchID,
-  setTotalFilesInBatch,
-  setProcessedFiles,
-  setProcessedCount,
-  // Note: we intentionally do NOT reset processed files for new batches
   appendProcessedFile,
+  setBatchStatus,
+  setCurrentBatchID,
+  setCurrentStageLabel,
+  setExtractionTaskId,
+  setFailedCount,
+  setIncludeAboutFile,
+  setIsStopping,
+  setPendingCount,
+  setProcessedCount,
+  setSucceededCount,
+  setTotalFilesInBatch,
 } from "../../redux/slices/dataExtractionSlice";
-
-import ProgressBar from "components/ProgressBar/ProgressBar";
 import {
-  generateExtractionResults,
+  fetchBatchStatus,
   fetchProcessedFileNames,
+  generateExtractionResults,
   stopExtraction,
 } from "../../redux/thunks/dataExtractionThunks";
+
+import ProgressBar from "components/ProgressBar/ProgressBar";
+import BatchSummaryBanner from "components/SEA/BatchSummaryBanner";
 import generateUniqueBatchID from "util/generateUUID";
 import { Tooltip } from "react-tooltip";
 import { notify } from "components/Notify/Notify";
@@ -34,6 +39,94 @@ import GraphFilePicker from "components/GraphFilePicker/GraphFilePicker";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+
+const TERMINAL_BATCH_STATUSES = new Set([
+  "completed",
+  "partially_completed",
+  "failed",
+  "cancelled",
+]);
+
+const STAGE_LABELS = {
+  extraction_started: "Extracting document...",
+  extraction_completed: "Extraction complete.",
+  embedding_started: "Creating embeddings...",
+  embedding_completed: "Embeddings complete.",
+  qa_started: "Analyzing with AI...",
+  qa_completed: "Analysis complete.",
+};
+
+const getStageLabel = (stage) => STAGE_LABELS[stage] || "Processing files...";
+
+const getResolvedTotalFiles = (incomingTotalFiles, fallbackTotalFiles = 0) => {
+  const numericTotalFiles = Number(incomingTotalFiles);
+  if (Number.isFinite(numericTotalFiles) && numericTotalFiles > 0) {
+    return numericTotalFiles;
+  }
+
+  return Number(fallbackTotalFiles ?? 0);
+};
+
+const getDisplayedProgress = ({
+  batchStatus,
+  actualProgress,
+  processedCount,
+  totalFilesInBatch,
+}) => {
+  if (TERMINAL_BATCH_STATUSES.has(batchStatus)) {
+    return actualProgress;
+  }
+
+  if (batchStatus !== "in_progress" || totalFilesInBatch <= 0) {
+    return actualProgress;
+  }
+
+  if (processedCount === 0) {
+    return 12;
+  }
+
+  return Math.min(95, Math.max(actualProgress, 12));
+};
+
+const getCompletionNotification = ({
+  batchStatus,
+  totalFilesInBatch,
+  succeededCount,
+  failedCount,
+  processedCount,
+}) => {
+  if (!TERMINAL_BATCH_STATUSES.has(batchStatus)) return null;
+
+  if (batchStatus === "completed") {
+    return {
+      type: "success",
+      message: `All ${totalFilesInBatch} files processed successfully.`,
+    };
+  }
+
+  if (batchStatus === "partially_completed") {
+    return {
+      type: "warning",
+      message: `${succeededCount} of ${totalFilesInBatch} files processed successfully. ${failedCount} files failed.`,
+    };
+  }
+
+  if (batchStatus === "failed") {
+    return {
+      type: "error",
+      message: "All files failed to process. Check individual file errors below.",
+    };
+  }
+
+  if (batchStatus === "cancelled") {
+    return {
+      type: "info",
+      message: `Extraction was cancelled. ${processedCount} of ${totalFilesInBatch} files were processed.`,
+    };
+  }
+
+  return null;
+};
 
 /** Utility to pick an icon based on file extension */
 function getFileIcon(name) {
@@ -57,7 +150,6 @@ function getFileIcon(name) {
   }
 }
 
-// Register FilePond plugins
 registerPlugin(
   FilePondPluginFileValidateType,
   FilePondPluginFileValidateSize,
@@ -68,21 +160,24 @@ const MultiFileUpload = () => {
   const dispatch = useDispatch();
   const { instance, accounts } = useMsal();
 
-  // Local states for FilePond and Graph picks
   const [files, setFiles] = useState([]);
   const [graphFiles, setGraphFiles] = useState([]);
 
-  // Destructure only the Redux fields we actually use here
   const {
+    batchStatus,
     currentBatchID,
-    totalFilesInBatch,
-    processedCount,
+    currentStageLabel,
+    extractionTaskId,
+    failedCount,
+    includeAboutFile,
     isStopping,
     message,
-    status,
+    pendingCount,
+    processedCount,
     selectedPrompt,
-    includeAboutFile,
-    extractionTaskId,
+    status,
+    succeededCount,
+    totalFilesInBatch,
   } = useSelector((state) => state.dataExtraction);
 
   const isSubmittedVal = useSelector(
@@ -92,18 +187,75 @@ const MultiFileUpload = () => {
     (state) => state.questionAbstractData.seaQuestions,
   );
 
-  // Calculate progress from Redux fields
-  const showProgressBar =
-    currentBatchID !== null && processedCount < totalFilesInBatch;
   const progress =
     totalFilesInBatch > 0 ? (processedCount / totalFilesInBatch) * 100 : 0;
+  const displayProgress = getDisplayedProgress({
+    batchStatus,
+    actualProgress: progress,
+    processedCount,
+    totalFilesInBatch,
+  });
+  const showProgressBar = Boolean(
+    currentBatchID && (batchStatus || totalFilesInBatch > 0),
+  );
+  const isBatchActive = batchStatus === "in_progress";
+  const hasSelectedFiles = files.length > 0 || graphFiles.length > 0;
 
-  // SSE endpoint (base API URL from your .env or fallback)
+  const totalFilesRef = useRef(totalFilesInBatch);
+  const previousBatchStatusRef = useRef(batchStatus);
+  const sseRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+  const stopSseRetriesRef = useRef(false);
+
+  useEffect(() => {
+    totalFilesRef.current = totalFilesInBatch;
+  }, [totalFilesInBatch]);
+
   const baseAPIUrl = process.env.REACT_APP_API_URL;
   const normalizedBaseUrl = baseAPIUrl ? baseAPIUrl.replace(/\/$/, "") : "";
-  const sseUrl = normalizedBaseUrl
-    ? `${normalizedBaseUrl}/stream-progress`
-    : "";
+  const sseUrl = normalizedBaseUrl ? `${normalizedBaseUrl}/stream-progress` : "";
+
+  const closeSseConnection = useCallback(() => {
+    if (sseRef.current) {
+      sseRef.current.close();
+      sseRef.current = null;
+    }
+  }, []);
+
+  const reconcileBatchState = useCallback(
+    async (batchId = currentBatchID) => {
+      if (!batchId) return null;
+
+      return dispatch(fetchBatchStatus({ batchId, showToast: false }));
+    },
+    [currentBatchID, dispatch],
+  );
+
+  const scrollToResults = useCallback(() => {
+    const resultsSection = document.getElementById("sea-step-4-results");
+    if (!resultsSection) return;
+
+    resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const refreshProcessedFiles = useCallback(() => {
+    dispatch(fetchProcessedFileNames());
+  }, [dispatch]);
+
+  const clearActiveBatchState = useCallback(() => {
+    dispatch(setCurrentBatchID(null));
+    dispatch(setBatchStatus(null));
+    dispatch(setTotalFilesInBatch(0));
+    dispatch(setProcessedCount(0));
+    dispatch(setSucceededCount(0));
+    dispatch(setFailedCount(0));
+    dispatch(setPendingCount(0));
+    dispatch(setCurrentStageLabel(""));
+    dispatch(setExtractionTaskId({ extractionTaskId: null }));
+    localStorage.removeItem("currentBatchID");
+    localStorage.removeItem("totalFilesInBatch");
+  }, [dispatch]);
 
   /**
    * Acquire Graph Token
@@ -123,129 +275,237 @@ const MultiFileUpload = () => {
   }, [instance, accounts]);
 
   /**
-   * On mount, restore any ongoing batch from localStorage
-   * AND always fetch all processed files so the table is never empty.
+   * Restore any active batch and hydrate the Step 4 table.
    */
   useEffect(() => {
-    const storedBatchID = localStorage.getItem("currentBatchID");
-    const storedTotal = localStorage.getItem("totalFilesInBatch");
+    let isMounted = true;
 
-    if (storedBatchID) {
+    const restoreBatchState = async () => {
+      dispatch(fetchProcessedFileNames());
+
+      const storedBatchID = localStorage.getItem("currentBatchID");
+      const storedTotal = Number.parseInt(
+        localStorage.getItem("totalFilesInBatch") || "0",
+        10,
+      );
+
+      if (!storedBatchID) return;
+
       dispatch(setCurrentBatchID(storedBatchID));
-      dispatch(setTotalFilesInBatch(parseInt(storedTotal || "0", 10)));
+      if (!Number.isNaN(storedTotal) && storedTotal > 0) {
+        dispatch(setTotalFilesInBatch(storedTotal));
+      }
 
-      // Sync up *all* processed files from server
-      dispatch(fetchProcessedFileNames()).then((res) => {
-        if (res.payload) {
-          // Keep them all in Redux for the table
-          dispatch(setProcessedFiles(res.payload));
+      const result = await dispatch(
+        fetchBatchStatus({ batchId: storedBatchID, showToast: false }),
+      );
 
-          // Also set the progress count for the *currently stored* batch
-          const currentBatchFiles = res.payload.filter(
-            (f) => f.batch_id === storedBatchID,
-          );
-          dispatch(setProcessedCount(currentBatchFiles.length));
-        }
-      });
-    } else {
-      // Even if there's no stored batch, we still fetch
-      // all processed files so the table shows them.
-      dispatch(fetchProcessedFileNames()).then((res) => {
-        if (res.payload) {
-          dispatch(setProcessedFiles(res.payload));
-        }
-      });
-    }
-    // eslint-disable-next-line
-  }, []);
+      if (!isMounted || !fetchBatchStatus.fulfilled.match(result)) return;
 
-  /**
-   * SSE subscription whenever currentBatchID changes
-   */
-  useEffect(() => {
-    if (!currentBatchID || !sseUrl) return;
-
-    console.log("Opening SSE for batch:", currentBatchID);
-    const sse = new EventSource(sseUrl);
-
-    const handlePayload = (payload) => {
-      if (!payload) return;
-      const eventType = payload.event || "file_processed";
-      if (eventType !== "file_processed") return;
-      if (payload.batch_id !== currentBatchID) return;
-      // New processed file => update Redux
-      dispatch(appendProcessedFile(payload));
-    };
-
-    sse.onmessage = (event) => {
-      if (!event.data) return;
-      try {
-        const data = JSON.parse(event.data);
-        handlePayload(data);
-      } catch (err) {
-        console.error("Error parsing SSE event:", err);
+      if (result.payload?.batch_status === "in_progress") {
+        dispatch(setCurrentStageLabel("Processing files..."));
       }
     };
 
-    sse.addEventListener("file_processed", (event) => {
-      if (!event.data) return;
-      try {
-        const data = JSON.parse(event.data);
-        handlePayload(data);
-      } catch (err) {
-        console.error("Error parsing SSE event:", err);
-      }
-    });
-
-    sse.onerror = (err) => {
-      console.error("SSE error:", err);
-      // Optionally handle reconnection
-    };
+    restoreBatchState();
 
     return () => {
-      console.log("Closing SSE for batch:", currentBatchID);
-      sse.close();
+      isMounted = false;
     };
-  }, [currentBatchID, sseUrl, dispatch]);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!currentBatchID) {
+      localStorage.removeItem("currentBatchID");
+      return;
+    }
+
+    localStorage.setItem("currentBatchID", currentBatchID);
+  }, [currentBatchID]);
+
+  useEffect(() => {
+    if (!currentBatchID) {
+      localStorage.removeItem("totalFilesInBatch");
+      return;
+    }
+
+    localStorage.setItem("totalFilesInBatch", String(totalFilesInBatch || 0));
+  }, [currentBatchID, totalFilesInBatch]);
 
   /**
-   * Polling fallback to keep progress + table in sync (in case SSE is blocked).
+   * SSE subscription for the active batch with reconnection and reconciliation.
    */
-  const processedCountRef = React.useRef(processedCount);
   useEffect(() => {
-    processedCountRef.current = processedCount;
-  }, [processedCount]);
+    if (!currentBatchID || batchStatus !== "in_progress" || !sseUrl) {
+      if (batchStatus !== "in_progress") {
+        closeSseConnection();
+        reconnectAttemptsRef.current = 0;
+        stopSseRetriesRef.current = false;
+      }
+      return undefined;
+    }
 
-  useEffect(() => {
-    if (!currentBatchID || totalFilesInBatch === 0) return;
-    if (processedCountRef.current >= totalFilesInBatch) return;
+    let isDisposed = false;
+    stopSseRetriesRef.current = false;
 
-    let isActive = true;
-    const poll = async () => {
-      if (!isActive) return;
-      if (processedCountRef.current >= totalFilesInBatch) return;
-      const res = await dispatch(fetchProcessedFileNames());
-      if (!isActive || !Array.isArray(res.payload)) return;
-      const currentBatchFiles = res.payload.filter(
-        (f) => f.batch_id === currentBatchID,
-      );
-      dispatch(setProcessedCount(currentBatchFiles.length));
+    const handlePayload = (payload) => {
+      if (!payload || payload.batch_id !== currentBatchID) return;
+
+      switch (payload.event) {
+        case "batch_started": {
+          const totalFiles = getResolvedTotalFiles(
+            payload.total_files,
+            totalFilesRef.current,
+          );
+          dispatch(setBatchStatus("in_progress"));
+          dispatch(setTotalFilesInBatch(totalFiles));
+          dispatch(setPendingCount(totalFiles));
+          if (payload.task_id) {
+            dispatch(
+              setExtractionTaskId({ extractionTaskId: payload.task_id }),
+            );
+          }
+          dispatch(setCurrentStageLabel("Starting extraction..."));
+          return;
+        }
+        case "stage_update":
+          dispatch(setCurrentStageLabel(getStageLabel(payload.stage)));
+          return;
+        case "file_processed":
+          dispatch(appendProcessedFile(payload));
+          return;
+        case "batch_completed": {
+          const succeeded = Number(payload.succeeded ?? 0);
+          const failed = Number(payload.failed ?? 0);
+          const totalFiles = getResolvedTotalFiles(
+            payload.total_files,
+            totalFilesRef.current || succeeded + failed,
+          );
+
+          dispatch(setBatchStatus(payload.batch_status || "completed"));
+          dispatch(setSucceededCount(succeeded));
+          dispatch(setFailedCount(failed));
+          dispatch(setTotalFilesInBatch(totalFiles));
+          dispatch(setProcessedCount(succeeded + failed));
+          dispatch(setPendingCount(Math.max(totalFiles - succeeded - failed, 0)));
+          dispatch(setCurrentStageLabel(""));
+          dispatch(fetchBatchStatus({ batchId: currentBatchID, showToast: false }));
+          refreshProcessedFiles();
+          return;
+        }
+        default:
+          return;
+      }
     };
 
-    poll();
-    const interval = setInterval(poll, 5000);
+    const parseEventPayload = (event) => {
+      if (!event?.data) return;
+
+      try {
+        const data = JSON.parse(event.data);
+        handlePayload(data);
+      } catch (error) {
+        console.error("Error parsing SSE event:", error);
+      }
+    };
+
+    const openSseConnection = async (shouldReconcile = false) => {
+      if (isDisposed || stopSseRetriesRef.current) return;
+
+      if (shouldReconcile) {
+        const result = await reconcileBatchState(currentBatchID);
+        if (isDisposed) return;
+        if (
+          fetchBatchStatus.fulfilled.match(result) &&
+          TERMINAL_BATCH_STATUSES.has(result.payload?.batch_status)
+        ) {
+          return;
+        }
+      }
+
+      closeSseConnection();
+
+      const sse = new EventSource(sseUrl);
+      sseRef.current = sse;
+      sse.onopen = () => {
+        reconnectAttemptsRef.current = 0;
+      };
+      sse.onmessage = parseEventPayload;
+      ["batch_started", "stage_update", "file_processed", "batch_completed"].forEach(
+        (eventName) => {
+          sse.addEventListener(eventName, parseEventPayload);
+        },
+      );
+      sse.onerror = () => {
+        closeSseConnection();
+        if (isDisposed) return;
+
+        reconnectAttemptsRef.current += 1;
+        if (reconnectAttemptsRef.current > 5) {
+          stopSseRetriesRef.current = true;
+          return;
+        }
+
+        const delay = Math.min(
+          1000 * 2 ** (reconnectAttemptsRef.current - 1),
+          30000,
+        );
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          openSseConnection(true);
+        }, delay);
+      };
+    };
+
+    openSseConnection();
+
+    return () => {
+      isDisposed = true;
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      closeSseConnection();
+    };
+  }, [
+    batchStatus,
+    closeSseConnection,
+    currentBatchID,
+    dispatch,
+    refreshProcessedFiles,
+    reconcileBatchState,
+    sseUrl,
+  ]);
+
+  /**
+   * Poll batch-status while a batch is active. This is the guaranteed
+   * source of truth even if SSE is unavailable or not visible in devtools.
+   */
+  useEffect(() => {
+    if (!currentBatchID || TERMINAL_BATCH_STATUSES.has(batchStatus)) {
+      return undefined;
+    }
+
+    let isActive = true;
+
+    const pollBatchStatus = async () => {
+      if (!isActive) return;
+      await dispatch(fetchBatchStatus({ batchId: currentBatchID, showToast: false }));
+    };
+
+    pollBatchStatus();
+    const intervalId = window.setInterval(pollBatchStatus, 10000);
 
     return () => {
       isActive = false;
-      clearInterval(interval);
+      window.clearInterval(intervalId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, currentBatchID, totalFilesInBatch]);
+  }, [batchStatus, currentBatchID, dispatch, refreshProcessedFiles]);
 
   /**
    * Toggle the "Include AboutFile" checkbox
    */
   const toggleIncludeAboutFile = () => {
+    if (isBatchActive) return;
     dispatch(setIncludeAboutFile({ includeAboutFile: !includeAboutFile }));
   };
 
@@ -253,6 +513,7 @@ const MultiFileUpload = () => {
    * Clear local FilePond + Graph picks
    */
   const clearFiles = () => {
+    if (isBatchActive) return;
     setFiles([]);
     setGraphFiles([]);
   };
@@ -264,7 +525,7 @@ const MultiFileUpload = () => {
     setGraphFiles((prev) => {
       const merged = [...prev];
       for (const item of newlySelected) {
-        const alreadyExists = merged.some((m) => m.name === item.name);
+        const alreadyExists = merged.some((existing) => existing.name === item.name);
         if (!alreadyExists) merged.push(item);
       }
       return merged;
@@ -280,7 +541,6 @@ const MultiFileUpload = () => {
     );
   }, []);
 
-  // AG-Grid definitions for the Graph picks
   const getRowId = (params) => params.data.id;
   const [graphColumnDefs] = useState(() => [
     {
@@ -290,8 +550,9 @@ const MultiFileUpload = () => {
       cellRenderer: (params) => {
         const icon = getFileIcon(params.value);
         return (
-          <span className="flex items-center gap-2">
-            {icon} &nbsp; &nbsp;{params.value}
+          <span className="flex items-center">
+            <span className="mr-2 flex-shrink-0">{icon}</span>
+            <span>{params.value}</span>
           </span>
         );
       },
@@ -312,38 +573,39 @@ const MultiFileUpload = () => {
   ]);
 
   /**
-   * onProcessFile: user clicks "Generate Results"
-   *  1) Create new batch
-   *  2) Set Redux + localStorage
-   *  3) Dispatch generateExtractionResults
+   * User clicks "Generate Results"
    */
   const onProcessFile = async () => {
+    if (isBatchActive) return;
+
+    const newBatchID = generateUniqueBatchID();
+    const totalFiles = files.length + graphFiles.length;
+
+    if (totalFiles === 0) {
+      notify("No files selected!", "warning");
+      return;
+    }
+
+    dispatch(setCurrentBatchID(newBatchID));
+    dispatch(setBatchStatus("in_progress"));
+    dispatch(setTotalFilesInBatch(totalFiles));
+    dispatch(setProcessedCount(0));
+    dispatch(setSucceededCount(0));
+    dispatch(setFailedCount(0));
+    dispatch(setPendingCount(totalFiles));
+    dispatch(setCurrentStageLabel("Starting extraction..."));
+    dispatch(setExtractionTaskId({ extractionTaskId: null }));
+
+    localStorage.setItem("currentBatchID", newBatchID);
+    localStorage.setItem("totalFilesInBatch", totalFiles.toString());
+
     try {
-      const newBatchID = generateUniqueBatchID();
-      const totalFiles = files.length + graphFiles.length;
-      if (totalFiles === 0) {
-        return notify("No files selected!", "warning");
-      }
-
-      // Prepare Redux + localStorage
-      dispatch(setCurrentBatchID(newBatchID));
-      dispatch(setTotalFilesInBatch(totalFiles));
-      // We DO NOT clear out processedFiles from Redux:
-      // That way we keep the old files in the table.
-      // But for the new batch's progress bar, we reset the processedCount to 0:
-      dispatch(setProcessedCount(0));
-
-      localStorage.setItem("currentBatchID", newBatchID);
-      localStorage.setItem("totalFilesInBatch", totalFiles.toString());
-
-      // Acquire Graph token
       const graphToken = await getGraphToken();
-      const localFiles = files.map((f) => ({
-        file: f.file,
-        filename: f.file.name,
+      const localFiles = files.map((file) => ({
+        file: file.file,
+        filename: file.file.name,
       }));
 
-      // Start extraction
       const response = await dispatch(
         generateExtractionResults({
           localFiles,
@@ -356,32 +618,53 @@ const MultiFileUpload = () => {
         }),
       );
 
-      // If successful, store the backend's extractionTaskId
-      if (response.meta.requestStatus === "fulfilled") {
-        if (response.payload?.task_id) {
-          dispatch(
-            setExtractionTaskId({ extractionTaskId: response.payload.task_id }),
-          );
-        }
-      } else {
-        notify("File upload failed.", "error");
+      if (
+        response.meta.requestStatus === "fulfilled" &&
+        response.payload?.task_id
+      ) {
+        dispatch(
+          setExtractionTaskId({ extractionTaskId: response.payload.task_id }),
+        );
+        return;
       }
-    } catch (err) {
-      notify("An error occurred during file upload.", "error");
-      console.error("onProcessFile error:", err);
+
+      clearActiveBatchState();
+    } catch (error) {
+      clearActiveBatchState();
+      console.error("onProcessFile error:", error);
     }
   };
 
   /**
-   * onStopClickedHandler: user clicks "Stop" to halt background processing
+   * User clicks "Stop"
    */
   const onStopClickedHandler = async () => {
     dispatch(setIsStopping({ isStopping: true }));
-    // Pass both extractionTaskId and currentBatchID
+
     const response = await dispatch(
       stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID }),
     );
-    notify(response?.message, response?.status);
+
+    const stopSucceeded =
+      response.meta.requestStatus === "fulfilled" &&
+      response.payload?.status === "success";
+
+    if (!stopSucceeded) {
+      return;
+    }
+
+    dispatch(setBatchStatus("cancelled"));
+    dispatch(setCurrentStageLabel(""));
+    const batchStatusResponse = await dispatch(
+      fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
+    );
+
+    if (
+      fetchBatchStatus.fulfilled.match(batchStatusResponse) &&
+      batchStatusResponse.payload?.batch_status === "in_progress"
+    ) {
+      dispatch(setBatchStatus("cancelled"));
+    }
   };
 
   /**
@@ -394,30 +677,49 @@ const MultiFileUpload = () => {
   }, [isSubmittedVal, status, message]);
 
   /**
-   * If all files are processed (processedCount >= totalFilesInBatch),
-   * show a success toast, but DO NOT reset the batch data or remove old files
+   * Show terminal-state notifications once per status transition.
    */
   useEffect(() => {
+    const previousBatchStatus = previousBatchStatusRef.current;
+
     if (
-      processedCount > 0 &&
-      processedCount >= totalFilesInBatch &&
-      currentBatchID
+      currentBatchID &&
+      previousBatchStatus &&
+      previousBatchStatus !== batchStatus &&
+      TERMINAL_BATCH_STATUSES.has(batchStatus)
     ) {
-      notify("All files processed successfully!", "success");
-      // We do NOT reset the store so the table continues to show everything
-      // If you'd like to remove from localStorage to stop SSE reconnection, do it here:
-      // localStorage.removeItem("currentBatchID");
-      // localStorage.removeItem("totalFilesInBatch");
+      const completionNotification = getCompletionNotification({
+        batchStatus,
+        totalFilesInBatch,
+        succeededCount,
+        failedCount,
+        processedCount,
+      });
+
+      if (completionNotification) {
+        notify(completionNotification.message, completionNotification.type);
+      }
     }
-  }, [processedCount, totalFilesInBatch, currentBatchID]);
+
+    previousBatchStatusRef.current = batchStatus;
+  }, [
+    batchStatus,
+    currentBatchID,
+    failedCount,
+    processedCount,
+    succeededCount,
+    totalFilesInBatch,
+  ]);
 
   return (
     <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
       <div className="flex flex-wrap mt-4 p-4">
         <div className="w-full mb-12 px-4">
-          {/* GraphFilePicker + Table */}
           <div className="mb-4">
-            <GraphFilePicker onFilesSelected={handleFilesSelected} />
+            <GraphFilePicker
+              onFilesSelected={handleFilesSelected}
+              disabled={isBatchActive}
+            />
 
             {graphFiles.length > 0 && (
               <div
@@ -437,14 +739,12 @@ const MultiFileUpload = () => {
             )}
           </div>
 
-          {/* Divider with "OR" text */}
           <div className="flex items-center py-4">
             <hr className="flex-grow border-t border-gray-300" />
             <span className="px-3 text-gray-500">OR Upload your own files</span>
             <hr className="flex-grow border-t border-gray-300" />
           </div>
 
-          {/* FilePond for local files */}
           <div className="relative">
             <FilePond
               files={files}
@@ -481,34 +781,35 @@ const MultiFileUpload = () => {
               maxParallelUploads={10}
             />
 
-            {/* Action Buttons */}
             <div className="flex flex-col lg:flex-row justify-between items-center mt-4 lg:items-end">
               <div className="flex flex-col lg:flex-row justify-center flex-grow lg:mb-0 mb-4">
                 <Tooltip id="action-btn-tooltip" />
 
-                {/* Upload / Generate Results */}
                 <button
-                  className={`bg-lightBlue-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 
-                    ${
-                      files.length === 0 && graphFiles.length === 0
-                        ? "opacity-40"
-                        : ""
-                    }`}
+                  className={`bg-lightBlue-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 ${
+                    !hasSelectedFiles || isBatchActive
+                      ? "opacity-40 cursor-not-allowed"
+                      : ""
+                  }`}
                   onClick={onProcessFile}
-                  disabled={files.length === 0 && graphFiles.length === 0}
+                  disabled={!hasSelectedFiles || isBatchActive}
                 >
                   <i className="fas fa-play"></i> Generate Results
                 </button>
 
-                {/* Stop (if progress bar is showing) */}
-                {showProgressBar && (
+                {isBatchActive && showProgressBar && (
                   <button
-                    className={`bg-red-500 text-white font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg mr-1 mb-1 
-                      ${isStopping ? "opacity-50" : ""}`}
+                    className={`bg-red-500 text-white font-bold uppercase text-base px-8 py-3 rounded shadow-md hover:shadow-lg mr-1 mb-1 ${
+                      isStopping || !extractionTaskId ? "opacity-50" : ""
+                    }`}
                     onClick={onStopClickedHandler}
-                    disabled={isStopping}
+                    disabled={isStopping || !extractionTaskId}
                     data-tooltip-id="action-btn-tooltip"
-                    data-tooltip-content="Halt processing."
+                    data-tooltip-content={
+                      extractionTaskId
+                        ? "Halt processing."
+                        : "Stop becomes available once the extraction task starts."
+                    }
                   >
                     <i
                       className={`fas fa-stop ${isStopping ? "fa-flip" : ""}`}
@@ -517,11 +818,13 @@ const MultiFileUpload = () => {
                   </button>
                 )}
 
-                {/* Clear All */}
-                {(files.length > 0 || graphFiles.length > 0) && (
+                {hasSelectedFiles && (
                   <button
-                    className="bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1"
+                    className={`bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 ${
+                      isBatchActive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={clearFiles}
+                    disabled={isBatchActive}
                     data-tooltip-id="action-btn-tooltip"
                     data-tooltip-content="Clear all files."
                   >
@@ -530,17 +833,20 @@ const MultiFileUpload = () => {
                 )}
               </div>
 
-              {/* Include AboutFile */}
-              {(files.length > 0 || graphFiles.length > 0) && (
+              {hasSelectedFiles && (
                 <div className="lg:absolute lg:right-0">
                   <button
-                    className="text-indigo-500 border border-indigo-500 hover:bg-indigo-500 hover:text-white font-bold uppercase text-xs px-4 py-2 rounded"
+                    className={`text-indigo-500 border border-indigo-500 hover:bg-indigo-500 hover:text-white font-bold uppercase text-xs px-4 py-2 rounded ${
+                      isBatchActive ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                     onClick={toggleIncludeAboutFile}
+                    disabled={isBatchActive}
                   >
                     <input
                       type="checkbox"
                       className="form-checkbox text-indigo-600 mr-2"
                       checked={includeAboutFile}
+                      disabled={isBatchActive}
                       onChange={toggleIncludeAboutFile}
                     />
                     Include AboutFile
@@ -549,13 +855,43 @@ const MultiFileUpload = () => {
               )}
             </div>
 
-            {/* ProgressBar (only visible if the batch is in progress) */}
-            {showProgressBar && progress < 100 && (
-              <ProgressBar
-                taskInProgress={`Progress: ${processedCount}/${totalFilesInBatch}`}
-                percentage={progress}
-                scrollIntoViewOnMount
-              />
+            {showProgressBar && (
+              <div className="mt-6 rounded-xl border border-blueGray-200 bg-blueGray-50 px-4 py-4 shadow-sm">
+                <ProgressBar
+                  taskInProgress={`Progress: ${processedCount} of ${totalFilesInBatch} files processed`}
+                  percentage={displayProgress}
+                  status={batchStatus}
+                  scrollIntoViewOnMount={batchStatus === "in_progress"}
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-blueGray-600 border border-blueGray-200">
+                    {processedCount} processed
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-blueGray-600 border border-blueGray-200">
+                    {Math.max(pendingCount, 0)} remaining
+                  </span>
+                  {failedCount > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-red-700 border border-red-200">
+                      {failedCount} failed
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 text-sm text-blueGray-600">
+                  {batchStatus === "in_progress"
+                    ? currentStageLabel || "Processing files..."
+                    : "Final batch status received."}
+                </div>
+                {TERMINAL_BATCH_STATUSES.has(batchStatus) && (
+                  <BatchSummaryBanner
+                    status={batchStatus}
+                    totalFiles={totalFilesInBatch}
+                    succeededCount={succeededCount}
+                    failedCount={failedCount}
+                    processedCount={processedCount}
+                    onViewResults={scrollToResults}
+                  />
+                )}
+              </div>
             )}
           </div>
         </div>

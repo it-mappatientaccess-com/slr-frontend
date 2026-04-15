@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { useDispatch, useSelector } from "react-redux";
+import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import {
   deletePdfData,
   fetchAllExtractionResults,
@@ -14,6 +14,9 @@ import {
 import ExtractionResult from "./ExtractionResult";
 import { Tooltip } from "react-tooltip";
 import ModalSmall from "components/Modal/ModalSmall";
+import { getErrorMessage } from "util/errorMessages";
+
+const ACTIVE_BATCH_STATUS = "in_progress";
 
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
@@ -60,7 +63,7 @@ const btnCellRenderer = (props) => {
         data-action="update"
         onClick={onViewResultsClickHandler}
       >
-        View Results <i className="fas fa-binoculars"></i>
+        View <i className="fas fa-binoculars"></i>
       </button>
       <button
         className="bg-red-500 text-white active:bg-red-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
@@ -131,14 +134,129 @@ const sortProcessedFiles = (files) => {
     .map((entry) => entry.file);
 };
 
+const escapeTooltipHtml = (value = "") =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const getStatusBadgeConfig = (status) => {
+  switch (status) {
+    case "succeeded":
+      return {
+        label: "Completed",
+        className: "bg-emerald-100 text-emerald-700",
+        iconClass: "fas fa-check-circle",
+      };
+    case "failed":
+      return {
+        label: "Failed",
+        className: "bg-red-100 text-red-700",
+        iconClass: "fas fa-circle-xmark",
+      };
+    case "in_progress":
+      return {
+        label: "Processing",
+        className: "bg-blueGray-100 text-blueGray-700",
+        iconClass: "fas fa-spinner fa-spin",
+      };
+    default:
+      return {
+        label: "Pending",
+        className: "bg-blueGray-100 text-blueGray-700",
+        iconClass: "fas fa-clock",
+      };
+  }
+};
+
+const getResolvedExtractionStatus = ({
+  file,
+  fileStatus,
+  currentBatchID,
+  batchStatus,
+}) => {
+  const explicitStatus = fileStatus?.extraction_status || file?.extraction_status;
+  if (explicitStatus) return explicitStatus;
+
+  if (fileStatus?.failure_code || fileStatus?.failure_reason) {
+    return "failed";
+  }
+
+  if (!currentBatchID) {
+    return "succeeded";
+  }
+
+  if (!file?.batch_id || file.batch_id !== currentBatchID) {
+    return "succeeded";
+  }
+
+  return batchStatus === ACTIVE_BATCH_STATUS ? "pending" : "succeeded";
+};
+
+const statusCellRenderer = (params) => {
+  const status = params.data?.extraction_status || "pending";
+  const { label, className, iconClass } = getStatusBadgeConfig(status);
+  const failureCode = params.data?.failure_code;
+  const failureReason = params.data?.failure_reason;
+  const tooltipId = `file-status-${params.data?.file_id}`;
+
+  let tooltipHtml = "";
+  if (status === "failed") {
+    const mappedMessage = getErrorMessage(failureCode);
+    const normalizedFailureReason = failureReason?.trim();
+    const showSecondaryReason =
+      normalizedFailureReason && normalizedFailureReason !== mappedMessage;
+
+    tooltipHtml = `<div class="max-w-xs text-left">
+      <div class="font-semibold">${escapeTooltipHtml(mappedMessage)}</div>
+      ${
+        showSecondaryReason
+          ? `<div class="mt-1 text-xs opacity-90">${escapeTooltipHtml(
+              normalizedFailureReason,
+            )}</div>`
+          : ""
+      }
+    </div>`;
+  }
+
+  return (
+    <>
+      <span
+        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold leading-none ${className}`}
+        {...(tooltipHtml
+          ? {
+              "data-tooltip-id": tooltipId,
+              "data-tooltip-html": tooltipHtml,
+            }
+          : {})}
+      >
+        <i className={`${iconClass} mr-1.5 text-[11px]`}></i>
+        &nbsp;{label}
+      </span>
+      {tooltipHtml && (
+        <Tooltip id={tooltipId} place="top" className="z-50 max-w-xs" />
+      )}
+    </>
+  );
+};
+
 const ExtractionFileList = () => {
   const dispatch = useDispatch();
   const processedFiles = useSelector(
     (state) => state.dataExtraction.processedFiles,
   );
-  const [rowData, setRowData] = useState([]);
-  const prevFileIdsRef = useRef("");
+  const currentBatchID = useSelector(
+    (state) => state.dataExtraction.currentBatchID,
+  );
+  const batchStatus = useSelector((state) => state.dataExtraction.batchStatus);
+  const fileStatuses = useSelector(
+    (state) => state.dataExtraction.fileStatuses,
+    shallowEqual,
+  );
   const gridRef = useRef(null);
+  const getRowId = useMemo(() => (params) => params.data.file_id, []);
   const selectedFileResult = useSelector(
     (state) => state.dataExtraction.extractionResult,
   );
@@ -163,9 +281,17 @@ const ExtractionFileList = () => {
         field: "file_name",
         headerName: "File Name",
         suppressSizeToFit: true,
-        flex: 3,
+        flex: 2.5,
         filter: true,
         editable: false,
+      },
+      {
+        field: "extraction_status",
+        headerName: "Status",
+        flex: 0.8,
+        filter: true,
+        editable: false,
+        cellRenderer: statusCellRenderer,
       },
       {
         headerName: "Action",
@@ -211,29 +337,42 @@ const ExtractionFileList = () => {
     dispatch(fetchProcessedFileNames());
   }, [dispatch]);
 
-  useEffect(() => {
-    const currentIds = processedFiles
-      .map((f) => f.file_id)
-      .sort()
-      .join(",");
-    if (currentIds === prevFileIdsRef.current) return;
-    prevFileIdsRef.current = currentIds;
-    setRowData(sortProcessedFiles(processedFiles));
-  }, [processedFiles]);
+  const rowData = useMemo(
+    () =>
+      sortProcessedFiles(processedFiles).map((file) => ({
+        ...file,
+        ...(fileStatuses[file.file_id] || {}),
+        extraction_status: getResolvedExtractionStatus({
+          file,
+          fileStatus: fileStatuses[file.file_id],
+          currentBatchID,
+          batchStatus,
+        }),
+        failure_code:
+          fileStatuses[file.file_id]?.failure_code ?? file.failure_code ?? null,
+        failure_reason:
+          fileStatuses[file.file_id]?.failure_reason ??
+          file.failure_reason ??
+          null,
+      })),
+    [batchStatus, currentBatchID, fileStatuses, processedFiles],
+  );
 
   const handleClearAllResults = async () => {
     const response = await dispatch(deleteAllSEAResults());
     setShowDeleteModal(false);
     if (response.meta.requestStatus === "fulfilled") {
       dispatch(fetchProcessedFileNames());
-      setRowData([]);
     }
   };
 
   return (
     <>
       {/* {processedFiles.length !== 0 && ( */}
-      <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg">
+      <div
+        id="sea-step-4-results"
+        className="relative flex flex-col min-w-0 break-words bg-white rounded mb-4 shadow-lg"
+      >
         <div className="flex-auto p-4">
           <div
             ref={gridWrapperRef}
@@ -243,6 +382,7 @@ const ExtractionFileList = () => {
             <AgGridReact
               ref={gridRef}
               rowData={rowData}
+              getRowId={getRowId}
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               animateRows={true}
