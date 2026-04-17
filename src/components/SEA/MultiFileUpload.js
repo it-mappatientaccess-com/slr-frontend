@@ -58,6 +58,11 @@ const STAGE_LABELS = {
 
 const getStageLabel = (stage) => STAGE_LABELS[stage] || "Processing files...";
 
+const waitForDelay = (delayMs) =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+
 const getResolvedTotalFiles = (incomingTotalFiles, fallbackTotalFiles = 0) => {
   const numericTotalFiles = Number(incomingTotalFiles);
   if (Number.isFinite(numericTotalFiles) && numericTotalFiles > 0) {
@@ -228,6 +233,40 @@ const MultiFileUpload = () => {
       if (!batchId) return null;
 
       return dispatch(fetchBatchStatus({ batchId, showToast: false }));
+    },
+    [currentBatchID, dispatch],
+  );
+
+  const reconcileBatchStateUntilTerminal = useCallback(
+    async (
+      batchId = currentBatchID,
+      { maxAttempts = 6, retryDelayMs = 1000 } = {},
+    ) => {
+      if (!batchId) return null;
+
+      let latestResult = null;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        latestResult = await dispatch(
+          fetchBatchStatus({ batchId, showToast: false }),
+        );
+
+        if (!fetchBatchStatus.fulfilled.match(latestResult)) {
+          return latestResult;
+        }
+
+        if (
+          TERMINAL_BATCH_STATUSES.has(latestResult.payload?.batch_status)
+        ) {
+          return latestResult;
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await waitForDelay(retryDelayMs);
+        }
+      }
+
+      return latestResult;
     },
     [currentBatchID, dispatch],
   );
@@ -641,29 +680,45 @@ const MultiFileUpload = () => {
   const onStopClickedHandler = async () => {
     dispatch(setIsStopping({ isStopping: true }));
 
-    const response = await dispatch(
-      stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID }),
-    );
+    try {
+      const response = await dispatch(
+        stopExtraction({ taskId: extractionTaskId, batchId: currentBatchID }),
+      );
 
-    const stopSucceeded =
-      response.meta.requestStatus === "fulfilled" &&
-      response.payload?.status === "success";
+      const stopSucceeded =
+        response.meta.requestStatus === "fulfilled" &&
+        response.payload?.status === "success";
 
-    if (!stopSucceeded) {
-      return;
-    }
+      if (!stopSucceeded) {
+        return;
+      }
 
-    dispatch(setBatchStatus("cancelled"));
-    dispatch(setCurrentStageLabel(""));
-    const batchStatusResponse = await dispatch(
-      fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
-    );
+      dispatch(setIsStopping({ isStopping: true }));
+      dispatch(setCurrentStageLabel("Finalizing cancellation..."));
+      stopSseRetriesRef.current = true;
 
-    if (
-      fetchBatchStatus.fulfilled.match(batchStatusResponse) &&
-      batchStatusResponse.payload?.batch_status === "in_progress"
-    ) {
-      dispatch(setBatchStatus("cancelled"));
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      closeSseConnection();
+
+      const batchStatusResponse = await reconcileBatchStateUntilTerminal(
+        currentBatchID,
+      );
+      const finalBatchStatus =
+        batchStatusResponse &&
+        fetchBatchStatus.fulfilled.match(batchStatusResponse)
+          ? batchStatusResponse.payload?.batch_status
+          : null;
+
+      if (!TERMINAL_BATCH_STATUSES.has(finalBatchStatus)) {
+        dispatch(setBatchStatus("cancelled"));
+        dispatch(setCurrentStageLabel(""));
+      }
+    } finally {
+      dispatch(setIsStopping({ isStopping: false }));
     }
   };
 

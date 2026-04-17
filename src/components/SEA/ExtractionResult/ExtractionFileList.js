@@ -17,6 +17,8 @@ import ModalSmall from "components/Modal/ModalSmall";
 import { getErrorMessage } from "util/errorMessages";
 
 const ACTIVE_BATCH_STATUS = "in_progress";
+const CANCELLED_BATCH_STATUS = "cancelled";
+const PENDING_LIKE_STATUSES = new Set(["pending", "in_progress"]);
 
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
@@ -162,6 +164,12 @@ const getStatusBadgeConfig = (status) => {
         className: "bg-blueGray-100 text-blueGray-700",
         iconClass: "fas fa-spinner fa-spin",
       };
+    case "cancelled":
+      return {
+        label: "Cancelled",
+        className: "bg-amber-100 text-amber-700",
+        iconClass: "fas fa-ban",
+      };
     default:
       return {
         label: "Pending",
@@ -178,6 +186,19 @@ const getResolvedExtractionStatus = ({
   batchStatus,
 }) => {
   const explicitStatus = fileStatus?.extraction_status || file?.extraction_status;
+  const isCurrentBatchFile =
+    Boolean(currentBatchID) &&
+    Boolean(file?.batch_id) &&
+    file.batch_id === currentBatchID;
+
+  if (
+    batchStatus === CANCELLED_BATCH_STATUS &&
+    isCurrentBatchFile &&
+    (!explicitStatus || PENDING_LIKE_STATUSES.has(explicitStatus))
+  ) {
+    return "cancelled";
+  }
+
   if (explicitStatus) return explicitStatus;
 
   if (fileStatus?.failure_code || fileStatus?.failure_reason) {
@@ -188,7 +209,7 @@ const getResolvedExtractionStatus = ({
     return "succeeded";
   }
 
-  if (!file?.batch_id || file.batch_id !== currentBatchID) {
+  if (!isCurrentBatchFile) {
     return "succeeded";
   }
 
@@ -219,6 +240,10 @@ const statusCellRenderer = (params) => {
           : ""
       }
     </div>`;
+  } else if (status === "cancelled" && failureReason?.trim()) {
+    tooltipHtml = `<div class="max-w-xs text-left text-xs">${escapeTooltipHtml(
+      failureReason.trim(),
+    )}</div>`;
   }
 
   return (
