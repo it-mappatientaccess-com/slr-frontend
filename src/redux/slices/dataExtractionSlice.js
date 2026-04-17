@@ -145,12 +145,8 @@ const applyBatchStatusPayload = (state, payload) => {
     state.succeededCount,
   );
   const failedCount = getBatchCountValue(payload.failed, state.failedCount);
-  const inProgressCount = getBatchCountValue(payload.in_progress, 0);
   const processedCount = succeededCount + failedCount;
-  const pendingCount = Math.max(
-    totalFiles - processedCount - Math.max(inProgressCount, 0),
-    0,
-  );
+  const pendingCount = Math.max(totalFiles - processedCount, 0);
 
   state.currentBatchID = payload.batch_id || state.currentBatchID;
   state.batchStatus = payload.batch_status || state.batchStatus;
