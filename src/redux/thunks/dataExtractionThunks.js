@@ -10,6 +10,30 @@ import {
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
+const getNormalizedCountValue = (value) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+export const normalizeExtractionSubmitResponse = (payload = {}) => ({
+  ...payload,
+  message: payload?.message || "",
+  task_id: payload?.task_id ?? null,
+  batch_id: payload?.batch_id ?? null,
+  started_files: Array.isArray(payload?.started_files) ? payload.started_files : [],
+  duplicates: Array.isArray(payload?.duplicates) ? payload.duplicates : [],
+  joined_inflight: Array.isArray(payload?.joined_inflight)
+    ? payload.joined_inflight
+    : [],
+  counts: {
+    started: getNormalizedCountValue(payload?.counts?.started),
+    rejected_duplicates: getNormalizedCountValue(
+      payload?.counts?.rejected_duplicates,
+    ),
+    joined: getNormalizedCountValue(payload?.counts?.joined),
+  },
+});
+
 const getRequestReference = (requestId) => {
   const normalizedRequestId = requestId != null ? String(requestId).trim() : "";
   return normalizedRequestId ? normalizedRequestId.slice(0, 8) : null;
@@ -111,10 +135,11 @@ export const generateExtractionResults = createAsyncThunk(
           Authorization: localStorage.getItem("token"), // Bearer token for your API
           "Content-Type": "multipart/form-data",
         },
+        validateStatus: (status) =>
+          (status >= 200 && status < 300) || status === 409,
       });
 
-      toast.success("Extraction request submitted successfully!");
-      return response.data;
+      return normalizeExtractionSubmitResponse(response.data);
     } catch (error) {
       return rejectWithApiError(
         error,

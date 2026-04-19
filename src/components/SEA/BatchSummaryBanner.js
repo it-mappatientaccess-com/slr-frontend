@@ -53,7 +53,6 @@ const BatchSummaryBanner = ({
   succeededCount,
   failedCount,
   processedCount,
-  onViewResults,
 }) => {
   if (!status || !STATUS_CONFIG[status]) return null;
 
@@ -65,30 +64,16 @@ const BatchSummaryBanner = ({
     failedCount,
     processedCount,
   });
-  const showResultsButton =
-    typeof onViewResults === "function" &&
-    ["partially_completed", "failed", "cancelled"].includes(status);
 
   return (
     <div
-      className={`mt-4 rounded-lg px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between ${config.containerClass}`}
+      className={`mt-4 rounded px-4 py-3 flex items-start ${config.containerClass}`}
     >
-      <div className="flex items-start">
-        <i className={`${config.iconClass} mt-1 mr-3 flex-shrink-0`}></i>
-        <div>
-          <p className="font-semibold">{config.title}</p>
-          <p className="text-sm">{summaryMessage}</p>
-        </div>
+      <i className={`${config.iconClass} mt-1 mr-3 flex-shrink-0`}></i>
+      <div>
+        <p className="font-semibold">{config.title}</p>
+        <p className="text-sm">{summaryMessage}</p>
       </div>
-      {showResultsButton && (
-        <button
-          type="button"
-          className="self-start md:self-auto bg-white/80 hover:bg-white font-semibold text-sm px-4 py-2 rounded shadow-sm"
-          onClick={onViewResults}
-        >
-          View Step 4 Results
-        </button>
-      )}
     </div>
   );
 };

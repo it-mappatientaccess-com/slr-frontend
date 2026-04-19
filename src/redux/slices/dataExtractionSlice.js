@@ -312,7 +312,7 @@ const dataExtractionSlice = createSlice({
       })
       .addCase(generateExtractionResults.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.extractionResult = action.payload;
+        state.message = action.payload?.message || "";
       })
       .addCase(generateExtractionResults.rejected, (state, action) => {
         state.status = "failed";

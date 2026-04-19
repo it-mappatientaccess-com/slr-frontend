@@ -133,6 +133,265 @@ const getCompletionNotification = ({
   return null;
 };
 
+const OUTCOME_COUNT_CHIPS = [
+  {
+    key: "started",
+    label: "Started",
+    iconClassName: "fas fa-play",
+    activeClassName: "text-lightBlue-600 bg-lightBlue-200",
+  },
+  {
+    key: "rejected_duplicates",
+    label: "Already completed",
+    iconClassName: "fas fa-check-circle",
+    activeClassName: "text-emerald-600 bg-emerald-200",
+  },
+  {
+    key: "joined",
+    label: "Already in progress",
+    iconClassName: "fas fa-spinner",
+    activeClassName: "text-amber-600 bg-amber-200",
+  },
+];
+
+const OUTCOME_DETAIL_GROUPS = [
+  {
+    key: "duplicates",
+    title: "Already completed",
+    accentClassName: "text-emerald-600",
+    chipClassName: "text-emerald-600 bg-emerald-200",
+    iconClassName: "fas fa-check-circle",
+    getSummaryMessage: (items) => {
+      const reason = items.find((item) => item?.reason)?.reason;
+
+      return reason
+        ? reason
+        : "Identical extraction results already exist for these files.";
+    },
+  },
+  {
+    key: "joined_inflight",
+    title: "Already in progress",
+    accentClassName: "text-amber-600",
+    chipClassName: "text-amber-600 bg-amber-200",
+    iconClassName: "fas fa-spinner",
+    getSummaryMessage: (items) => {
+      const reason = items.find((item) => item?.reason)?.reason;
+
+      return reason
+        ? reason
+        : "Matching extraction requests are already being processed.";
+    },
+  },
+];
+
+const FILE_NAME_PREVIEW_LIMIT = 4;
+const LARGE_LIST_THRESHOLD = 12;
+
+const getPreviewFiles = (items = []) =>
+  items.reduce((accumulator, item, index) => {
+    if (typeof item?.file_name !== "string" || !item.file_name.trim()) {
+      return accumulator;
+    }
+
+    accumulator.push({
+      ...item,
+      previewKey: item?.file_id || `${item.file_name}-${index}`,
+    });
+
+    return accumulator;
+  }, []);
+
+const DetailGroup = ({
+  title,
+  accentClassName,
+  chipClassName,
+  iconClassName,
+  summary,
+  items,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const previewFiles = getPreviewFiles(items);
+  const totalCount = previewFiles.length;
+
+  if (totalCount === 0) return null;
+
+  const collapsedVisibleCount = Math.min(totalCount, FILE_NAME_PREVIEW_LIMIT);
+  const visibleFiles = isExpanded
+    ? previewFiles
+    : previewFiles.slice(0, collapsedVisibleCount);
+  const hiddenCount = totalCount - collapsedVisibleCount;
+  const canToggle = hiddenCount > 0;
+  const isLargeList = totalCount >= LARGE_LIST_THRESHOLD;
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex flex-wrap items-center">
+        <p className="mr-2 text-sm font-semibold text-blueGray-700">
+          <i className={`${iconClassName} ${accentClassName} mr-2`}></i>
+          {title}
+        </p>
+        <span
+          className={`text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-2 last:mr-0 ${accentClassName} bg-white border border-blueGray-200`}
+        >
+          {totalCount} file{totalCount === 1 ? "" : "s"}
+        </span>
+        <p className="flex-1 min-w-0 text-xs text-blueGray-500">{summary}</p>
+      </div>
+
+      <div
+        className={`mt-2 flex flex-wrap ${
+          isExpanded && isLargeList
+            ? "max-h-40 overflow-y-auto rounded border border-blueGray-200 bg-blueGray-50 p-2"
+            : ""
+        }`}
+      >
+        {visibleFiles.map((item) => (
+          <span
+            key={item.previewKey}
+            className={`text-xs font-semibold inline-block py-1 px-2 rounded mr-1 mb-1 last:mr-0 ${chipClassName}`}
+            title={item.file_name}
+          >
+            <span className="inline-block max-w-xs truncate align-bottom">
+              {item.file_name}
+            </span>
+          </span>
+        ))}
+        {canToggle && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 mb-1 last:mr-0 text-blueGray-600 bg-blueGray-200 hover:bg-blueGray-300"
+          >
+            <i
+              className={`fas ${
+                isExpanded ? "fa-chevron-up" : "fa-chevron-down"
+              } mr-1`}
+            ></i>
+            {isExpanded ? "Show less" : `${hiddenCount} more`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const UploadOutcomeSummary = ({ outcome }) => {
+  if (!outcome) return null;
+
+  const {
+    message,
+    counts,
+    started_files: startedFiles = [],
+    duplicates = [],
+    joined_inflight: joinedInFlight = [],
+  } = outcome;
+
+  const hasAnyFiles =
+    startedFiles.length > 0 ||
+    duplicates.length > 0 ||
+    joinedInFlight.length > 0;
+
+  if (!message && !hasAnyFiles) return null;
+
+  const startedCount = counts?.started ?? startedFiles.length;
+  const duplicateCount = counts?.rejected_duplicates ?? duplicates.length;
+  const joinedCount = counts?.joined ?? joinedInFlight.length;
+  const hasOnlyNewlyStartedFiles =
+    startedCount > 0 && duplicateCount === 0 && joinedCount === 0;
+
+  if (hasOnlyNewlyStartedFiles) return null;
+
+  const countChips = OUTCOME_COUNT_CHIPS.map((chip) => ({
+    ...chip,
+    value:
+      chip.key === "started"
+        ? startedCount
+        : chip.key === "rejected_duplicates"
+          ? duplicateCount
+          : joinedCount,
+  }));
+
+  const showProgressClarifier =
+    startedCount > 0 && (duplicateCount > 0 || joinedCount > 0);
+
+  const detailGroups = OUTCOME_DETAIL_GROUPS.map((group) => ({
+    ...group,
+    items: outcome[group.key] || [],
+  })).filter((group) => group.items.length > 0);
+
+  return (
+    <div className="mt-6 rounded border border-blueGray-200 bg-white shadow-sm">
+      <div className="flex flex-col px-4 py-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start mb-2 lg:mb-0 lg:mr-4">
+          <i className="fas fa-layer-group text-lightBlue-500 mt-1 mr-3"></i>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center">
+              <p className="mr-2 text-xs font-semibold uppercase tracking-wider text-blueGray-500">
+                Upload Summary
+              </p>
+              {showProgressClarifier && (
+                <span className="text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 last:mr-0 text-lightBlue-600 bg-lightBlue-200">
+                  Newly started files are tracked below
+                </span>
+              )}
+            </div>
+            {message && (
+              <p className="mt-1 text-sm text-blueGray-600">{message}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center lg:ml-auto lg:shrink-0 lg:justify-end">
+          {countChips.map((chip) => {
+            const isActive = chip.value > 0;
+
+            return (
+              <span
+                key={chip.key}
+                className={`text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 last:mr-0 ${
+                  isActive
+                    ? chip.activeClassName
+                    : "text-blueGray-500 bg-blueGray-200"
+                }`}
+              >
+                <i className={`${chip.iconClassName} mr-1`}></i>
+                <span className="tabular-nums">{chip.value}</span>{" "}
+                {chip.label}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      {detailGroups.length > 0 && (
+        <div className="divide-y divide-blueGray-100 border-t border-blueGray-200 bg-blueGray-50">
+          {detailGroups.map(
+            ({
+              key,
+              title,
+              accentClassName,
+              chipClassName,
+              iconClassName,
+              getSummaryMessage,
+              items,
+            }) => (
+              <DetailGroup
+                key={key}
+                title={title}
+                accentClassName={accentClassName}
+                chipClassName={chipClassName}
+                iconClassName={iconClassName}
+                summary={getSummaryMessage(items)}
+                items={items}
+              />
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Utility to pick an icon based on file extension */
 function getFileIcon(name) {
   const ext = name?.split(".").pop()?.toLowerCase();
@@ -167,6 +426,8 @@ const MultiFileUpload = () => {
 
   const [files, setFiles] = useState([]);
   const [graphFiles, setGraphFiles] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadOutcome, setUploadOutcome] = useState(null);
 
   const {
     batchStatus,
@@ -204,6 +465,7 @@ const MultiFileUpload = () => {
     currentBatchID && (batchStatus || totalFilesInBatch > 0),
   );
   const isBatchActive = batchStatus === "in_progress";
+  const isInteractionDisabled = isBatchActive || isSubmitting;
   const hasSelectedFiles = files.length > 0 || graphFiles.length > 0;
 
   const totalFilesRef = useRef(totalFilesInBatch);
@@ -271,15 +533,8 @@ const MultiFileUpload = () => {
     [currentBatchID, dispatch],
   );
 
-  const scrollToResults = useCallback(() => {
-    const resultsSection = document.getElementById("sea-step-4-results");
-    if (!resultsSection) return;
-
-    resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
   const refreshProcessedFiles = useCallback(() => {
-    dispatch(fetchProcessedFileNames());
+    return dispatch(fetchProcessedFileNames());
   }, [dispatch]);
 
   const clearActiveBatchState = useCallback(() => {
@@ -295,6 +550,21 @@ const MultiFileUpload = () => {
     localStorage.removeItem("currentBatchID");
     localStorage.removeItem("totalFilesInBatch");
   }, [dispatch]);
+
+  const attachToBatchState = useCallback(
+    ({ batchId, taskId, totalFiles = 0, stageLabel = "Processing files..." }) => {
+      dispatch(setCurrentBatchID(batchId));
+      dispatch(setBatchStatus("in_progress"));
+      dispatch(setTotalFilesInBatch(totalFiles));
+      dispatch(setProcessedCount(0));
+      dispatch(setSucceededCount(0));
+      dispatch(setFailedCount(0));
+      dispatch(setPendingCount(Math.max(totalFiles, 0)));
+      dispatch(setCurrentStageLabel(stageLabel));
+      dispatch(setExtractionTaskId({ extractionTaskId: taskId || null }));
+    },
+    [dispatch],
+  );
 
   /**
    * Acquire Graph Token
@@ -538,13 +808,13 @@ const MultiFileUpload = () => {
       isActive = false;
       window.clearInterval(intervalId);
     };
-  }, [batchStatus, currentBatchID, dispatch, refreshProcessedFiles]);
+  }, [batchStatus, currentBatchID, dispatch]);
 
   /**
    * Toggle the "Include AboutFile" checkbox
    */
   const toggleIncludeAboutFile = () => {
-    if (isBatchActive) return;
+    if (isInteractionDisabled) return;
     dispatch(setIncludeAboutFile({ includeAboutFile: !includeAboutFile }));
   };
 
@@ -552,9 +822,10 @@ const MultiFileUpload = () => {
    * Clear local FilePond + Graph picks
    */
   const clearFiles = () => {
-    if (isBatchActive) return;
+    if (isInteractionDisabled) return;
     setFiles([]);
     setGraphFiles([]);
+    setUploadOutcome(null);
   };
 
   /**
@@ -564,7 +835,10 @@ const MultiFileUpload = () => {
     setGraphFiles((prev) => {
       const merged = [...prev];
       for (const item of newlySelected) {
-        const alreadyExists = merged.some((existing) => existing.name === item.name);
+        const itemIdentifier = item.graphId || item.id;
+        const alreadyExists = merged.some(
+          (existing) => (existing.graphId || existing.id) === itemIdentifier,
+        );
         if (!alreadyExists) merged.push(item);
       }
       return merged;
@@ -615,7 +889,7 @@ const MultiFileUpload = () => {
    * User clicks "Generate Results"
    */
   const onProcessFile = async () => {
-    if (isBatchActive) return;
+    if (isInteractionDisabled) return;
 
     const newBatchID = generateUniqueBatchID();
     const totalFiles = files.length + graphFiles.length;
@@ -625,18 +899,8 @@ const MultiFileUpload = () => {
       return;
     }
 
-    dispatch(setCurrentBatchID(newBatchID));
-    dispatch(setBatchStatus("in_progress"));
-    dispatch(setTotalFilesInBatch(totalFiles));
-    dispatch(setProcessedCount(0));
-    dispatch(setSucceededCount(0));
-    dispatch(setFailedCount(0));
-    dispatch(setPendingCount(totalFiles));
-    dispatch(setCurrentStageLabel("Starting extraction..."));
-    dispatch(setExtractionTaskId({ extractionTaskId: null }));
-
-    localStorage.setItem("currentBatchID", newBatchID);
-    localStorage.setItem("totalFilesInBatch", totalFiles.toString());
+    setIsSubmitting(true);
+    setUploadOutcome(null);
 
     try {
       const graphToken = await getGraphToken();
@@ -657,20 +921,46 @@ const MultiFileUpload = () => {
         }),
       );
 
-      if (
-        response.meta.requestStatus === "fulfilled" &&
-        response.payload?.task_id
-      ) {
-        dispatch(
-          setExtractionTaskId({ extractionTaskId: response.payload.task_id }),
-        );
+      if (response.meta.requestStatus !== "fulfilled") {
+        clearActiveBatchState();
         return;
       }
 
-      clearActiveBatchState();
+      const outcome = response.payload;
+      const startedCount = outcome?.counts?.started ?? 0;
+      const joinedCount = outcome?.counts?.joined ?? 0;
+      const responseBatchId = outcome?.batch_id || null;
+      const responseTaskId = outcome?.task_id || null;
+
+      setUploadOutcome(outcome);
+
+      if (startedCount > 0 && responseBatchId) {
+        attachToBatchState({
+          batchId: responseBatchId,
+          taskId: responseTaskId,
+          totalFiles: startedCount,
+          stageLabel: "Starting extraction...",
+        });
+      } else if (startedCount === 0 && joinedCount > 0 && responseBatchId) {
+        attachToBatchState({
+          batchId: responseBatchId,
+          taskId: responseTaskId,
+          totalFiles: 0,
+          stageLabel: "Attaching to existing extraction...",
+        });
+        await dispatch(
+          fetchBatchStatus({ batchId: responseBatchId, showToast: false }),
+        );
+      } else {
+        clearActiveBatchState();
+      }
+
+      await refreshProcessedFiles();
     } catch (error) {
       clearActiveBatchState();
       console.error("onProcessFile error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -693,7 +983,6 @@ const MultiFileUpload = () => {
         return;
       }
 
-      dispatch(setIsStopping({ isStopping: true }));
       dispatch(setCurrentStageLabel("Finalizing cancellation..."));
       stopSseRetriesRef.current = true;
 
@@ -770,11 +1059,11 @@ const MultiFileUpload = () => {
     <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
       <div className="flex flex-wrap mt-4 p-4">
         <div className="w-full mb-12 px-4">
-          <div className="mb-4">
-            <GraphFilePicker
-              onFilesSelected={handleFilesSelected}
-              disabled={isBatchActive}
-            />
+              <div className="mb-4">
+                <GraphFilePicker
+                  onFilesSelected={handleFilesSelected}
+                  disabled={isInteractionDisabled}
+                />
 
             {graphFiles.length > 0 && (
               <div
@@ -800,11 +1089,12 @@ const MultiFileUpload = () => {
             <hr className="flex-grow border-t border-gray-300" />
           </div>
 
-          <div className="relative">
-            <FilePond
-              files={files}
-              onupdatefiles={setFiles}
-              allowMultiple
+            <div className="relative">
+              <FilePond
+                files={files}
+                onupdatefiles={setFiles}
+                disabled={isInteractionDisabled}
+                allowMultiple
               maxFiles={100}
               name="file"
               labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> 
@@ -842,14 +1132,17 @@ const MultiFileUpload = () => {
 
                 <button
                   className={`bg-lightBlue-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 ${
-                    !hasSelectedFiles || isBatchActive
+                    !hasSelectedFiles || isInteractionDisabled
                       ? "opacity-40 cursor-not-allowed"
                       : ""
                   }`}
                   onClick={onProcessFile}
-                  disabled={!hasSelectedFiles || isBatchActive}
+                  disabled={!hasSelectedFiles || isInteractionDisabled}
                 >
-                  <i className="fas fa-play"></i> Generate Results
+                  <i
+                    className={`fas ${isSubmitting ? "fa-spinner fa-spin" : "fa-play"}`}
+                  ></i>{" "}
+                  {isSubmitting ? "Submitting..." : "Generate Results"}
                 </button>
 
                 {isBatchActive && showProgressBar && (
@@ -876,10 +1169,10 @@ const MultiFileUpload = () => {
                 {hasSelectedFiles && (
                   <button
                     className={`bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 ${
-                      isBatchActive ? "opacity-50 cursor-not-allowed" : ""
+                      isInteractionDisabled ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     onClick={clearFiles}
-                    disabled={isBatchActive}
+                    disabled={isInteractionDisabled}
                     data-tooltip-id="action-btn-tooltip"
                     data-tooltip-content="Clear all files."
                   >
@@ -892,16 +1185,16 @@ const MultiFileUpload = () => {
                 <div className="lg:absolute lg:right-0">
                   <button
                     className={`text-indigo-500 border border-indigo-500 hover:bg-indigo-500 hover:text-white font-bold uppercase text-xs px-4 py-2 rounded ${
-                      isBatchActive ? "opacity-50 cursor-not-allowed" : ""
+                      isInteractionDisabled ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     onClick={toggleIncludeAboutFile}
-                    disabled={isBatchActive}
+                    disabled={isInteractionDisabled}
                   >
                     <input
                       type="checkbox"
                       className="form-checkbox text-indigo-600 mr-2"
                       checked={includeAboutFile}
-                      disabled={isBatchActive}
+                      disabled={isInteractionDisabled}
                       onChange={toggleIncludeAboutFile}
                     />
                     Include AboutFile
@@ -910,28 +1203,33 @@ const MultiFileUpload = () => {
               )}
             </div>
 
+            <UploadOutcomeSummary outcome={uploadOutcome} />
+
             {showProgressBar && (
-              <div className="mt-6 rounded-xl border border-blueGray-200 bg-blueGray-50 px-4 py-4 shadow-sm">
+              <div className="mt-6 rounded border border-blueGray-200 bg-blueGray-50 px-4 py-4 shadow-sm">
                 <ProgressBar
                   taskInProgress={`Progress: ${processedCount} of ${totalFilesInBatch} files processed`}
                   percentage={displayProgress}
                   status={batchStatus}
                   scrollIntoViewOnMount={batchStatus === "in_progress"}
                 />
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide">
-                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-blueGray-600 border border-blueGray-200">
+                <div className="mt-3 flex flex-wrap items-center">
+                  <span className="text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 mb-1 last:mr-0 text-blueGray-600 bg-blueGray-200">
+                    <i className="fas fa-check mr-1"></i>
                     {processedCount} processed
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-blueGray-600 border border-blueGray-200">
+                  <span className="text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 mb-1 last:mr-0 text-blueGray-600 bg-blueGray-200">
+                    <i className="fas fa-hourglass-half mr-1"></i>
                     {Math.max(pendingCount, 0)} remaining
                   </span>
                   {failedCount > 0 && (
-                    <span className="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-red-700 border border-red-200">
+                    <span className="text-xs font-semibold inline-block py-1 px-2 rounded uppercase mr-1 mb-1 last:mr-0 text-red-600 bg-red-200">
+                      <i className="fas fa-circle-xmark mr-1"></i>
                       {failedCount} failed
                     </span>
                   )}
                 </div>
-                <div className="mt-3 text-sm text-blueGray-600">
+                <div className="mt-2 text-sm text-blueGray-600">
                   {batchStatus === "in_progress"
                     ? currentStageLabel || "Processing files..."
                     : "Final batch status received."}
@@ -943,7 +1241,6 @@ const MultiFileUpload = () => {
                     succeededCount={succeededCount}
                     failedCount={failedCount}
                     processedCount={processedCount}
-                    onViewResults={scrollToResults}
                   />
                 )}
               </div>
