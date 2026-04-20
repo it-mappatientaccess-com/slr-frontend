@@ -1,4 +1,5 @@
 import axios from "axios";
+import { applyRefreshHeaders } from "util/authRefresh";
 import { redirectToLoginFromExpiry } from "util/authSession";
 
 const api = axios.create({
@@ -18,7 +19,10 @@ const getAuthorizationHeader = (headers) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    applyRefreshHeaders(response?.headers);
+    return response;
+  },
   (error) => {
     const status = error?.response?.status;
     const requestUrl = `${error?.config?.url || ""}`;

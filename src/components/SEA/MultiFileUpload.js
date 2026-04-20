@@ -1099,7 +1099,7 @@ const MultiFileUpload = () => {
               name="file"
               labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> 
                   <br/> (MAX FILES: 100, MAX FILESIZE: 30MB) 
-                  <br/>Allowed file types: PDF, XPS, EPUB, MOBI, FB2, CBZ, SVG, TXT, PPT, DOC, DOCX, XLS, XLSX, CSV'
+                  <br/>Allowed file types: PDF, XPS, EPUB, MOBI, SVG, TXT, PPT, DOCX, XLSX, CSV'
               allowFileTypeValidation={true}
               acceptedFileTypes={[
                 "application/pdf",
