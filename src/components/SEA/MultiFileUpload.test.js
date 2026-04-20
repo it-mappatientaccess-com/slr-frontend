@@ -53,7 +53,7 @@ jest.mock("react-filepond", () => ({
           onupdatefiles([
             {
               id: "local-1",
-              file: new File(["alpha"], "new.pdf", {
+              file: new globalThis.File(["alpha"], "new.pdf", {
                 type: "application/pdf",
               }),
             },
