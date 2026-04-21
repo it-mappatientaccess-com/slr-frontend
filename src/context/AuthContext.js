@@ -4,7 +4,15 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useMsal } from "@azure/msal-react"; // Import useMsal
 import { loginRequest } from "../authConfig"; // Import loginRequest
 import refreshToken from "util/refreshToken";
-import { clearAuthStorage, redirectToLoginFromExpiry } from "util/authSession";
+import {
+  clearSlrAppSessionStorage,
+  redirectToLoginFromExpiry,
+  resetAuthRedirectState,
+} from "util/authSession";
+import {
+  exchangeMicrosoftIdToken,
+  persistSlrSsoSessionMetadata,
+} from "util/ssoSession";
 let refreshTimer;
 
 const AuthContext = React.createContext({
@@ -54,7 +62,7 @@ export const AuthContextProvider = (props) => {
     setToken(null);
     setTokenExpirationTime(null);
     setLoginMethod(null);
-    clearAuthStorage();
+    clearSlrAppSessionStorage();
     if (refreshTimer) {
       clearTimeout(refreshTimer);
     }
@@ -69,12 +77,7 @@ export const AuthContextProvider = (props) => {
     localStorage.setItem("token", token);
     localStorage.setItem("expirationTime", expirationTime);
     localStorage.setItem("loginMethod", method);
-    const remainingTime = calculateRemainingTime(expirationTime);
-    if (remainingTime > 300000) {
-      refreshTimer = setTimeout(refreshTokenHandler, remainingTime - 300000); // Refresh token 5 minutes before expiration
-    } else {
-      refreshTokenHandler();
-    }
+    resetAuthRedirectState();
   };
 
   const hasTokenExpired = (expirationTime) => {
@@ -91,31 +94,36 @@ export const AuthContextProvider = (props) => {
     }
 
     if (loginMethod === "sso") {
-      // Attempt to acquire new token via MSAL
       try {
-        const accounts = instance.getAllAccounts();
-        if (accounts.length > 0) {
+        const activeAccount =
+          instance.getActiveAccount() || instance.getAllAccounts()[0];
+
+        if (activeAccount) {
+          if (!instance.getActiveAccount()) {
+            instance.setActiveAccount(activeAccount);
+          }
+
           const tokenResponse = await instance.acquireTokenSilent({
             ...loginRequest,
-            account: accounts[0],
+            account: activeAccount,
           });
 
-          const newToken = `Bearer ${tokenResponse.accessToken}`;
-          const newExpirationTime = tokenResponse.expiresOn.getTime();
+          const ssoSessionData = await exchangeMicrosoftIdToken(
+            tokenResponse?.idToken,
+          );
+          const newToken = `Bearer ${ssoSessionData.access_token}`;
+          const newExpirationTime = ssoSessionData.expiration_time;
 
-          console.log("Refreshing SSO token:", newToken);
-          console.log("New token expires at:", new Date(newExpirationTime));
+          console.log("Refreshing SSO-backed SLR token.");
+          console.log("New token expires at:", newExpirationTime);
           setToken(newToken);
           setTokenExpirationTime(newExpirationTime);
+          persistSlrSsoSessionMetadata(
+            ssoSessionData,
+            activeAccount.username,
+          );
           localStorage.setItem("token", newToken);
-          localStorage.setItem("expirationTime", newExpirationTime.toString());
-          const remainingTime = calculateRemainingTime(newExpirationTime);
-          if (remainingTime > 300000) {
-            refreshTimer = setTimeout(
-              refreshTokenHandler,
-              remainingTime - 300000,
-            );
-          }
+          localStorage.setItem("expirationTime", newExpirationTime);
         } else {
           // No accounts available, logout
           logoutHandler();
@@ -127,7 +135,6 @@ export const AuthContextProvider = (props) => {
         redirectToLoginFromExpiry();
       }
     } else if (loginMethod === "credentials") {
-      // Existing logic for refreshing token via backend
       try {
         const newTokenData = await refreshToken(token);
         if (newTokenData) {
@@ -139,13 +146,6 @@ export const AuthContextProvider = (props) => {
           setTokenExpirationTime(newExpirationTime);
           localStorage.setItem("token", newToken);
           localStorage.setItem("expirationTime", newExpirationTime);
-          const remainingTime = calculateRemainingTime(newExpirationTime);
-          if (remainingTime > 300000) {
-            refreshTimer = setTimeout(
-              refreshTokenHandler,
-              remainingTime - 300000,
-            );
-          }
         } else {
           // Token refresh failed, logout
           logoutHandler();

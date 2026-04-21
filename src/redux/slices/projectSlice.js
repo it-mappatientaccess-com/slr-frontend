@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "util/api";
+import { redirectToLogin } from "util/authSession";
 import { toast } from "react-toastify";
 import { setProgress } from "./loadingSlice";
 
@@ -7,11 +8,19 @@ import { setProgress } from "./loadingSlice";
 export const fetchProjectsData = createAsyncThunk(
   "projects/fetchProjects",
   async (_, { dispatch, rejectWithValue }) => {
+    const authToken = localStorage.getItem("token");
+
+    if (!authToken) {
+      dispatch(setProgress(100));
+      redirectToLogin();
+      return rejectWithValue("Authentication required");
+    }
+
     try {
       dispatch(setProgress(70));
       const response = await api.get("/project", {
         headers: {
-          Authorization: localStorage.getItem("token"),
+          Authorization: authToken,
         },
       });
       dispatch(setProgress(100));

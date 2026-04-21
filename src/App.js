@@ -1,6 +1,6 @@
 // src/App.js
 
-import React, { useEffect, useContext, useState } from 'react';
+import React, { useEffect, useContext, useRef, useState } from 'react';
 import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -10,10 +10,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import LoadingBar from 'react-top-loading-bar';
 import { setProgress } from './redux/slices/loadingSlice';
 
-import { useMsal, useIsAuthenticated } from '@azure/msal-react';
-import { loginRequest } from './authConfig';
-import { api } from 'util/api';
+import { useMsal } from '@azure/msal-react';
 import AuthContext from 'context/AuthContext';
+import { exchangeMicrosoftIdToken, persistSlrSsoSessionMetadata } from 'util/ssoSession';
 
 // layouts
 import Dashboard from 'layouts/Dashboard';
@@ -26,73 +25,42 @@ const App = () => {
   const progress = useSelector((state) => state.loading.progress);
   const dispatch = useDispatch();
 
-  const { instance, accounts } = useMsal();
+  const { instance } = useMsal();
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const msalIsAuthenticated = useIsAuthenticated();
   const ctx = useContext(AuthContext);
   const navigate = useNavigate();
+  const hasHandledRedirectRef = useRef(false);
 
-  // Check if user is authenticated via MSAL or AuthContext
-  const isAuthenticated = msalIsAuthenticated || ctx.isLoggedIn;
+  // Only a valid SLR session unlocks protected routes.
+  const isAuthenticated = ctx.isLoggedIn;
 
   useEffect(() => {
+    if (hasHandledRedirectRef.current) {
+      return undefined;
+    }
+
+    hasHandledRedirectRef.current = true;
+
     const handleRedirect = async () => {
       try {
         const response = await instance.handleRedirectPromise();
         console.log('handleRedirectPromise response:', response);
 
-        if (response !== null && response.account !== null) {
+        if (response?.account) {
           instance.setActiveAccount(response.account);
-        }
-
-        if (instance.getActiveAccount() === null && accounts.length > 0) {
-          instance.setActiveAccount(accounts[0]);
-        }
-
-        if (!ctx.isLoggedIn && instance.getActiveAccount() !== null) {
           try {
-            const tokenResponse = await instance.acquireTokenSilent({
-              ...loginRequest,
-              account: instance.getActiveAccount(),
-            });
-            console.log('acquireTokenSilent response:', tokenResponse);
+            const data = await exchangeMicrosoftIdToken(response.idToken);
 
-            const idToken = tokenResponse.idToken;
-
-            if (!idToken) {
-              console.error('Failed to retrieve ID token.');
-              setIsAuthLoading(false);
-              return;
-            }
-
-            const res = await api.post(
-              'sso/login',
-              { token: idToken },
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (res.status === 200) {
-              const data = res.data;
-              localStorage.setItem('role', data.role);
-              localStorage.setItem('username', data.username);
-
-              ctx.login(`Bearer ${data.access_token}`, data.expiration_time, 'sso');
-              navigate('/dashboard/my-projects', { replace: true });
-            }
+            persistSlrSsoSessionMetadata(data, response.account.username);
+            ctx.login(`Bearer ${data.access_token}`, data.expiration_time, 'sso');
+            navigate('/dashboard/my-projects', { replace: true });
           } catch (tokenError) {
-            console.error('Token acquisition failed:', tokenError);
-            // Do not call logoutRedirect here
-            // Instead, you may choose to navigate to the login page or show an error
+            console.error('SSO session exchange failed:', tokenError);
+            navigate('/auth/login', { replace: true });
           }
         }
       } catch (error) {
         console.error('handleRedirectPromise error:', error);
-        // Do not call logoutRedirect here
-        // Instead, you may choose to navigate to the login page or show an error
       } finally {
         setIsAuthLoading(false);
       }
@@ -100,7 +68,7 @@ const App = () => {
 
     handleRedirect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instance, accounts]);
+  }, [instance]);
 
   if (isAuthLoading) {
     // Show a loading indicator while authentication is processing
