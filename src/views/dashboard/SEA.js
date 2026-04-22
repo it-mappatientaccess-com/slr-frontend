@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import MultiFileUpload from "components/SEA/MultiFileUpload";
 // import SingleFileUpload from "components/SEA/SingleFileUpload";
@@ -10,10 +10,10 @@ import VerticalStepper from "components/VerticalStepper/VerticalStepper";
 import PromptSelection from "components/SEA/PromptSelection";
 import ExtractionFileList from "components/SEA/ExtractionResult/ExtractionFileList";
 
-
 const SEA = () => {
   // const [openTab, setOpenTab] = React.useState(1);
   let progress = useSelector((state) => state.dataExtraction.progress);
+  const [loginMethod] = useState(() => localStorage.getItem("loginMethod"));
 
   return (
     <>
@@ -30,7 +30,8 @@ const SEA = () => {
           steps={[
             {
               title: "Step 1: Organise Your Questions",
-              content: "Add and arrange your questions or keywords in up to 10 columns.",
+              content:
+                "Add and arrange your questions or keywords in up to 10 columns.",
               component: <DEQuestions />,
               iconClass: "fas fa-question",
             },
@@ -42,13 +43,17 @@ const SEA = () => {
             },
             {
               title: "Step 3: Select or Upload Documents",
-              content: "Select from OneDrive or Sharepoint or Upload your own documents (PDF, Word, text, ePub, CSV) for context.",
+              content:
+                loginMethod === "credentials"
+                  ? "Upload your own documents (PDF, Word, text, ePub, CSV) for context."
+                  : "Select from OneDrive or Sharepoint or Upload your own documents (PDF, Word, text, ePub, CSV) for context.",
               component: <MultiFileUpload />,
               iconClass: "fas fa-upload",
             },
             {
               title: "Step 4: View Results",
-              content: "See a list of processed files. Click 'View Result' to see a table with answers. Export options are available.",
+              content:
+                "See a list of processed files. Click 'View Result' to see a table with answers. Export options are available.",
               component: <ExtractionFileList />,
               iconClass: "fas fa-table",
             },

@@ -8,19 +8,19 @@ import {
   deletePdfData,
   fetchAllExtractionResults,
   deleteAllSEAResults,
-  deletePrompt
+  deletePrompt,
 } from "../thunks/dataExtractionThunks";
 
 const initialState = {
   files: [],
   extractionResult: [],
   singleExtractionResult: [],
-  selectedFile: '',
+  selectedFile: "",
   selectedFileId: null,
   processedFiles: [],
   isRefreshing: false,
   isSubmitted: false,
-  message: '',
+  message: "",
   status: false,
   taskId: null,
   taskStatus: null,
@@ -60,7 +60,8 @@ const buildFileStatus = (existingStatus = {}, source = {}) => ({
   extraction_status:
     source.extraction_status ?? existingStatus.extraction_status ?? null,
   failure_code: source.failure_code ?? existingStatus.failure_code ?? null,
-  failure_reason: source.failure_reason ?? existingStatus.failure_reason ?? null,
+  failure_reason:
+    source.failure_reason ?? existingStatus.failure_reason ?? null,
   extraction_engine:
     source.extraction_engine ?? existingStatus.extraction_engine ?? null,
 });
@@ -127,15 +128,16 @@ const getBatchCountValue = (incomingValue, existingValue = 0) => {
   if (incomingValue == null) return Number(existingValue ?? 0);
 
   const numericValue = Number(incomingValue);
-  return Number.isFinite(numericValue) ? numericValue : Number(existingValue ?? 0);
+  return Number.isFinite(numericValue)
+    ? numericValue
+    : Number(existingValue ?? 0);
 };
 
 const applyBatchStatusPayload = (state, payload) => {
   if (!payload) return;
 
-  const incomingTotalFiles = payload.total_files == null
-    ? null
-    : Number(payload.total_files);
+  const incomingTotalFiles =
+    payload.total_files == null ? null : Number(payload.total_files);
   const totalFiles =
     Number.isFinite(incomingTotalFiles) && incomingTotalFiles > 0
       ? incomingTotalFiles
@@ -207,9 +209,12 @@ const dataExtractionSlice = createSlice({
     },
     handlePromptDeletion(state, action) {
       const { promptTitle } = action.payload;
-      state.prompts = state.prompts.filter(prompt => prompt.prompt_title !== promptTitle);
+      state.prompts = state.prompts.filter(
+        (prompt) => prompt.prompt_title !== promptTitle,
+      );
       if (state.selectedPrompt === promptTitle) {
-        state.selectedPrompt = state.prompts.length > 0 ? state.prompts[0].prompt_text : null;
+        state.selectedPrompt =
+          state.prompts.length > 0 ? state.prompts[0].prompt_text : null;
       }
     },
     setCurrentBatchID: (state, action) => {
@@ -384,38 +389,40 @@ const dataExtractionSlice = createSlice({
         dataExtractionSlice.caseReducers.handlePromptDeletion(state, action);
       })
       .addCase(deletePdfData.pending, (state) => {
-        state.status = 'loading';
+        state.status = "loading";
       })
       .addCase(deletePdfData.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.files = state.files.filter(file => file.id !== action.payload.id);
+        state.status = "succeeded";
+        state.files = state.files.filter(
+          (file) => file.id !== action.payload.id,
+        );
       })
       .addCase(deletePdfData.rejected, (state, action) => {
-        state.status = 'failed';
+        state.status = "failed";
         state.error = action.payload;
       })
       .addCase(fetchAllExtractionResults.pending, (state) => {
-        state.status = 'loading';
+        state.status = "loading";
       })
       .addCase(fetchAllExtractionResults.fulfilled, (state) => {
-        state.status = 'succeeded';
+        state.status = "succeeded";
       })
       .addCase(fetchAllExtractionResults.rejected, (state, action) => {
-        state.status = 'failed';
+        state.status = "failed";
         state.error = action.payload;
       })
       .addCase(deleteAllSEAResults.pending, (state) => {
-        state.status = 'loading';
+        state.status = "loading";
       })
       .addCase(deleteAllSEAResults.fulfilled, (state) => {
-        state.status = 'succeeded';
+        state.status = "succeeded";
         state.extractionResult = [];
         state.selectedFile = "";
         state.selectedFileId = null;
         state.selectedFileQuestions = null;
       })
       .addCase(deleteAllSEAResults.rejected, (state, action) => {
-        state.status = 'failed';
+        state.status = "failed";
         state.error = action.payload;
       });
   },
@@ -444,7 +451,7 @@ export const {
   setPendingCount,
   setCurrentStageLabel,
   updateFileStatus,
-  resetBatchData
+  resetBatchData,
 } = dataExtractionSlice.actions;
 
 export default dataExtractionSlice.reducer;

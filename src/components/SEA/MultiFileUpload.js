@@ -119,7 +119,8 @@ const getCompletionNotification = ({
   if (batchStatus === "failed") {
     return {
       type: "error",
-      message: "All files failed to process. Check individual file errors below.",
+      message:
+        "All files failed to process. Check individual file errors below.",
     };
   }
 
@@ -355,8 +356,7 @@ const UploadOutcomeSummary = ({ outcome }) => {
                 }`}
               >
                 <i className={`${chip.iconClassName} mr-1`}></i>
-                <span className="tabular-nums">{chip.value}</span>{" "}
-                {chip.label}
+                <span className="tabular-nums">{chip.value}</span> {chip.label}
               </span>
             );
           })}
@@ -481,7 +481,9 @@ const MultiFileUpload = () => {
 
   const baseAPIUrl = process.env.REACT_APP_API_URL;
   const normalizedBaseUrl = baseAPIUrl ? baseAPIUrl.replace(/\/$/, "") : "";
-  const sseUrl = normalizedBaseUrl ? `${normalizedBaseUrl}/stream-progress` : "";
+  const sseUrl = normalizedBaseUrl
+    ? `${normalizedBaseUrl}/stream-progress`
+    : "";
 
   const closeSseConnection = useCallback(() => {
     if (sseRef.current) {
@@ -517,9 +519,7 @@ const MultiFileUpload = () => {
           return latestResult;
         }
 
-        if (
-          TERMINAL_BATCH_STATUSES.has(latestResult.payload?.batch_status)
-        ) {
+        if (TERMINAL_BATCH_STATUSES.has(latestResult.payload?.batch_status)) {
           return latestResult;
         }
 
@@ -552,7 +552,12 @@ const MultiFileUpload = () => {
   }, [dispatch]);
 
   const attachToBatchState = useCallback(
-    ({ batchId, taskId, totalFiles = 0, stageLabel = "Processing files..." }) => {
+    ({
+      batchId,
+      taskId,
+      totalFiles = 0,
+      stageLabel = "Processing files...",
+    }) => {
       dispatch(setCurrentBatchID(batchId));
       dispatch(setBatchStatus("in_progress"));
       dispatch(setTotalFilesInBatch(totalFiles));
@@ -696,9 +701,13 @@ const MultiFileUpload = () => {
           dispatch(setFailedCount(failed));
           dispatch(setTotalFilesInBatch(totalFiles));
           dispatch(setProcessedCount(succeeded + failed));
-          dispatch(setPendingCount(Math.max(totalFiles - succeeded - failed, 0)));
+          dispatch(
+            setPendingCount(Math.max(totalFiles - succeeded - failed, 0)),
+          );
           dispatch(setCurrentStageLabel(""));
-          dispatch(fetchBatchStatus({ batchId: currentBatchID, showToast: false }));
+          dispatch(
+            fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
+          );
           refreshProcessedFiles();
           return;
         }
@@ -740,11 +749,14 @@ const MultiFileUpload = () => {
         reconnectAttemptsRef.current = 0;
       };
       sse.onmessage = parseEventPayload;
-      ["batch_started", "stage_update", "file_processed", "batch_completed"].forEach(
-        (eventName) => {
-          sse.addEventListener(eventName, parseEventPayload);
-        },
-      );
+      [
+        "batch_started",
+        "stage_update",
+        "file_processed",
+        "batch_completed",
+      ].forEach((eventName) => {
+        sse.addEventListener(eventName, parseEventPayload);
+      });
       sse.onerror = () => {
         closeSseConnection();
         if (isDisposed) return;
@@ -798,7 +810,9 @@ const MultiFileUpload = () => {
 
     const pollBatchStatus = async () => {
       if (!isActive) return;
-      await dispatch(fetchBatchStatus({ batchId: currentBatchID, showToast: false }));
+      await dispatch(
+        fetchBatchStatus({ batchId: currentBatchID, showToast: false }),
+      );
     };
 
     pollBatchStatus();
@@ -993,9 +1007,8 @@ const MultiFileUpload = () => {
 
       closeSseConnection();
 
-      const batchStatusResponse = await reconcileBatchStateUntilTerminal(
-        currentBatchID,
-      );
+      const batchStatusResponse =
+        await reconcileBatchStateUntilTerminal(currentBatchID);
       const finalBatchStatus =
         batchStatusResponse &&
         fetchBatchStatus.fulfilled.match(batchStatusResponse)
@@ -1059,11 +1072,11 @@ const MultiFileUpload = () => {
     <div className="relative flex flex-col min-w-0 break-words bg-white rounded mb-6 xl:mb-0 shadow-lg">
       <div className="flex flex-wrap mt-4 p-4">
         <div className="w-full mb-12 px-4">
-              <div className="mb-4">
-                <GraphFilePicker
-                  onFilesSelected={handleFilesSelected}
-                  disabled={isInteractionDisabled}
-                />
+          <div className="mb-4">
+            <GraphFilePicker
+              onFilesSelected={handleFilesSelected}
+              disabled={isInteractionDisabled}
+            />
 
             {graphFiles.length > 0 && (
               <div
@@ -1083,18 +1096,12 @@ const MultiFileUpload = () => {
             )}
           </div>
 
-          <div className="flex items-center py-4">
-            <hr className="flex-grow border-t border-gray-300" />
-            <span className="px-3 text-gray-500">OR Upload your own files</span>
-            <hr className="flex-grow border-t border-gray-300" />
-          </div>
-
-            <div className="relative">
-              <FilePond
-                files={files}
-                onupdatefiles={setFiles}
-                disabled={isInteractionDisabled}
-                allowMultiple
+          <div className="relative">
+            <FilePond
+              files={files}
+              onupdatefiles={setFiles}
+              disabled={isInteractionDisabled}
+              allowMultiple
               maxFiles={100}
               name="file"
               labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span> 
@@ -1169,7 +1176,9 @@ const MultiFileUpload = () => {
                 {hasSelectedFiles && (
                   <button
                     className={`bg-red-500 text-white font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg mr-1 mb-1 ${
-                      isInteractionDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      isInteractionDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
                     }`}
                     onClick={clearFiles}
                     disabled={isInteractionDisabled}
@@ -1185,7 +1194,9 @@ const MultiFileUpload = () => {
                 <div className="lg:absolute lg:right-0">
                   <button
                     className={`text-indigo-500 border border-indigo-500 hover:bg-indigo-500 hover:text-white font-bold uppercase text-xs px-4 py-2 rounded ${
-                      isInteractionDisabled ? "opacity-50 cursor-not-allowed" : ""
+                      isInteractionDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
                     }`}
                     onClick={toggleIncludeAboutFile}
                     disabled={isInteractionDisabled}
