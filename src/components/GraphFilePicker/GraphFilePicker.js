@@ -81,6 +81,9 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
   const [currentDriveType, setCurrentDriveType] = useState(null);
 
   const [rowData, setRowData] = useState([]);
+
+  const [loginMethod] = useState(() => localStorage.getItem("loginMethod"));
+
   const gridApiRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
@@ -108,7 +111,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         if (allAccounts.length > 0) {
           try {
             console.log(
-              "[ensureGraphAccess] Attempting silent token acquisition..."
+              "[ensureGraphAccess] Attempting silent token acquisition...",
             );
             const tokenResponse = await instance.acquireTokenSilent({
               scopes: loginRequest.scopes,
@@ -125,19 +128,19 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
 
             console.warn(
               "Silent token acquisition failed, will try loginPopup():",
-              error
+              error,
             );
           }
         }
 
         // 3) If no accounts or silent fails, do a popup
         console.log(
-          "[ensureGraphAccess] Prompting Microsoft sign-in with popup..."
+          "[ensureGraphAccess] Prompting Microsoft sign-in with popup...",
         );
         const tokenResponse = await instance.loginPopup(loginRequest);
         console.log(
           "User completed Microsoft login. Token response:",
-          tokenResponse
+          tokenResponse,
         );
         localStorage.setItem("hasGraphToken", "true");
         return true;
@@ -217,7 +220,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         "https://graph.microsoft.com/v1.0/me/drive/root/children",
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       setRowData(transformItems(resp.data.value, "fileOrFolder"));
     } catch (err) {
@@ -245,7 +248,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         setLoading(false);
       }
     },
-    [getAccessToken, transformItems]
+    [getAccessToken, transformItems],
   );
 
   const fetchSharePointSites = useCallback(async () => {
@@ -282,7 +285,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         setLoading(false);
       }
     },
-    [getAccessToken, transformItems]
+    [getAccessToken, transformItems],
   );
 
   const fetchDriveRoot = useCallback(
@@ -302,7 +305,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         setLoading(false);
       }
     },
-    [getAccessToken, transformItems]
+    [getAccessToken, transformItems],
   );
 
   const fetchFolderItems = useCallback(
@@ -322,7 +325,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         setLoading(false);
       }
     },
-    [getAccessToken, transformItems]
+    [getAccessToken, transformItems],
   );
 
   // =========== Modal logic =============
@@ -332,10 +335,10 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
       const hasAccess = await ensureGraphAccess();
       if (!hasAccess) {
         console.warn(
-          "User did not grant Graph access or token acquisition failed."
+          "User did not grant Graph access or token acquisition failed.",
         );
         toast.error(
-          "Microsoft sign-in canceled or failed. Could not load OneDrive/SharePoint."
+          "Microsoft sign-in canceled or failed. Could not load OneDrive/SharePoint.",
         );
         return;
       }
@@ -345,7 +348,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
       setModalTitle(
         driveType === "onedrive"
           ? "OneDrive File Picker"
-          : "SharePoint File Picker"
+          : "SharePoint File Picker",
       );
       setShowModal(true);
       setRowData([]);
@@ -357,7 +360,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
         fetchSharePointSites();
       }
     },
-    [ensureGraphAccess, fetchOneDriveRoot, fetchSharePointSites]
+    [ensureGraphAccess, fetchOneDriveRoot, fetchSharePointSites],
   );
 
   const closeModal = useCallback(() => {
@@ -436,7 +439,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
       fetchSiteDrives,
       fetchDriveRoot,
       fetchFolderItems,
-    ]
+    ],
   );
 
   // goBack => navigate up
@@ -489,7 +492,7 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
     const api = gridApiRef.current;
     const selectedNodes = api.getSelectedNodes();
     const newlySelectedGraphItems = selectedNodes.map(
-      (node) => node.data.rawItem
+      (node) => node.data.rawItem,
     );
 
     // We create a truly unique 'id' for each item
@@ -504,6 +507,8 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
 
     // Return them to the parent
     onFilesSelected?.(finalItems);
+
+    setShowModal(false);
   }, [onFilesSelected]);
 
   // AG-Grid columns
@@ -530,12 +535,12 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
       { headerName: "Kind", field: "kind", width: 100 },
       { headerName: "Size", field: "size", width: 100 },
     ],
-    []
+    [],
   );
 
   const defaultColDef = useMemo(
     () => ({ sortable: true, resizable: true }),
-    []
+    [],
   );
 
   // Current path
@@ -546,42 +551,44 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="flex justify-center gap-4 mb-3">
-        {loadingGraphLogin && (
-          <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
-            <div className="bg-white p-4 rounded shadow">
-              <i className="fas fa-spinner fa-spin mr-2"></i>
-              Signing in to Microsoft...
+      {loginMethod !== "credentials" && (
+        <div className="flex justify-center gap-4 mb-3">
+          {loadingGraphLogin && (
+            <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
+              <div className="bg-white p-4 rounded shadow">
+                <i className="fas fa-spinner fa-spin mr-2"></i>
+                Signing in to Microsoft...
+              </div>
             </div>
-          </div>
-        )}
-        <button
-          className={`text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-            disabled ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          type="button"
-          onClick={() => openModalFor("onedrive")}
-          disabled={disabled}
-          data-tooltip-id="oneDrive-btn"
-          data-tooltip-content="Requires Microsoft sign-in if not already logged in."
-        >
-          <i className="fas fa-cloud"></i> Select from OneDrive
-        </button>
-        <Tooltip id="oneDrive-btn" />
-        <button
-          className={`text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
-            disabled ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          type="button"
-          onClick={() => openModalFor("sharepoint")}
-          disabled={disabled}
-          data-tooltip-id="sharePoint-btn"
-          data-tooltip-content="Requires Microsoft sign-in if not already logged in."
-        >
-          <i className="fa-brands fa-microsoft"></i> Select from SharePoint
-        </button>
-        <Tooltip id="sharePoint-btn" />
-      </div>
+          )}
+          <button
+            className={`text-lightBlue-500 bg-transparent border border-solid border-lightBlue-500 hover:bg-lightBlue-500 hover:text-white active:bg-lightBlue-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            type="button"
+            onClick={() => openModalFor("onedrive")}
+            disabled={disabled}
+            data-tooltip-id="oneDrive-btn"
+            data-tooltip-content="Requires Microsoft sign-in if not already logged in."
+          >
+            <i className="fas fa-cloud"></i> Select from OneDrive
+          </button>
+          <Tooltip id="oneDrive-btn" />
+          <button
+            className={`text-teal-500 bg-transparent border border-solid border-teal-500 hover:bg-teal-500 hover:text-white active:bg-teal-600 font-bold uppercase text-sm px-6 py-3 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            type="button"
+            onClick={() => openModalFor("sharepoint")}
+            disabled={disabled}
+            data-tooltip-id="sharePoint-btn"
+            data-tooltip-content="Requires Microsoft sign-in if not already logged in."
+          >
+            <i className="fa-brands fa-microsoft"></i> Select from SharePoint
+          </button>
+          <Tooltip id="sharePoint-btn" />
+        </div>
+      )}
 
       <Modal show={showModal} title={modalTitle} onClose={closeModal}>
         <div className="flex items-center justify-between mb-2">

@@ -20,7 +20,9 @@ export const normalizeExtractionSubmitResponse = (payload = {}) => ({
   message: payload?.message || "",
   task_id: payload?.task_id ?? null,
   batch_id: payload?.batch_id ?? null,
-  started_files: Array.isArray(payload?.started_files) ? payload.started_files : [],
+  started_files: Array.isArray(payload?.started_files)
+    ? payload.started_files
+    : [],
   duplicates: Array.isArray(payload?.duplicates) ? payload.duplicates : [],
   joined_inflight: Array.isArray(payload?.joined_inflight)
     ? payload.joined_inflight
@@ -58,10 +60,7 @@ const getApiErrorDetails = (error, fallbackMessage) => {
   const payload = error.response?.data;
   const requestId = getErrorRequestId(error, payload);
   const baseMessage =
-    payload?.message ||
-    payload?.detail ||
-    error.message ||
-    fallbackMessage;
+    payload?.message || payload?.detail || error.message || fallbackMessage;
 
   return {
     requestId,
@@ -102,7 +101,7 @@ export const generateExtractionResults = createAsyncThunk(
       selectedPrompt,
       includeAboutFile,
     },
-    { rejectWithValue }
+    { rejectWithValue },
   ) => {
     try {
       // Build FormData
@@ -147,7 +146,7 @@ export const generateExtractionResults = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 export const fetchBatchStatus = createAsyncThunk(
@@ -192,19 +191,19 @@ export const fetchProcessedFileNames = createAsyncThunk(
           headers: {
             Authorization: localStorage.getItem("token"),
           },
-        }
+        },
       );
       dispatch(
         setIsRefreshing({
           isRefreshing: false,
-        })
+        }),
       );
       return response.data;
     } catch (error) {
       dispatch(
         setIsRefreshing({
           isRefreshing: false,
-        })
+        }),
       );
       return rejectWithApiError(
         error,
@@ -212,7 +211,7 @@ export const fetchProcessedFileNames = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Async thunk for fetching extraction file results
@@ -232,7 +231,7 @@ export const fetchExtractionFileResults = createAsyncThunk(
           headers: {
             Authorization: localStorage.getItem("token"),
           },
-        }
+        },
       );
       dispatch(setProgress(100));
       // toast.success("Extraction file results fetched successfully");
@@ -245,7 +244,7 @@ export const fetchExtractionFileResults = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Async thunk for fetching prompts
@@ -284,7 +283,7 @@ export const fetchPrompts = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Async thunk for deleting PDF data
@@ -309,7 +308,7 @@ export const deletePdfData = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Helper function to parse markdown-like syntax and apply Excel formatting
@@ -343,7 +342,7 @@ const flattenAndFormatResult = (result) => {
 // Function to download Excel file using ExcelJS
 const downloadXLSX = async (data, exportFileName) => {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Sheet1');
+  const worksheet = workbook.addWorksheet("Sheet1");
 
   const columnsSet = new Set(["file_name"]);
   const rows = [];
@@ -365,7 +364,7 @@ const downloadXLSX = async (data, exportFileName) => {
   });
 
   // Define the columns for the worksheet
-  worksheet.columns = Array.from(columnsSet).map(column => ({
+  worksheet.columns = Array.from(columnsSet).map((column) => ({
     header: column,
     key: column,
     width: 50, // Adjust the width as necessary
@@ -390,7 +389,9 @@ const downloadXLSX = async (data, exportFileName) => {
 
   // Write the Excel file
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
   saveAs(blob, `${exportFileName}.xlsx`);
 };
 
@@ -492,7 +493,7 @@ export const fetchAllExtractionResults = createAsyncThunk(
           headers: {
             Authorization: localStorage.getItem("token"),
           },
-        }
+        },
       );
       dispatch(setProgress(100));
       await downloadXLSX(
@@ -508,7 +509,7 @@ export const fetchAllExtractionResults = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 export const exportFileResultsDocx = createAsyncThunk(
@@ -617,7 +618,7 @@ export const deleteAllSEAResults = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Async thunk for stopping extraction
@@ -630,15 +631,11 @@ export const stopExtraction = createAsyncThunk(
       // Prepare form data to include the batch ID
       const formData = new FormData();
       formData.append("batch_id", batchId);
-      const response = await api.post(
-        `/stop_extraction/${taskId}`,
-        formData,
-        {
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        }
-      );
+      const response = await api.post(`/stop_extraction/${taskId}`, formData, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
       dispatch(setProgress(100));
       if (response.data.status === "success") {
         toast.success(response.data.message);
@@ -656,9 +653,8 @@ export const stopExtraction = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
-
 
 // Async thunk for deleting a prompt
 export const deletePrompt = createAsyncThunk(
@@ -671,17 +667,14 @@ export const deletePrompt = createAsyncThunk(
 
     try {
       dispatch(setProgress(50));
-      const response = await api.delete(
-        `/prompt/${projectId}/${promptTitle}`,
-        {
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        }
-      );
+      const response = await api.delete(`/prompt/${projectId}/${promptTitle}`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      });
       dispatch(setProgress(100));
       toast.success("Prompt deleted successfully");
-      return response.data;
+      return { ...response.data, promptTitle };
     } catch (error) {
       dispatch(setProgress(100));
       return rejectWithApiError(
@@ -690,7 +683,7 @@ export const deletePrompt = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );
 
 // Async thunk for setting the selected prompt
@@ -711,7 +704,7 @@ export const setSelectedPromptThunk = createAsyncThunk(
           headers: {
             Authorization: localStorage.getItem("token"),
           },
-        }
+        },
       );
       dispatch(setProgress(100));
       toast.success("Selected prompt set successfully");
@@ -725,5 +718,5 @@ export const setSelectedPromptThunk = createAsyncThunk(
         rejectWithValue,
       );
     }
-  }
+  },
 );

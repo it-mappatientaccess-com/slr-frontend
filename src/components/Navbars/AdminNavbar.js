@@ -4,6 +4,7 @@ import { useLocation } from "react-router";
 import { Tooltip } from "react-tooltip";
 
 export default function AdminNavbar() {
+  const [username] = useState(() => localStorage.getItem("username"));
   const location = useLocation();
   const selectedProject = localStorage.getItem("selectedProject");
   const [isModalOpen, setModalOpen] = useState(false);
@@ -40,7 +41,7 @@ export default function AdminNavbar() {
             ) : (
               <>
                 <button
-                  className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none ease-linear transition-all duration-150"
+                  className="bg-teal-500 text-white active:bg-teal-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none ease-linear transition-all duration-150 mr-2"
                   type="button"
                   onClick={() => setModalOpen(true)}
                   data-tooltip-id="nav-btn-tooltip"
@@ -51,6 +52,10 @@ export default function AdminNavbar() {
                 </button>
               </>
             )}
+            <span className="text-white text-sm hidden lg:inline-block font-semibold">
+              <i className="fas fa-user-circle mr-1"></i>
+              {username}
+            </span>
           </div>
           <Modal
             show={isModalOpen}

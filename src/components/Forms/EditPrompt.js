@@ -1,18 +1,18 @@
 import React from "react";
 import { useFormik } from "formik";
 import { createPromptSchema } from "../../schema/schema";
-import {api} from "util/api";
+import { api } from "util/api";
 import { fetchPrompts } from "../../redux/thunks/dataExtractionThunks";
 import { useDispatch } from "react-redux";
 import { notify } from "components/Notify/Notify";
 
 export default function EditPrompt({ title, content, onEditSuccess }) {
   const dispatch = useDispatch();
-    // Set initial values using the passed props
-    const initialValues = {
-      promptTitle: title || "",
-      promptText: content || "",
-    };
+  // Set initial values using the passed props
+  const initialValues = {
+    promptTitle: title || "",
+    promptText: content || "",
+  };
   const { values, errors, touched, handleBlur, handleChange, handleSubmit } =
     useFormik({
       initialValues,
@@ -23,16 +23,16 @@ export default function EditPrompt({ title, content, onEditSuccess }) {
             `prompt/${title}`,
             {
               title: title,
-              projectName: localStorage.getItem("selectedProject"),
+              project_id: localStorage.getItem("currentProjectId"),
               prompt_title: values.promptTitle,
               prompt_text: values.promptText,
-              is_default: false
+              is_default: false,
             },
             {
               headers: {
                 Authorization: localStorage.getItem("token"),
               },
-            }
+            },
           )
           .then((response) => {
             if (response.status === 200) {
@@ -54,9 +54,7 @@ export default function EditPrompt({ title, content, onEditSuccess }) {
       <div className="relative flex flex-col min-w-0 break-words w-10/12 mx-auto mb-6 shadow-lg rounded-lg bg-blueGray-100 border-0">
         <div className="rounded-t bg-white mb-0 px-6 py-6">
           <div className="text-center flex justify-between">
-            <h6 className="text-blueGray-700 text-xl font-bold">
-              Edit Prompt
-            </h6>
+            <h6 className="text-blueGray-700 text-xl font-bold">Edit Prompt</h6>
           </div>
         </div>
         <div className="flex-auto px-4 lg:px-10 py-10 pt-0">
