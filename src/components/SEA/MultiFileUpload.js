@@ -421,6 +421,7 @@ registerPlugin(
 );
 
 const MultiFileUpload = () => {
+  const [loginMethod] = useState(() => localStorage.getItem("loginMethod"));
   const dispatch = useDispatch();
   const { instance, accounts } = useMsal();
 
@@ -1095,6 +1096,16 @@ const MultiFileUpload = () => {
               </div>
             )}
           </div>
+
+          {loginMethod !== "credentials" && (
+            <div className="flex items-center py-4">
+              <hr className="flex-grow border-t border-gray-300" />
+              <span className="px-3 text-gray-500">
+                OR Upload your own files
+              </span>
+              <hr className="flex-grow border-t border-gray-300" />
+            </div>
+          )}
 
           <div className="relative">
             <FilePond
