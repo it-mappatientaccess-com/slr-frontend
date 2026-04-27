@@ -21,6 +21,7 @@ import {
   setProcessedCount,
   setSucceededCount,
   setTotalFilesInBatch,
+  upsertCancelledBatchFiles,
 } from "../../redux/slices/dataExtractionSlice";
 import {
   fetchBatchStatus,
@@ -606,20 +607,37 @@ const MultiFileUpload = () => {
 
       if (!storedBatchID) return;
 
-      dispatch(setCurrentBatchID(storedBatchID));
-      if (!Number.isNaN(storedTotal) && storedTotal > 0) {
-        dispatch(setTotalFilesInBatch(storedTotal));
-      }
-
       const result = await dispatch(
         fetchBatchStatus({ batchId: storedBatchID, showToast: false }),
       );
 
-      if (!isMounted || !fetchBatchStatus.fulfilled.match(result)) return;
+      if (!isMounted) return;
+
+      if (!fetchBatchStatus.fulfilled.match(result)) {
+        clearActiveBatchState();
+        return;
+      }
 
       if (result.payload?.batch_status === "in_progress") {
+        dispatch(setCurrentBatchID(result.payload?.batch_id || storedBatchID));
+        const payloadTotal = Number(result.payload?.total_files);
+        if (
+          (!Number.isFinite(payloadTotal) || payloadTotal <= 0) &&
+          !Number.isNaN(storedTotal) &&
+          storedTotal > 0
+        ) {
+          dispatch(setTotalFilesInBatch(storedTotal));
+        }
         dispatch(setCurrentStageLabel("Processing files..."));
+        return;
       }
+
+      if (TERMINAL_BATCH_STATUSES.has(result.payload?.batch_status)) {
+        clearActiveBatchState();
+        return;
+      }
+
+      clearActiveBatchState();
     };
 
     restoreBatchState();
@@ -627,7 +645,7 @@ const MultiFileUpload = () => {
     return () => {
       isMounted = false;
     };
-  }, [dispatch]);
+  }, [clearActiveBatchState, dispatch]);
 
   useEffect(() => {
     if (!currentBatchID) {
@@ -900,6 +918,28 @@ const MultiFileUpload = () => {
     },
   ]);
 
+  const getSelectedFilesForCancellation = () => {
+    if (uploadOutcome?.started_files?.length > 0) {
+      return uploadOutcome.started_files.map((file) => ({
+        ...file,
+        batch_id: file.batch_id || currentBatchID,
+      }));
+    }
+
+    return [
+      ...files.map((file) => ({
+        file_id: file.id,
+        file_name: file.file?.name || file.filename || file.name,
+        batch_id: currentBatchID,
+      })),
+      ...graphFiles.map((file) => ({
+        file_id: file.file_id || file.graphId || file.id,
+        file_name: file.file_name || file.name,
+        batch_id: currentBatchID,
+      })),
+    ].filter((file) => file.file_name);
+  };
+
   /**
    * User clicks "Generate Results"
    */
@@ -1020,6 +1060,14 @@ const MultiFileUpload = () => {
         dispatch(setBatchStatus("cancelled"));
         dispatch(setCurrentStageLabel(""));
       }
+
+      await refreshProcessedFiles();
+      dispatch(
+        upsertCancelledBatchFiles({
+          batchId: currentBatchID,
+          files: getSelectedFilesForCancellation(),
+        }),
+      );
     } finally {
       dispatch(setIsStopping({ isStopping: false }));
     }

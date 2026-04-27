@@ -2,9 +2,44 @@ import React, { useState } from "react";
 import Modal from "components/Modal/Modal";
 import { useLocation } from "react-router";
 import { Tooltip } from "react-tooltip";
+import { useMsal } from "@azure/msal-react";
+
+const toTitleCase = (value) =>
+  value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const getNameFromEmail = (email = "") => {
+  const normalizedEmail = String(email || "");
+  const localPart = normalizedEmail.split("@")[0] || "";
+  const spacedName = localPart.replace(/[._-]+/g, " ").trim();
+  return spacedName ? toTitleCase(spacedName) : "";
+};
+
+const resolveDisplayName = ({ storedDisplayName, username, accountName }) => {
+  const normalizedUsername = String(username || "").trim();
+
+  return (
+    storedDisplayName?.trim() ||
+    accountName?.trim() ||
+    getNameFromEmail(normalizedUsername) ||
+    normalizedUsername ||
+    "User"
+  );
+};
 
 export default function AdminNavbar() {
   const [username] = useState(() => localStorage.getItem("username"));
+  const [storedDisplayName] = useState(() => localStorage.getItem("displayName"));
+  const { instance, accounts } = useMsal();
+  const activeAccount = instance.getActiveAccount?.() || accounts?.[0];
+  const displayName = resolveDisplayName({
+    storedDisplayName,
+    username,
+    accountName: activeAccount?.name,
+  });
   const location = useLocation();
   const selectedProject = localStorage.getItem("selectedProject");
   const [isModalOpen, setModalOpen] = useState(false);
@@ -54,7 +89,7 @@ export default function AdminNavbar() {
             )}
             <span className="text-white text-sm hidden lg:inline-block font-semibold">
               <i className="fas fa-user-circle mr-1"></i>
-              {username}
+              Hello {displayName}
             </span>
           </div>
           <Modal

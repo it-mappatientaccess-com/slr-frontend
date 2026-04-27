@@ -211,6 +211,59 @@ describe("MultiFileUpload", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("clears stale stored terminal batch state without showing progress before Generate Results", async () => {
+    localStorage.setItem("currentBatchID", "stale-batch");
+    localStorage.setItem("totalFilesInBatch", "2");
+    mockGetHandlers({
+      batchStatuses: {
+        "stale-batch": {
+          batch_id: "stale-batch",
+          batch_status: "completed",
+          total_files: 2,
+          succeeded: 2,
+          failed: 0,
+          files: [],
+        },
+      },
+    });
+
+    const { store } = renderComponent();
+
+    await waitFor(() => {
+      expect(localStorage.getItem("currentBatchID")).toBeNull();
+      expect(store.getState().dataExtraction.currentBatchID).toBeNull();
+    });
+
+    expect(screen.queryByTestId("progress-bar")).not.toBeInTheDocument();
+  });
+
+  it("restores a validated active stored batch even when the status payload omits batch_id", async () => {
+    localStorage.setItem("currentBatchID", "active-batch");
+    localStorage.setItem("totalFilesInBatch", "3");
+    mockGetHandlers({
+      batchStatuses: {
+        "active-batch": {
+          batch_status: "in_progress",
+          total_files: 3,
+          succeeded: 1,
+          failed: 0,
+          files: [],
+        },
+      },
+    });
+
+    const { store } = renderComponent();
+
+    await waitFor(() => {
+      expect(store.getState().dataExtraction.currentBatchID).toBe(
+        "active-batch",
+      );
+      expect(screen.getByTestId("progress-bar")).toHaveTextContent(
+        "Progress: 1 of 3 files processed :: in_progress",
+      );
+    });
+  });
+
   it("shows started, completed duplicates, and joined in-progress files separately for mixed uploads", async () => {
     mockGetHandlers({
       batchStatuses: {
@@ -374,6 +427,112 @@ describe("MultiFileUpload", () => {
       headers: {
         Authorization: "Bearer test-token",
       },
+    });
+  });
+
+  it("keeps unprocessed selected files as cancelled after stopping a partially processed batch", async () => {
+    let stopRequested = false;
+    const completedRows = [
+      {
+        file_id: "file-done-1",
+        file_name: "done-one.pdf",
+        batch_id: "batch-new",
+        extraction_status: "succeeded",
+      },
+      {
+        file_id: "file-done-2",
+        file_name: "done-two.pdf",
+        batch_id: "batch-new",
+        extraction_status: "succeeded",
+      },
+    ];
+
+    api.get.mockImplementation((url) => {
+      if (url.startsWith("/get_extraction_file_names/")) {
+        return Promise.resolve({ data: completedRows });
+      }
+
+      if (url.startsWith("/batch-status/")) {
+        return Promise.resolve({
+          data: {
+            batch_id: "batch-new",
+            batch_status: stopRequested ? "cancelled" : "in_progress",
+            total_files: 3,
+            succeeded: 2,
+            failed: 0,
+            files: completedRows,
+          },
+        });
+      }
+
+      return Promise.resolve({ data: {} });
+    });
+
+    api.post.mockImplementation((url) => {
+      if (url.startsWith("/stop_extraction/")) {
+        stopRequested = true;
+        return Promise.resolve({
+          data: {
+            status: "success",
+            message: "Extraction stopped.",
+          },
+        });
+      }
+
+      return Promise.resolve({
+        status: 200,
+        data: {
+          status: true,
+          message: "Please wait while results are being generated.",
+          task_id: "task-new",
+          batch_id: "batch-new",
+          started_files: [
+            {
+              file_name: "new.pdf",
+              file_id: "file-new",
+              batch_id: "batch-new",
+            },
+          ],
+          duplicates: [],
+          joined_inflight: [],
+          counts: {
+            started: 1,
+            rejected_duplicates: 0,
+            joined: 0,
+          },
+        },
+      });
+    });
+
+    const { user, store } = renderComponent();
+
+    await user.click(screen.getByRole("button", { name: /add local file/i }));
+    await user.click(screen.getByRole("button", { name: /generate results/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    await waitFor(() => {
+      expect(store.getState().dataExtraction.processedFiles).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            file_id: "file-done-1",
+            extraction_status: "succeeded",
+          }),
+          expect.objectContaining({
+            file_id: "file-done-2",
+            extraction_status: "succeeded",
+          }),
+          expect.objectContaining({
+            file_id: "file-new",
+            file_name: "new.pdf",
+            extraction_status: "cancelled",
+          }),
+        ]),
+      );
     });
   });
 

@@ -23,6 +23,15 @@ export const persistSlrSsoSessionMetadata = (sessionData, fallbackUsername) => {
     localStorage.setItem("role", sessionData.role);
   }
 
+  const resolvedDisplayName =
+    sessionData?.display_name ||
+    sessionData?.displayName ||
+    sessionData?.name ||
+    sessionData?.full_name;
+  if (resolvedDisplayName) {
+    localStorage.setItem("displayName", resolvedDisplayName);
+  }
+
   const resolvedUsername = sessionData?.username || fallbackUsername;
   if (resolvedUsername) {
     localStorage.setItem("username", resolvedUsername);

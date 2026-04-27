@@ -367,9 +367,24 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
     setShowModal(false);
   }, []);
 
+  const fitGridColumns = useCallback((api) => {
+    window.requestAnimationFrame(() => {
+      api.sizeColumnsToFit();
+    });
+  }, []);
+
   const onGridReady = useCallback((params) => {
     gridApiRef.current = params.api;
-  }, []);
+    fitGridColumns(params.api);
+  }, [fitGridColumns]);
+
+  const onGridSizeChanged = useCallback((params) => {
+    fitGridColumns(params.api);
+  }, [fitGridColumns]);
+
+  const onRowDataUpdated = useCallback((params) => {
+    fitGridColumns(params.api);
+  }, [fitGridColumns]);
 
   // Double click => navigate deeper
   const onRowDoubleClicked = useCallback(
@@ -516,30 +531,39 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
     () => [
       {
         headerName: "",
-        width: 50,
+        width: 44,
+        minWidth: 44,
+        maxWidth: 44,
+        resizable: false,
+        suppressSizeToFit: true,
         checkboxSelection: (params) => params.data.kind === "file",
       },
       {
         headerName: "Name",
         field: "name",
-        flex: 1,
+        minWidth: 240,
+        width: "auto",
+        tooltipField: "name",
         cellRenderer: (params) => {
           const icon = getItemIcon(params.data.kind, params.data.name);
           return (
-            <span className="flex items-center gap-2">
-              {icon} &nbsp; &nbsp;{params.value}
+            <span className="flex w-full min-w-0 items-center gap-2 overflow-hidden">
+              <span className="flex-shrink-0">{icon}</span> &nbsp; &nbsp;
+              <span className="truncate" title={params.value}>
+                {params.value}
+              </span>
             </span>
           );
         },
       },
-      { headerName: "Kind", field: "kind", width: 100 },
-      { headerName: "Size", field: "size", width: 100 },
+      { headerName: "Kind", field: "kind", width: 80, minWidth: 60 },
+      { headerName: "Size", field: "size", width: 90, minWidth: 60 },
     ],
     [],
   );
 
   const defaultColDef = useMemo(
-    () => ({ sortable: true, resizable: true }),
+    () => ({ sortable: true, resizable: false }),
     [],
   );
 
@@ -618,7 +642,10 @@ export default function GraphFilePicker({ onFilesSelected, disabled = false }) {
               defaultColDef={defaultColDef}
               rowSelection="multiple"
               onGridReady={onGridReady}
+              onGridSizeChanged={onGridSizeChanged}
+              onRowDataUpdated={onRowDataUpdated}
               onRowDoubleClicked={onRowDoubleClicked}
+              suppressHorizontalScroll={true}
               suppressRowClickSelection={true}
             />
           </div>

@@ -1,5 +1,26 @@
 import React from "react";
 
+let bodyScrollLockCount = 0;
+let originalBodyOverflow = "";
+
+const lockBodyScroll = () => {
+  if (bodyScrollLockCount === 0) {
+    originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+
+  bodyScrollLockCount += 1;
+};
+
+const unlockBodyScroll = () => {
+  bodyScrollLockCount = Math.max(bodyScrollLockCount - 1, 0);
+
+  if (bodyScrollLockCount === 0) {
+    document.body.style.overflow = originalBodyOverflow;
+    originalBodyOverflow = "";
+  }
+};
+
 export default function Modal({
   show = false,
   title = "",
@@ -12,6 +33,16 @@ export default function Modal({
   React.useEffect(() => {
     setShowModal(show);
   }, [show]);
+
+  React.useEffect(() => {
+    if (!showModal) return undefined;
+
+    lockBodyScroll();
+
+    return () => {
+      unlockBodyScroll();
+    };
+  }, [showModal]);
 
   const closeModal = () => {
     setShowModal(false);
@@ -48,7 +79,10 @@ export default function Modal({
                   </button>
                 </div>
                 {/* Body */}
-                <div className="relative p-6 flex-auto h-screen-60 overflow-y-auto">
+                <div
+                  className="relative p-6 flex-auto h-screen-60 overflow-y-auto"
+                  style={{ overscrollBehavior: "contain" }}
+                >
                   {children ? (
                     children
                   ) : (

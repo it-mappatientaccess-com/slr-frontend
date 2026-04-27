@@ -11,18 +11,77 @@ import {
   fetchExtractionFileResults,
   fetchProcessedFileNames,
 } from "../../../redux/thunks/dataExtractionThunks";
+import { clearSelectedExtractionResult } from "../../../redux/slices/dataExtractionSlice";
 import ExtractionResult from "./ExtractionResult";
 import { Tooltip } from "react-tooltip";
 import ModalSmall from "components/Modal/ModalSmall";
-import { getErrorMessage } from "util/errorMessages";
+import { ERROR_MESSAGES, getErrorMessage } from "util/errorMessages";
 
 const ACTIVE_BATCH_STATUS = "in_progress";
 const CANCELLED_BATCH_STATUS = "cancelled";
 const PENDING_LIKE_STATUSES = new Set(["pending", "in_progress"]);
+const VIEWABLE_STATUSES = new Set(["succeeded", "completed"]);
+const NON_RETRYABLE_FAILURE_CODES = new Set([
+  "PASSWORD_PROTECTED",
+  "CORRUPTED_FILE",
+  "UNSUPPORTED_FILE_TYPE",
+]);
+
+const normalizeExtractionStatus = (status) =>
+  status === "completed" ? "succeeded" : status;
+
+const isViewableExtractionStatus = (status) =>
+  VIEWABLE_STATUSES.has(normalizeExtractionStatus(status));
+
+const getFailureDisplayDetails = ({
+  status,
+  failureCode,
+  failureReason,
+}) => {
+  const normalizedStatus = normalizeExtractionStatus(status);
+
+  if (normalizedStatus !== "failed" && normalizedStatus !== "cancelled") {
+    return null;
+  }
+
+  const trimmedFailureReason = failureReason?.trim();
+  const hasKnownFailureCode = failureCode && ERROR_MESSAGES[failureCode];
+  const mappedMessage =
+    normalizedStatus === "failed" && hasKnownFailureCode
+      ? getErrorMessage(failureCode)
+      : "";
+  const message =
+    mappedMessage ||
+    trimmedFailureReason ||
+    (normalizedStatus === "cancelled"
+      ? "Processing was cancelled before this file completed."
+      : getErrorMessage(failureCode));
+  const secondaryReason =
+    trimmedFailureReason && trimmedFailureReason !== message
+      ? trimmedFailureReason
+      : "";
+  const retryHint =
+    normalizedStatus === "cancelled"
+      ? "Run extraction again to process this file."
+      : NON_RETRYABLE_FAILURE_CODES.has(failureCode)
+        ? "Fix the file issue before retrying."
+        : "You can retry after checking this file.";
+
+  return {
+    message,
+    secondaryReason,
+    retryHint,
+  };
+};
 
 const btnCellRenderer = (props) => {
   const [deleteClicked, setDeleteClicked] = props.useState(false);
+  const canViewResults = isViewableExtractionStatus(
+    props.data?.extraction_status,
+  );
   const onViewResultsClickHandler = async () => {
+    if (!canViewResults) return;
+
     const response = await props.dispatch(
       fetchExtractionFileResults({
         file_id: props.data["file_id"],
@@ -60,10 +119,18 @@ const btnCellRenderer = (props) => {
   return (
     <>
       <button
-        className="bg-emerald-500 text-white active:bg-emerald-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+        className={`bg-emerald-500 text-white active:bg-emerald-600 font-bold uppercase text-xs px-4 py-2 rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150 ${
+          canViewResults ? "" : "opacity-40 cursor-not-allowed"
+        }`}
         type="button"
         data-action="update"
         onClick={onViewResultsClickHandler}
+        disabled={!canViewResults}
+        title={
+          canViewResults
+            ? "View extraction results"
+            : "Results are available only for completed files"
+        }
       >
         View <i className="fas fa-binoculars"></i>
       </button>
@@ -145,7 +212,7 @@ const escapeTooltipHtml = (value = "") =>
     .replace(/'/g, "&#39;");
 
 const getStatusBadgeConfig = (status) => {
-  switch (status) {
+  switch (normalizeExtractionStatus(status)) {
     case "succeeded":
       return {
         label: "Completed",
@@ -194,7 +261,7 @@ const getResolvedExtractionStatus = ({
   if (
     batchStatus === CANCELLED_BATCH_STATUS &&
     isCurrentBatchFile &&
-    (!explicitStatus || PENDING_LIKE_STATUSES.has(explicitStatus))
+    PENDING_LIKE_STATUSES.has(explicitStatus)
   ) {
     return "cancelled";
   }
@@ -222,28 +289,29 @@ const statusCellRenderer = (params) => {
   const failureCode = params.data?.failure_code;
   const failureReason = params.data?.failure_reason;
   const tooltipId = `file-status-${params.data?.file_id}`;
+  const failureDetails = getFailureDisplayDetails({
+    status,
+    failureCode,
+    failureReason,
+  });
 
   let tooltipHtml = "";
-  if (status === "failed") {
-    const mappedMessage = getErrorMessage(failureCode);
-    const normalizedFailureReason = failureReason?.trim();
-    const showSecondaryReason =
-      normalizedFailureReason && normalizedFailureReason !== mappedMessage;
-
+  if (failureDetails) {
     tooltipHtml = `<div class="max-w-xs text-left">
-      <div class="font-semibold">${escapeTooltipHtml(mappedMessage)}</div>
+      <div class="font-semibold">${escapeTooltipHtml(
+        failureDetails.message,
+      )}</div>
       ${
-        showSecondaryReason
+        failureDetails.secondaryReason
           ? `<div class="mt-1 text-xs opacity-90">${escapeTooltipHtml(
-              normalizedFailureReason,
+              failureDetails.secondaryReason,
             )}</div>`
           : ""
       }
+      <div class="mt-1 text-xs opacity-90">${escapeTooltipHtml(
+        failureDetails.retryHint,
+      )}</div>
     </div>`;
-  } else if (status === "cancelled" && failureReason?.trim()) {
-    tooltipHtml = `<div class="max-w-xs text-left text-xs">${escapeTooltipHtml(
-      failureReason.trim(),
-    )}</div>`;
   }
 
   return (
@@ -263,6 +331,48 @@ const statusCellRenderer = (params) => {
       {tooltipHtml && (
         <Tooltip id={tooltipId} place="top" className="z-50 max-w-xs" />
       )}
+    </>
+  );
+};
+
+const reasonCellRenderer = (params) => {
+  const failureDetails = getFailureDisplayDetails({
+    status: params.data?.extraction_status,
+    failureCode: params.data?.failure_code,
+    failureReason: params.data?.failure_reason,
+  });
+
+  if (!failureDetails) {
+    return <span className="text-blueGray-400">-</span>;
+  }
+
+  const tooltipId = `file-reason-${params.data?.file_id}`;
+  const tooltipHtml = `<div class="max-w-sm text-left">
+    <div class="font-semibold">${escapeTooltipHtml(
+      failureDetails.message,
+    )}</div>
+    ${
+      failureDetails.secondaryReason
+        ? `<div class="mt-1 text-xs opacity-90">${escapeTooltipHtml(
+            failureDetails.secondaryReason,
+          )}</div>`
+        : ""
+    }
+    <div class="mt-1 text-xs opacity-90">${escapeTooltipHtml(
+      failureDetails.retryHint,
+    )}</div>
+  </div>`;
+
+  return (
+    <>
+      <span
+        className="inline-block max-w-xs truncate text-xs text-blueGray-600"
+        data-tooltip-id={tooltipId}
+        data-tooltip-html={tooltipHtml}
+      >
+        {failureDetails.message}
+      </span>
+      <Tooltip id={tooltipId} place="top" className="z-50 max-w-sm" />
     </>
   );
 };
@@ -288,6 +398,9 @@ const ExtractionFileList = () => {
   const selectedFile = useSelector(
     (state) => state.dataExtraction.selectedFile,
   );
+  const selectedFileId = useSelector(
+    (state) => state.dataExtraction.selectedFileId,
+  );
   const selectedFileQuestions = useSelector(
     (state) => state.dataExtraction.selectedFileQuestions,
   );
@@ -299,8 +412,11 @@ const ExtractionFileList = () => {
     () => [
       {
         headerName: "ID",
-        valueGetter: "node.rowIndex + 1",
+        valueGetter: (params) => (params.node?.rowIndex ?? 0) + 1,
         width: 80,
+        sortable: false,
+        filter: false,
+        suppressMenu: true,
       },
       {
         field: "file_name",
@@ -317,6 +433,14 @@ const ExtractionFileList = () => {
         filter: true,
         editable: false,
         cellRenderer: statusCellRenderer,
+      },
+      {
+        field: "failure_reason",
+        headerName: "Reason",
+        flex: 1.2,
+        filter: false,
+        editable: false,
+        cellRenderer: reasonCellRenderer,
       },
       {
         headerName: "Action",
@@ -385,6 +509,20 @@ const ExtractionFileList = () => {
       })),
     [batchStatus, currentBatchID, fileStatuses, processedFiles],
   );
+
+  useEffect(() => {
+    if (!selectedFileId) return;
+
+    const selectedRow = rowData.find(
+      (file) => String(file.file_id) === String(selectedFileId),
+    );
+    if (
+      !selectedRow ||
+      !isViewableExtractionStatus(selectedRow.extraction_status)
+    ) {
+      dispatch(clearSelectedExtractionResult());
+    }
+  }, [dispatch, rowData, selectedFileId]);
 
   const handleClearAllResults = async () => {
     const response = await dispatch(deleteAllSEAResults());

@@ -66,6 +66,37 @@ const buildFileStatus = (existingStatus = {}, source = {}) => ({
     source.extraction_engine ?? existingStatus.extraction_engine ?? null,
 });
 
+const STATUSES_THAT_SHOULD_NOT_BECOME_CANCELLED = new Set([
+  "succeeded",
+  "completed",
+  "failed",
+]);
+const PRESERVED_TERMINAL_STATUSES = new Set(["failed", "cancelled"]);
+const CANCELLED_FILE_REASON =
+  "Processing was cancelled before this file completed.";
+
+const getIncomingExplicitFileId = (file = {}) =>
+  file.file_id ?? file.fileId ?? file.id ?? null;
+
+const getIncomingFileId = (file = {}, batchId, index) => {
+  const fileName =
+    file.file_name || file.fileName || file.filename || file.name || "file";
+  const explicitFileId = getIncomingExplicitFileId(file);
+
+  return (
+    explicitFileId ?? `cancelled:${batchId}:${fileName}:${index}`
+  );
+};
+
+const getIncomingFileName = (file = {}) =>
+  file.file_name || file.fileName || file.filename || file.name || "";
+
+const getFileStatusValue = (file = {}, fileStatuses = {}) =>
+  file.extraction_status || fileStatuses[file.file_id]?.extraction_status;
+
+const getBatchFileNameKey = (file = {}) =>
+  file.batch_id && file.file_name ? `${file.batch_id}::${file.file_name}` : null;
+
 const mergeProcessedFiles = (existingFiles, incomingFiles = [], batchId) => {
   if (!incomingFiles.length) {
     return existingFiles;
@@ -101,6 +132,33 @@ const mergeProcessedFiles = (existingFiles, incomingFiles = [], batchId) => {
   });
 
   return hasChanges ? nextFiles : existingFiles;
+};
+
+const mergeFetchedProcessedFiles = (
+  existingFiles = [],
+  incomingFiles = [],
+  fileStatuses = {},
+) => {
+  const incomingFileIds = new Set(
+    incomingFiles
+      .filter((file) => file?.file_id != null)
+      .map((file) => String(file.file_id)),
+  );
+  const incomingBatchFileNames = new Set(
+    incomingFiles.map(getBatchFileNameKey).filter(Boolean),
+  );
+  const preservedTerminalFiles = existingFiles.filter((file) => {
+    const status = getFileStatusValue(file, fileStatuses);
+    const batchFileNameKey = getBatchFileNameKey(file);
+
+    return (
+      PRESERVED_TERMINAL_STATUSES.has(status) &&
+      !incomingFileIds.has(String(file.file_id)) &&
+      (!batchFileNameKey || !incomingBatchFileNames.has(batchFileNameKey))
+    );
+  });
+
+  return [...incomingFiles, ...preservedTerminalFiles];
 };
 
 const syncFileStatuses = (state, files = []) => {
@@ -179,6 +237,12 @@ const dataExtractionSlice = createSlice({
   reducers: {
     setSelectedFile(state, action) {
       state.selectedFile = action.payload;
+    },
+    clearSelectedExtractionResult(state) {
+      state.extractionResult = [];
+      state.selectedFile = "";
+      state.selectedFileId = null;
+      state.selectedFileQuestions = null;
     },
     resetDataExtractionStore(state) {
       return initialState;
@@ -268,6 +332,68 @@ const dataExtractionSlice = createSlice({
         }
       }
     },
+    upsertCancelledBatchFiles: (state, action) => {
+      const { batchId, files = [] } = action.payload || {};
+      if (!batchId || !Array.isArray(files) || files.length === 0) return;
+
+      files.forEach((file, index) => {
+        const fileName = getIncomingFileName(file).trim();
+        if (!fileName) return;
+
+        const explicitFileId = getIncomingExplicitFileId(file);
+        const existingIndex =
+          explicitFileId != null
+            ? state.processedFiles.findIndex(
+                (existingFile) =>
+                  String(existingFile.file_id) === String(explicitFileId),
+              )
+            : state.processedFiles.findIndex(
+                (existingFile) =>
+                  existingFile.batch_id === batchId &&
+                  existingFile.file_name === fileName,
+              );
+
+        if (existingIndex >= 0) {
+          const existingFile = state.processedFiles[existingIndex];
+          const existingStatus =
+            existingFile.extraction_status ||
+            state.fileStatuses[existingFile.file_id]?.extraction_status;
+
+          if (STATUSES_THAT_SHOULD_NOT_BECOME_CANCELLED.has(existingStatus)) {
+            return;
+          }
+
+          const nextFile = {
+            ...existingFile,
+            extraction_status: "cancelled",
+            failure_reason:
+              existingFile.failure_reason ||
+              state.fileStatuses[existingFile.file_id]?.failure_reason ||
+              CANCELLED_FILE_REASON,
+          };
+          state.processedFiles[existingIndex] = nextFile;
+          dataExtractionSlice.caseReducers.updateFileStatus(state, {
+            payload: nextFile,
+          });
+          return;
+        }
+
+        const fileId = String(getIncomingFileId(file, batchId, index));
+        const cancelledFile = {
+          ...file,
+          file_id: fileId,
+          file_name: fileName,
+          batch_id: batchId,
+          extraction_status: "cancelled",
+          failure_reason: file.failure_reason || CANCELLED_FILE_REASON,
+        };
+
+        state.processedFiles.push(cancelledFile);
+        dataExtractionSlice.caseReducers.updateFileStatus(state, {
+          payload: cancelledFile,
+        });
+      });
+    },
     setBatchStatus: (state, action) => {
       state.batchStatus = action.payload;
       if (action.payload !== "in_progress") {
@@ -328,12 +454,18 @@ const dataExtractionSlice = createSlice({
       })
       .addCase(fetchProcessedFileNames.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.processedFiles = action.payload;
-        syncFileStatuses(state, action.payload);
+        state.processedFiles = mergeFetchedProcessedFiles(
+          state.processedFiles,
+          action.payload,
+          state.fileStatuses,
+        );
+        syncFileStatuses(state, state.processedFiles);
 
         if (
           state.selectedFileId &&
-          !action.payload.some((file) => file.file_id === state.selectedFileId)
+          !state.processedFiles.some(
+            (file) => String(file.file_id) === String(state.selectedFileId),
+          )
         ) {
           state.extractionResult = [];
           state.selectedFile = "";
@@ -396,6 +528,11 @@ const dataExtractionSlice = createSlice({
         state.files = state.files.filter(
           (file) => file.id !== action.payload.id,
         );
+        const deletedFileId = action.meta.arg;
+        state.processedFiles = state.processedFiles.filter(
+          (file) => String(file.file_id) !== String(deletedFileId),
+        );
+        delete state.fileStatuses[deletedFileId];
       })
       .addCase(deletePdfData.rejected, (state, action) => {
         state.status = "failed";
@@ -416,6 +553,8 @@ const dataExtractionSlice = createSlice({
       })
       .addCase(deleteAllSEAResults.fulfilled, (state) => {
         state.status = "succeeded";
+        state.processedFiles = [];
+        state.fileStatuses = {};
         state.extractionResult = [];
         state.selectedFile = "";
         state.selectedFileId = null;
@@ -430,6 +569,7 @@ const dataExtractionSlice = createSlice({
 
 export const {
   setSelectedFile,
+  clearSelectedExtractionResult,
   resetDataExtractionStore,
   setIncludeAboutFile,
   setIsStopping,
@@ -445,6 +585,7 @@ export const {
   setProcessedCount,
   setProcessedFiles,
   appendProcessedFile,
+  upsertCancelledBatchFiles,
   setBatchStatus,
   setSucceededCount,
   setFailedCount,

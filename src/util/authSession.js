@@ -6,6 +6,7 @@ const AUTH_STORAGE_KEYS = [
   "loginMethod",
   "role",
   "username",
+  "displayName",
 ];
 const APP_SESSION_STORAGE_KEYS = [
   ...AUTH_STORAGE_KEYS,
