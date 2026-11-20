@@ -1,5 +1,5 @@
-# Use Node.js v18 to align with your GitHub workflow
-FROM node:18-alpine AS builder
+# Use Node.js v22 to align with your GitHub workflow
+FROM node:22-alpine AS builder
 ENV NODE_ENV production
 # Add a work directory
 WORKDIR /app
@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # Bundle static assets with nginx
-FROM nginx:1.21.0-alpine as production
+FROM nginx:1.30.7-alpine AS production
 ENV NODE_ENV production
 # Copy built assets from builder
 COPY --from=builder /app/build /usr/share/nginx/html

@@ -57,9 +57,13 @@ describe("AuthContextProvider", () => {
   it("refreshes SSO sessions through the backend exchange instead of storing the Microsoft access token", async () => {
     const user = userEvent.setup();
     const microsoftAccount = { username: "tejas@kintiga.com" };
+    // Keep dates relative to now so the stored session is never already expired
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const currentExpiry = new Date(Date.now() + DAY_MS).toISOString();
+    const refreshedExpiry = new Date(Date.now() + 2 * DAY_MS).toISOString();
 
     localStorage.setItem("token", "Bearer old-slr-token");
-    localStorage.setItem("expirationTime", "2026-06-01T00:00:00.000Z");
+    localStorage.setItem("expirationTime", currentExpiry);
     localStorage.setItem("loginMethod", "sso");
 
     mockGetActiveAccount.mockReturnValue(microsoftAccount);
@@ -71,7 +75,7 @@ describe("AuthContextProvider", () => {
     api.post.mockResolvedValue({
       data: {
         access_token: "new-slr-token",
-        expiration_time: "2026-06-02T00:00:00.000Z",
+        expiration_time: refreshedExpiry,
         role: "admin",
         username: "tejas@kintiga.com",
       },
@@ -102,9 +106,7 @@ describe("AuthContextProvider", () => {
     expect(localStorage.getItem("token")).not.toBe(
       "Bearer microsoft-access-token",
     );
-    expect(localStorage.getItem("expirationTime")).toBe(
-      "2026-06-02T00:00:00.000Z",
-    );
+    expect(localStorage.getItem("expirationTime")).toBe(refreshedExpiry);
     expect(localStorage.getItem("role")).toBe("admin");
     expect(localStorage.getItem("username")).toBe("tejas@kintiga.com");
     expect(screen.getByTestId("token")).toHaveTextContent("Bearer new-slr-token");
